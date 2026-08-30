@@ -8,11 +8,11 @@ export function renderGuestRequestsView(state) {
     <div class="app-content animate-fade-in" style="padding-bottom: 40px;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-          <div class="label-bold" style="color: var(--secondary);">Room 402 Activity</div>
-          <h2 class="display-title" style="font-size: 26px;">Active Requests</h2>
+          <div class="label-bold" style="color: var(--secondary);">Room 402 Activity Log</div>
+          <h2 class="display-title" style="font-size: 26px;">Suite Notes</h2>
         </div>
         <button class="btn-secondary" id="new-req-btn" style="padding: 6px 12px; font-size: 11px;">
-          + New Service
+          + Add Service Note
         </button>
       </div>
 

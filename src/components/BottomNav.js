@@ -24,8 +24,8 @@ export function renderBottomNav(state) {
           <span>Services</span>
         </button>
         <button class="nav-item ${currentView === 'guest-requests' ? 'active' : ''}" data-view="guest-requests">
-          <span class="material-symbols-outlined">receipt_long</span>
-          <span>Requests</span>
+          <span class="material-symbols-outlined">description</span>
+          <span>Notes</span>
           ${activeRequestsCount > 0 ? `<span class="nav-badge" style="background: var(--primary);">${activeRequestsCount}</span>` : ''}
         </button>
       </nav>
