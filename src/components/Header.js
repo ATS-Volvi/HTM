@@ -3,48 +3,48 @@ import { showToast } from './Toast.js';
 
 export function renderHeader(state) {
   const isGuest = state.currentMode === 'guest';
-  const hasOrders = state.orders.length > 0;
   const pendingTasksCount = state.tasks.filter(t => t.status === 'Pending').length;
 
   return `
     <header class="app-header">
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <div style="width: 36px; height: 36px; border-radius: 50%; overflow: hidden; border: 1.5px solid var(--gold-accent); flex-shrink: 0; box-shadow: var(--shadow-sm);">
+      <!-- Left: User Profile / Room Info -->
+      <div class="header-left">
+        <div class="header-avatar-circle">
           <img 
             src="${isGuest ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80' : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'}" 
             alt="Profile Avatar" 
-            style="width: 100%; height: 100%; object-fit: cover;"
           />
         </div>
-        <div>
-          <div class="label-bold" style="color: var(--secondary); font-size: 10px;">
-            ${isGuest ? 'Room 402 • Ocean View' : 'Duty Supervisor • Ops'}
-          </div>
-          <div style="font-family: var(--font-serif); font-size: 14px; font-weight: 700; color: var(--primary);">
-            ${isGuest ? 'Mr. Harrison' : 'Elena Gomez'}
-          </div>
+        <div class="header-user-info">
+          <span class="header-room-pill">${isGuest ? 'Suite 402' : 'Floor 4 Lead'}</span>
+          <span class="header-user-name">${isGuest ? 'Mr. Harrison' : 'Elena Gomez'}</span>
         </div>
       </div>
 
-      <!-- Mode Switcher -->
-      <div class="mode-badge-switch" id="header-mode-switcher">
-        <button class="mode-tab ${isGuest ? 'active' : ''}" data-mode="guest">
-          <span class="material-symbols-outlined" style="font-size: 14px;">concierge</span>
-          Guest
-        </button>
-        <button class="mode-tab ${!isGuest ? 'active' : ''}" data-mode="staff">
-          <span class="material-symbols-outlined" style="font-size: 14px;">tune</span>
-          Staff Ops
-        </button>
+      <!-- Center: Luxury Brand Logo -->
+      <div class="header-center">
+        <h1 class="header-brand-title">LuxeStay</h1>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn-icon" id="notification-btn" title="Notifications" style="position: relative;">
-          <span class="material-symbols-outlined" style="color: var(--primary);">notifications</span>
+      <!-- Right: Role Switcher & Notification Bell -->
+      <div class="header-right">
+        <div class="mode-badge-switch" id="header-mode-switcher">
+          <button class="mode-tab ${isGuest ? 'active' : ''}" data-mode="guest" title="Switch to Guest View">
+            <span class="material-symbols-outlined" style="font-size: 13px;">concierge</span>
+            <span>Guest</span>
+          </button>
+          <button class="mode-tab ${!isGuest ? 'active' : ''}" data-mode="staff" title="Switch to Staff Operations Hub">
+            <span class="material-symbols-outlined" style="font-size: 13px;">tune</span>
+            <span>Staff</span>
+          </button>
+        </div>
+
+        <button class="header-notif-btn" id="notification-btn" title="Notifications">
+          <span class="material-symbols-outlined">notifications</span>
           ${isGuest && state.dndActive ? `
-            <span style="position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; background: var(--error); border-radius: 50%; border: 1.5px solid white;"></span>
+            <span class="notif-dot notif-dot-error"></span>
           ` : !isGuest && pendingTasksCount > 0 ? `
-            <span style="position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; background: var(--warning); border-radius: 50%; border: 1.5px solid white;"></span>
+            <span class="notif-dot notif-dot-warn"></span>
           ` : ''}
         </button>
       </div>
@@ -56,11 +56,12 @@ export function bindHeaderEvents() {
   const switchers = document.querySelectorAll('.mode-tab');
   switchers.forEach(tab => {
     tab.addEventListener('click', (e) => {
+      e.stopPropagation();
       const mode = tab.dataset.mode;
       store.setMode(mode);
       showToast(
-        mode === 'guest' ? 'Switched to Guest Suite Portal' : 'Switched to Staff Operations Hub',
-        mode === 'guest' ? 'Managing Room 402 experience' : 'Live hotel dispatch & supervisor tools active',
+        mode === 'guest' ? 'Guest Suite Mode' : 'Staff Operations Mode',
+        mode === 'guest' ? 'Viewing Suite 402 guest portal' : 'Viewing supervisor command center & task dispatch',
         mode === 'guest' ? 'bed' : 'admin_panel_settings'
       );
     });
@@ -72,8 +73,8 @@ export function bindHeaderEvents() {
       const state = store.state;
       if (state.currentMode === 'guest') {
         showToast(
-          'Active Concierge Updates',
-          state.dndActive ? 'Privacy mode enabled (Do Not Disturb)' : 'All hotel services are actively available for Room 402.',
+          'Suite 402 Concierge Status',
+          state.dndActive ? 'Privacy Mode is active (Do Not Disturb).' : 'All hotel services are actively available.',
           'notifications_active'
         );
       } else {

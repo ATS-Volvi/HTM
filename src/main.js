@@ -96,7 +96,16 @@ function renderApp() {
 
     <div class="app-viewport-wrapper ${isFrameFullscreen ? 'frame-fullscreen' : ''}">
       <div class="mobile-device-frame">
-        <div class="device-notch"></div>
+        <!-- Phone Status Bar -->
+        <div class="phone-status-bar">
+          <span class="phone-status-time">9:41</span>
+          <div class="device-notch"></div>
+          <div class="phone-status-icons">
+            <span class="material-symbols-outlined" style="font-size: 14px;">signal_cellular_alt</span>
+            <span class="material-symbols-outlined" style="font-size: 14px;">wifi</span>
+            <span class="material-symbols-outlined" style="font-size: 16px;">battery_full</span>
+          </div>
+        </div>
         ${renderHeader(state)}
         ${viewHtml}
         ${renderBottomNav(state)}
