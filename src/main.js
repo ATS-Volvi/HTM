@@ -14,6 +14,7 @@ import { renderTaskQueueView, bindTaskQueueEvents } from './views/staff/TaskQueu
 import { renderMaintenanceView, bindMaintenanceEvents } from './views/staff/MaintenanceView.js';
 import { renderInventoryView, bindInventoryEvents } from './views/staff/InventoryView.js';
 import { renderShiftScheduleView, bindShiftScheduleEvents } from './views/staff/ShiftScheduleView.js';
+import { renderAdminManagerView, bindAdminManagerEvents } from './views/admin/AdminManagerView.js';
 
 let isFrameFullscreen = false;
 
@@ -23,62 +24,68 @@ function renderApp() {
 
   const state = store.state;
   const currentView = state.currentView;
+  const currentMode = state.currentMode;
 
   let viewHtml = '';
   let bindViewEvents = () => {};
 
-  switch (currentView) {
-    case 'guest-home':
-      viewHtml = renderGuestHomeView(state);
-      bindViewEvents = bindGuestHomeEvents;
-      break;
-    case 'dining':
-      viewHtml = renderDiningMenuView(state);
-      bindViewEvents = bindDiningMenuEvents;
-      break;
-    case 'checkout':
-      viewHtml = renderCheckoutView(state);
-      bindViewEvents = bindCheckoutEvents;
-      break;
-    case 'order-tracking':
-      viewHtml = renderOrderTrackingView(state);
-      bindViewEvents = bindOrderTrackingEvents;
-      break;
-    case 'schedule-service':
-      viewHtml = renderScheduleServiceView(state);
-      bindViewEvents = bindScheduleServiceEvents;
-      break;
-    case 'report-issue':
-      viewHtml = renderReportIssueView(state);
-      bindViewEvents = bindReportIssueEvents;
-      break;
-    case 'guest-requests':
-      viewHtml = renderGuestRequestsView(state);
-      bindViewEvents = bindGuestRequestsEvents;
-      break;
-    case 'staff-rooms':
-      viewHtml = renderSupervisorRoomGridView(state);
-      bindViewEvents = bindSupervisorRoomGridEvents;
-      break;
-    case 'staff-tasks':
-      viewHtml = renderTaskQueueView(state);
-      bindViewEvents = bindTaskQueueEvents;
-      break;
-    case 'staff-maintenance':
-      viewHtml = renderMaintenanceView(state);
-      bindViewEvents = bindMaintenanceEvents;
-      break;
-    case 'staff-inventory':
-      viewHtml = renderInventoryView(state);
-      bindViewEvents = bindInventoryEvents;
-      break;
-    case 'staff-shifts':
-      viewHtml = renderShiftScheduleView(state);
-      bindViewEvents = bindShiftScheduleEvents;
-      break;
-    default:
-      viewHtml = renderGuestHomeView(state);
-      bindViewEvents = bindGuestHomeEvents;
+  if (currentMode === 'admin' || currentView.startsWith('admin-')) {
+    viewHtml = renderAdminManagerView(state);
+    bindViewEvents = bindAdminManagerEvents;
+  } else {
+    switch (currentView) {
+      case 'guest-home':
+        viewHtml = renderGuestHomeView(state);
+        bindViewEvents = bindGuestHomeEvents;
+        break;
+      case 'dining':
+        viewHtml = renderDiningMenuView(state);
+        bindViewEvents = bindDiningMenuEvents;
+        break;
+      case 'checkout':
+        viewHtml = renderCheckoutView(state);
+        bindViewEvents = bindCheckoutEvents;
+        break;
+      case 'order-tracking':
+        viewHtml = renderOrderTrackingView(state);
+        bindViewEvents = bindOrderTrackingEvents;
+        break;
+      case 'schedule-service':
+        viewHtml = renderScheduleServiceView(state);
+        bindViewEvents = bindScheduleServiceEvents;
+        break;
+      case 'report-issue':
+        viewHtml = renderReportIssueView(state);
+        bindViewEvents = bindReportIssueEvents;
+        break;
+      case 'guest-requests':
+        viewHtml = renderGuestRequestsView(state);
+        bindViewEvents = bindGuestRequestsEvents;
+        break;
+      case 'staff-rooms':
+        viewHtml = renderSupervisorRoomGridView(state);
+        bindViewEvents = bindSupervisorRoomGridEvents;
+        break;
+      case 'staff-tasks':
+        viewHtml = renderTaskQueueView(state);
+        bindViewEvents = bindTaskQueueEvents;
+        break;
+      case 'staff-maintenance':
+        viewHtml = renderMaintenanceView(state);
+        bindViewEvents = bindMaintenanceEvents;
+        break;
+      case 'staff-inventory':
+        viewHtml = renderInventoryView(state);
+        bindViewEvents = bindInventoryEvents;
+        break;
+      case 'staff-shifts':
+        viewHtml = renderShiftScheduleView(state);
+        bindViewEvents = bindShiftScheduleEvents;
+        break;
+      default:
+        viewHtml = renderGuestHomeView(state);
+        bindViewEvents = bindGuestHomeEvents;
+    }
   }
 
   appContainer.innerHTML = `

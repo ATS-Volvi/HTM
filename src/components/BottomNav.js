@@ -1,10 +1,11 @@
 import { store } from '../state/store.js';
 
 export function renderBottomNav(state) {
-  const isGuest = state.currentMode === 'guest';
+  const mode = state.currentMode; // 'guest' | 'staff' | 'admin'
   const currentView = state.currentView;
+  const adminSubTab = state.adminSubTab || 'overview';
 
-  if (isGuest) {
+  if (mode === 'guest') {
     const cartCount = state.cart.reduce((sum, item) => sum + item.quantity, 0);
     const activeRequestsCount = state.requests.filter(r => r.status !== 'Completed').length;
 
@@ -30,7 +31,7 @@ export function renderBottomNav(state) {
         </button>
       </nav>
     `;
-  } else {
+  } else if (mode === 'staff') {
     // Staff Hub Navigation
     const urgentTasks = state.tasks.filter(t => t.priority === 'Urgent' && t.status !== 'Completed').length;
     const criticalInventory = state.inventory.filter(i => i.status === 'Critical' || i.status === 'Low Stock').length;
@@ -61,6 +62,31 @@ export function renderBottomNav(state) {
         </button>
       </nav>
     `;
+  } else {
+    // General Manager / Admin Mode Navigation
+    const openComplaintsCount = state.complaints.filter(c => c.status !== 'Resolved').length;
+
+    return `
+      <nav class="bottom-nav" style="background: #ffffff; border-top: 1.5px solid var(--secondary-fixed);">
+        <button class="nav-item ${adminSubTab === 'overview' ? 'active' : ''}" data-admin-tab="overview">
+          <span class="material-symbols-outlined">dashboard</span>
+          <span>Overview</span>
+        </button>
+        <button class="nav-item ${adminSubTab === 'staff' ? 'active' : ''}" data-admin-tab="staff">
+          <span class="material-symbols-outlined">badge</span>
+          <span>Staff</span>
+        </button>
+        <button class="nav-item ${adminSubTab === 'menu' ? 'active' : ''}" data-admin-tab="menu">
+          <span class="material-symbols-outlined">restaurant_menu</span>
+          <span>Menu</span>
+        </button>
+        <button class="nav-item ${adminSubTab === 'complaints' ? 'active' : ''}" data-admin-tab="complaints">
+          <span class="material-symbols-outlined">report_problem</span>
+          <span>Complaints</span>
+          ${openComplaintsCount > 0 ? `<span class="nav-badge" style="background: var(--error);">${openComplaintsCount}</span>` : ''}
+        </button>
+      </nav>
+    `;
   }
 }
 
@@ -69,8 +95,12 @@ export function bindBottomNavEvents() {
   items.forEach(item => {
     item.addEventListener('click', () => {
       const view = item.dataset.view;
+      const adminTab = item.dataset.adminTab;
+
       if (view) {
         store.setView(view);
+      } else if (adminTab) {
+        store.setAdminSubTab(adminTab);
       }
     });
   });
