@@ -44,20 +44,17 @@ export function renderHeader(state) {
         <h1 class="header-brand-title">LuxeStay</h1>
       </div>
 
-      <!-- Right: 3-Way Role Switcher & Notification Bell -->
+      <!-- Right: 3-Way Role Switcher (icon-only) & Notification Bell -->
       <div class="header-right">
         <div class="mode-badge-switch" id="header-mode-switcher">
           <button class="mode-tab ${isGuest ? 'active' : ''}" data-mode="guest" title="Guest Suite Portal">
-            <span class="material-symbols-outlined" style="font-size: 13px;">concierge</span>
-            <span>Guest</span>
+            <span class="material-symbols-outlined">concierge</span>
           </button>
           <button class="mode-tab ${isStaff ? 'active' : ''}" data-mode="staff" title="Staff Dispatch & Tasks">
-            <span class="material-symbols-outlined" style="font-size: 13px;">tune</span>
-            <span>Staff</span>
+            <span class="material-symbols-outlined">tune</span>
           </button>
-          <button class="mode-tab ${isAdmin ? 'active' : ''}" data-mode="admin" title="General Manager & Menu / Staff Auto-Assign">
-            <span class="material-symbols-outlined" style="font-size: 13px;">admin_panel_settings</span>
-            <span>Manager</span>
+          <button class="mode-tab ${isAdmin ? 'active' : ''}" data-mode="admin" title="General Manager & Operations">
+            <span class="material-symbols-outlined">admin_panel_settings</span>
           </button>
         </div>
 
