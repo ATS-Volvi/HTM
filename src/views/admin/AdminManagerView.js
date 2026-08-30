@@ -522,11 +522,15 @@ export function bindAdminManagerEvents() {
     btn.addEventListener('click', () => store.setFloor(btn.dataset.floor))
   );
 
-  // Room card tap → toast
+  // Room card tap → quick status cycle (Clean → Dirty → Inspected → In Progress → Clean)
   document.querySelectorAll('.room-card-mgr').forEach(card =>
     card.addEventListener('click', () => {
       const room = store.state.rooms.find(r => r.id === card.dataset.roomId);
-      if (room) showToast(`Room ${room.id} — ${room.status}`, `Guest: ${room.guest} · Staff: ${room.housekeeper}`, 'bed');
+      if (!room) return;
+      const cycle = { 'Clean': 'Dirty', 'Dirty': 'In Progress', 'In Progress': 'Inspected', 'Inspected': 'Clean', 'DND': 'Clean' };
+      const newStatus = cycle[room.status] || 'Clean';
+      store.updateRoomStatus(room.id, newStatus);
+      showToast(`Room ${room.id} → ${newStatus}`, `Guest: ${room.guest} · Staff: ${room.housekeeper}`, 'bed');
     })
   );
 
@@ -544,18 +548,74 @@ export function bindAdminManagerEvents() {
     showToast('Diagnostics Completed', 'All 12 BMS automation gateways responding in 4ms.', 'sensors')
   );
 
-  // Staff Reassign
-  document.querySelectorAll('.reassign-staff-btn').forEach(btn =>
-    btn.addEventListener('click', () =>
-      showToast('Reassignment Initiated', `${btn.dataset.name} reassignment flow would open here.`, 'swap_horiz')
-    )
-  );
+  // Staff Reassign → show unassigned dirty rooms and let manager pick
+  document.querySelectorAll('.reassign-staff-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const staffName = btn.dataset.name;
+      const rooms = store.state.rooms;
 
-  // Handover Note
+      // Find rooms that are Dirty or have no housekeeper assignment / are unassigned
+      const available = rooms.filter(r => r.status === 'Dirty' || r.status === 'In Progress');
+
+      if (available.length === 0) {
+        showToast('No Rooms to Assign', 'All suites are currently clean or already fully assigned.', 'check_circle');
+        return;
+      }
+
+      // Build a readable list for the prompt
+      const roomList = available
+        .map((r, i) => `${i + 1}. Room ${r.id} (${r.type}) — ${r.status} · Currently: ${r.housekeeper}`)
+        .join('\n');
+
+      const choice = prompt(
+        `Assign ${staffName} to which room?\n\nAvailable rooms:\n${roomList}\n\nEnter room number (e.g. 403):`,
+        available[0].id
+      );
+
+      if (!choice) return;
+
+      const targetRoom = rooms.find(r => r.id === choice.trim());
+      if (!targetRoom) {
+        showToast('Room Not Found', `Room ${choice} does not exist or is not available.`, 'error');
+        return;
+      }
+
+      // Perform assignment
+      store.updateRoomStatus(targetRoom.id, 'In Progress', staffName);
+
+      // Inject a task into the queue
+      store.state.tasks.unshift({
+        id: 'TSK-' + Math.floor(5000 + Math.random() * 5000),
+        title: `Room ${targetRoom.id} — Assigned Turnover Service`,
+        category: 'Housekeeping',
+        room: targetRoom.id,
+        guest: targetRoom.guest,
+        priority: targetRoom.vip ? 'Urgent' : 'High',
+        status: 'In Progress',
+        timeDue: 'Today 1:00 PM',
+        assignee: staffName,
+        details: `Manager manually assigned ${staffName} to Room ${targetRoom.id} (${targetRoom.type}).`
+      });
+
+      // Update staff active room count
+      const staffMember = store.state.staffList.find(s => s.name === staffName);
+      if (staffMember) staffMember.activeRooms = Math.min(staffMember.maxRooms, staffMember.activeRooms + 1);
+
+      store.notify();
+      showToast('Room Assigned', `${staffName} assigned to Room ${targetRoom.id} (${targetRoom.type}).`, 'assignment_ind');
+    });
+  });
+
+  // Handover Note — let manager type an actual note
   const handoverBtn = document.getElementById('submit-handover-btn');
-  if (handoverBtn) handoverBtn.addEventListener('click', () =>
-    showToast('Shift Handover Report', 'Handover notes synced to Duty Manager and Evening Supervisor.', 'note_add')
-  );
+  if (handoverBtn) {
+    handoverBtn.addEventListener('click', () => {
+      const note = prompt('Enter shift handover note (will be logged and synced):', 'Suite 501 needs champagne at 12:00 PM. Room 303 HVAC sensor replaced.');
+      if (note && note.trim()) {
+        showToast('Handover Note Logged', `"${note.trim().slice(0, 60)}${note.length > 60 ? '…' : ''}" synced to all supervisors.`, 'note_add');
+      }
+    });
+  }
 
   // Inventory Adjustments
   document.querySelectorAll('.mgr-inv-adj-btn').forEach(btn =>
