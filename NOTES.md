@@ -127,7 +127,41 @@ HTM/
 
 ---
 
-## 🔄 5. State Management & Synchronization
+## 👔 5. Executive General Manager & Admin Portal
+
+The **Manager Portal** provides executive-level oversight and administrative control over hotel operations:
+
+### 5.1 Overview & Intelligent Auto-Assign Engine
+- **Executive KPIs**:
+  - Real-time occupancy rate (e.g. 94%, 17/18 active suites).
+  - In-Room Gastronomy daily revenue ($3,420.50).
+  - Turnover queue counter (dirty departure rooms awaiting assignment).
+  - Open service escalation tickets.
+- **Intelligent Auto-Assign Algorithm**:
+  - One-click engine distributes all unassigned dirty departure rooms evenly across on-duty housekeepers based on floor proximity, VIP prioritization, and current workload capacity.
+  - Automatically generates turnover tasks in the staff task queue and updates room status to *In Progress*.
+
+### 5.2 Staff Allocation & Workload Monitor
+- **Roster Overview**: Tracks active rooms vs maximum capacity for each on-duty housekeeper and butler.
+- **Visual Workload Bars**: Colored indicators (*Green: Available, Amber: Approaching Par, Red: At Capacity*).
+- **Manual Assignment**: One-click staff reassignment per zone and floor.
+
+### 5.3 Menu & Gastronomy Editor
+- **Live Menu Management**:
+  - Add new gourmet dishes with prices, categories, and signature tags.
+  - Quick toggle between **In Stock** and **Sold Out** status.
+  - Real-time price and description editor synced with the guest in-room dining portal.
+
+### 5.4 Guest Complaints & Escalations Center
+- **Grievance Triage**: Categorized by severity (*High, Moderate, Low*) across all suites.
+- **Direct Guest Contact**: One-tap executive concierge line dialing.
+- **Resolution & Compensation Perk Assigner**:
+  - Mark issues as resolved with official manager log notes.
+  - Grant apology perks (e.g. *Complimentary Champagne Setup, $50 Dining Credit, Late Checkout, Spa Vouchers*).
+
+---
+
+## 🔄 6. State Management & Synchronization
 
 The app uses a unified reactive pub/sub store (`src/state/store.js`):
 1. **LocalStorage Persistence**: Maintains state across page reloads under `luxestay_hotel_sync_state_v1`.
