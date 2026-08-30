@@ -54,34 +54,50 @@ export function renderBottomNav(state) {
     `;
   }
 
-  // ── MANAGER / ADMIN ────────────────────────────────────
+  // ── MANAGER / ADMIN ────────────────────────────────────────────────────────
   const openComplaintsCount = state.complaints.filter(c => c.status !== 'Resolved').length;
   const urgentTasks         = state.tasks.filter(t => t.priority === 'Urgent' && t.status !== 'Completed').length;
   const criticalInventory   = state.inventory.filter(i => i.status === 'Critical' || i.status === 'Low Stock').length;
+  const maintCount          = state.tasks.filter(t => t.category === 'Maintenance' && t.status !== 'Completed').length;
 
+  // Manager bottom nav is a scrollable 8-tab row so nothing is hidden
   return `
-    <nav class="bottom-nav" style="background: #ffffff; border-top: 1.5px solid #d4af37;">
-      <button class="nav-item ${adminSubTab === 'overview' ? 'active' : ''}" data-admin-tab="overview">
+    <nav class="bottom-nav" style="background:#ffffff;border-top:1.5px solid #d4af37;overflow-x:auto;justify-content:flex-start;gap:0;padding:0;">
+      <button class="nav-item ${adminSubTab === 'overview'     ? 'active' : ''}" data-admin-tab="overview"     style="min-width:56px;flex-shrink:0;">
         <span class="material-symbols-outlined">dashboard</span>
         <span>Overview</span>
       </button>
-      <button class="nav-item ${adminSubTab === 'rooms' ? 'active' : ''}" data-admin-tab="rooms">
+      <button class="nav-item ${adminSubTab === 'rooms'        ? 'active' : ''}" data-admin-tab="rooms"        style="min-width:52px;flex-shrink:0;">
         <span class="material-symbols-outlined">grid_view</span>
         <span>Rooms</span>
       </button>
-      <button class="nav-item ${adminSubTab === 'tasks' ? 'active' : ''}" data-admin-tab="tasks">
+      <button class="nav-item ${adminSubTab === 'tasks'        ? 'active' : ''}" data-admin-tab="tasks"        style="min-width:52px;flex-shrink:0;">
         <span class="material-symbols-outlined">assignment</span>
         <span>Tasks</span>
         ${urgentTasks > 0 ? `<span class="nav-badge">${urgentTasks}</span>` : ''}
       </button>
-      <button class="nav-item ${adminSubTab === 'staff' ? 'active' : ''}" data-admin-tab="staff">
+      <button class="nav-item ${adminSubTab === 'maintenance'  ? 'active' : ''}" data-admin-tab="maintenance"  style="min-width:58px;flex-shrink:0;">
+        <span class="material-symbols-outlined">handyman</span>
+        <span>Maint.</span>
+        ${maintCount > 0 ? `<span class="nav-badge" style="background:var(--error);">${maintCount}</span>` : ''}
+      </button>
+      <button class="nav-item ${adminSubTab === 'staff'        ? 'active' : ''}" data-admin-tab="staff"        style="min-width:52px;flex-shrink:0;">
         <span class="material-symbols-outlined">badge</span>
         <span>Staff</span>
       </button>
-      <button class="nav-item ${adminSubTab === 'complaints' ? 'active' : ''}" data-admin-tab="complaints">
+      <button class="nav-item ${adminSubTab === 'inventory'    ? 'active' : ''}" data-admin-tab="inventory"    style="min-width:52px;flex-shrink:0;">
+        <span class="material-symbols-outlined">inventory_2</span>
+        <span>Stock</span>
+        ${criticalInventory > 0 ? `<span class="nav-badge" style="background:var(--warning);">${criticalInventory}</span>` : ''}
+      </button>
+      <button class="nav-item ${adminSubTab === 'menu'         ? 'active' : ''}" data-admin-tab="menu"         style="min-width:52px;flex-shrink:0;">
+        <span class="material-symbols-outlined">restaurant_menu</span>
+        <span>Menu</span>
+      </button>
+      <button class="nav-item ${adminSubTab === 'complaints'   ? 'active' : ''}" data-admin-tab="complaints"   style="min-width:58px;flex-shrink:0;">
         <span class="material-symbols-outlined">report_problem</span>
         <span>Issues</span>
-        ${openComplaintsCount > 0 ? `<span class="nav-badge" style="background: var(--error);">${openComplaintsCount}</span>` : ''}
+        ${openComplaintsCount > 0 ? `<span class="nav-badge" style="background:var(--error);">${openComplaintsCount}</span>` : ''}
       </button>
     </nav>
   `;
