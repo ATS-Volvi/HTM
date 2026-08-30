@@ -1,12 +1,13 @@
 import { store } from '../state/store.js';
 
 export function renderBottomNav(state) {
-  const mode = state.currentMode; // 'guest' | 'staff' | 'admin'
+  const mode       = state.currentMode;      // 'guest' | 'staff' | 'admin'
   const currentView = state.currentView;
   const adminSubTab = state.adminSubTab || 'overview';
 
+  // ── GUEST ─────────────────────────────────────────────
   if (mode === 'guest') {
-    const cartCount = state.cart.reduce((sum, item) => sum + item.quantity, 0);
+    const cartCount          = state.cart.reduce((sum, i) => sum + i.quantity, 0);
     const activeRequestsCount = state.requests.filter(r => r.status !== 'Completed').length;
 
     return `
@@ -15,12 +16,12 @@ export function renderBottomNav(state) {
           <span class="material-symbols-outlined">home</span>
           <span>Home</span>
         </button>
-        <button class="nav-item ${currentView === 'dining' || currentView === 'checkout' || currentView === 'order-tracking' ? 'active' : ''}" data-view="dining">
+        <button class="nav-item ${['dining','checkout','order-tracking'].includes(currentView) ? 'active' : ''}" data-view="dining">
           <span class="material-symbols-outlined">restaurant</span>
           <span>Dining</span>
           ${cartCount > 0 ? `<span class="nav-badge">${cartCount}</span>` : ''}
         </button>
-        <button class="nav-item ${currentView === 'schedule-service' || currentView === 'report-issue' ? 'active' : ''}" data-view="schedule-service">
+        <button class="nav-item ${['schedule-service','report-issue'].includes(currentView) ? 'active' : ''}" data-view="schedule-service">
           <span class="material-symbols-outlined">room_service</span>
           <span>Services</span>
         </button>
@@ -31,77 +32,68 @@ export function renderBottomNav(state) {
         </button>
       </nav>
     `;
-  } else if (mode === 'staff') {
-    // Staff Hub Navigation
-    const urgentTasks = state.tasks.filter(t => t.priority === 'Urgent' && t.status !== 'Completed').length;
-    const criticalInventory = state.inventory.filter(i => i.status === 'Critical' || i.status === 'Low Stock').length;
+  }
 
+  // ── STAFF (Personal Dashboard only) ───────────────────
+  if (mode === 'staff') {
     return `
       <nav class="bottom-nav" style="background: #ffffff;">
-        <button class="nav-item ${currentView === 'staff-rooms' ? 'active' : ''}" data-view="staff-rooms">
-          <span class="material-symbols-outlined">grid_view</span>
-          <span>Rooms</span>
+        <button class="nav-item ${currentView === 'staff-personal' ? 'active' : ''}" data-view="staff-personal">
+          <span class="material-symbols-outlined">assignment_ind</span>
+          <span>My Duties</span>
         </button>
         <button class="nav-item ${currentView === 'staff-tasks' ? 'active' : ''}" data-view="staff-tasks">
-          <span class="material-symbols-outlined">assignment</span>
-          <span>Tasks</span>
-          ${urgentTasks > 0 ? `<span class="nav-badge">${urgentTasks}</span>` : ''}
+          <span class="material-symbols-outlined">checklist</span>
+          <span>My Tasks</span>
         </button>
         <button class="nav-item ${currentView === 'staff-maintenance' ? 'active' : ''}" data-view="staff-maintenance">
           <span class="material-symbols-outlined">handyman</span>
-          <span>Dispatch</span>
-        </button>
-        <button class="nav-item ${currentView === 'staff-inventory' ? 'active' : ''}" data-view="staff-inventory">
-          <span class="material-symbols-outlined">inventory_2</span>
-          <span>Stock</span>
-          ${criticalInventory > 0 ? `<span class="nav-badge" style="background: var(--warning);">${criticalInventory}</span>` : ''}
-        </button>
-        <button class="nav-item ${currentView === 'staff-shifts' || currentView === 'staff-kpis' || currentView === 'staff-handover' ? 'active' : ''}" data-view="staff-shifts">
-          <span class="material-symbols-outlined">groups</span>
-          <span>Shifts</span>
-        </button>
-      </nav>
-    `;
-  } else {
-    // General Manager / Admin Mode Navigation
-    const openComplaintsCount = state.complaints.filter(c => c.status !== 'Resolved').length;
-
-    return `
-      <nav class="bottom-nav" style="background: #ffffff; border-top: 1.5px solid var(--secondary-fixed);">
-        <button class="nav-item ${adminSubTab === 'overview' ? 'active' : ''}" data-admin-tab="overview">
-          <span class="material-symbols-outlined">dashboard</span>
-          <span>Overview</span>
-        </button>
-        <button class="nav-item ${adminSubTab === 'staff' ? 'active' : ''}" data-admin-tab="staff">
-          <span class="material-symbols-outlined">badge</span>
-          <span>Staff</span>
-        </button>
-        <button class="nav-item ${adminSubTab === 'menu' ? 'active' : ''}" data-admin-tab="menu">
-          <span class="material-symbols-outlined">restaurant_menu</span>
-          <span>Menu</span>
-        </button>
-        <button class="nav-item ${adminSubTab === 'complaints' ? 'active' : ''}" data-admin-tab="complaints">
-          <span class="material-symbols-outlined">report_problem</span>
-          <span>Complaints</span>
-          ${openComplaintsCount > 0 ? `<span class="nav-badge" style="background: var(--error);">${openComplaintsCount}</span>` : ''}
+          <span>Maintenance</span>
         </button>
       </nav>
     `;
   }
+
+  // ── MANAGER / ADMIN ────────────────────────────────────
+  const openComplaintsCount = state.complaints.filter(c => c.status !== 'Resolved').length;
+  const urgentTasks         = state.tasks.filter(t => t.priority === 'Urgent' && t.status !== 'Completed').length;
+  const criticalInventory   = state.inventory.filter(i => i.status === 'Critical' || i.status === 'Low Stock').length;
+
+  return `
+    <nav class="bottom-nav" style="background: #ffffff; border-top: 1.5px solid #d4af37;">
+      <button class="nav-item ${adminSubTab === 'overview' ? 'active' : ''}" data-admin-tab="overview">
+        <span class="material-symbols-outlined">dashboard</span>
+        <span>Overview</span>
+      </button>
+      <button class="nav-item ${adminSubTab === 'rooms' ? 'active' : ''}" data-admin-tab="rooms">
+        <span class="material-symbols-outlined">grid_view</span>
+        <span>Rooms</span>
+      </button>
+      <button class="nav-item ${adminSubTab === 'tasks' ? 'active' : ''}" data-admin-tab="tasks">
+        <span class="material-symbols-outlined">assignment</span>
+        <span>Tasks</span>
+        ${urgentTasks > 0 ? `<span class="nav-badge">${urgentTasks}</span>` : ''}
+      </button>
+      <button class="nav-item ${adminSubTab === 'staff' ? 'active' : ''}" data-admin-tab="staff">
+        <span class="material-symbols-outlined">badge</span>
+        <span>Staff</span>
+      </button>
+      <button class="nav-item ${adminSubTab === 'complaints' ? 'active' : ''}" data-admin-tab="complaints">
+        <span class="material-symbols-outlined">report_problem</span>
+        <span>Issues</span>
+        ${openComplaintsCount > 0 ? `<span class="nav-badge" style="background: var(--error);">${openComplaintsCount}</span>` : ''}
+      </button>
+    </nav>
+  `;
 }
 
 export function bindBottomNavEvents() {
-  const items = document.querySelectorAll('.nav-item');
-  items.forEach(item => {
+  document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', () => {
-      const view = item.dataset.view;
+      const view     = item.dataset.view;
       const adminTab = item.dataset.adminTab;
-
-      if (view) {
-        store.setView(view);
-      } else if (adminTab) {
-        store.setAdminSubTab(adminTab);
-      }
+      if (view)     store.setView(view);
+      else if (adminTab) store.setAdminSubTab(adminTab);
     });
   });
 }

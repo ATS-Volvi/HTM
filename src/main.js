@@ -9,11 +9,11 @@ import { renderOrderTrackingView, bindOrderTrackingEvents } from './views/guest/
 import { renderScheduleServiceView, bindScheduleServiceEvents } from './views/guest/ScheduleServiceView.js';
 import { renderReportIssueView, bindReportIssueEvents } from './views/guest/ReportIssueView.js';
 import { renderGuestRequestsView, bindGuestRequestsEvents } from './views/guest/GuestRequestsView.js';
-import { renderSupervisorRoomGridView, bindSupervisorRoomGridEvents } from './views/staff/SupervisorRoomGridView.js';
+// Staff — personal workspace only
+import { renderStaffPersonalView, bindStaffPersonalEvents } from './views/staff/StaffPersonalView.js';
 import { renderTaskQueueView, bindTaskQueueEvents } from './views/staff/TaskQueueView.js';
 import { renderMaintenanceView, bindMaintenanceEvents } from './views/staff/MaintenanceView.js';
-import { renderInventoryView, bindInventoryEvents } from './views/staff/InventoryView.js';
-import { renderShiftScheduleView, bindShiftScheduleEvents } from './views/staff/ShiftScheduleView.js';
+// Manager / Admin — full operations command center
 import { renderAdminManagerView, bindAdminManagerEvents } from './views/admin/AdminManagerView.js';
 
 let isFrameFullscreen = false;
@@ -22,74 +22,71 @@ function renderApp() {
   const appContainer = document.getElementById('app');
   if (!appContainer) return;
 
-  const state = store.state;
+  const state       = store.state;
   const currentView = state.currentView;
   const currentMode = state.currentMode;
 
-  let viewHtml = '';
+  let viewHtml      = '';
   let bindViewEvents = () => {};
 
   if (currentMode === 'admin' || currentView.startsWith('admin-')) {
-    viewHtml = renderAdminManagerView(state);
+    // ─── MANAGER / EXECUTIVE PORTAL ───────────────────
+    viewHtml       = renderAdminManagerView(state);
     bindViewEvents = bindAdminManagerEvents;
-  } else {
+
+  } else if (currentMode === 'staff') {
+    // ─── STAFF PERSONAL WORKSPACE ─────────────────────
     switch (currentView) {
-      case 'guest-home':
-        viewHtml = renderGuestHomeView(state);
-        bindViewEvents = bindGuestHomeEvents;
-        break;
-      case 'dining':
-        viewHtml = renderDiningMenuView(state);
-        bindViewEvents = bindDiningMenuEvents;
-        break;
-      case 'checkout':
-        viewHtml = renderCheckoutView(state);
-        bindViewEvents = bindCheckoutEvents;
-        break;
-      case 'order-tracking':
-        viewHtml = renderOrderTrackingView(state);
-        bindViewEvents = bindOrderTrackingEvents;
-        break;
-      case 'schedule-service':
-        viewHtml = renderScheduleServiceView(state);
-        bindViewEvents = bindScheduleServiceEvents;
-        break;
-      case 'report-issue':
-        viewHtml = renderReportIssueView(state);
-        bindViewEvents = bindReportIssueEvents;
-        break;
-      case 'guest-requests':
-        viewHtml = renderGuestRequestsView(state);
-        bindViewEvents = bindGuestRequestsEvents;
-        break;
-      case 'staff-rooms':
-        viewHtml = renderSupervisorRoomGridView(state);
-        bindViewEvents = bindSupervisorRoomGridEvents;
-        break;
       case 'staff-tasks':
-        viewHtml = renderTaskQueueView(state);
+        viewHtml       = renderTaskQueueView(state);
         bindViewEvents = bindTaskQueueEvents;
         break;
       case 'staff-maintenance':
-        viewHtml = renderMaintenanceView(state);
+        viewHtml       = renderMaintenanceView(state);
         bindViewEvents = bindMaintenanceEvents;
         break;
-      case 'staff-inventory':
-        viewHtml = renderInventoryView(state);
-        bindViewEvents = bindInventoryEvents;
-        break;
-      case 'staff-shifts':
-        viewHtml = renderShiftScheduleView(state);
-        bindViewEvents = bindShiftScheduleEvents;
-        break;
+      case 'staff-personal':
       default:
-        viewHtml = renderGuestHomeView(state);
+        viewHtml       = renderStaffPersonalView(state);
+        bindViewEvents = bindStaffPersonalEvents;
+    }
+
+  } else {
+    // ─── GUEST PORTAL ─────────────────────────────────
+    switch (currentView) {
+      case 'dining':
+        viewHtml       = renderDiningMenuView(state);
+        bindViewEvents = bindDiningMenuEvents;
+        break;
+      case 'checkout':
+        viewHtml       = renderCheckoutView(state);
+        bindViewEvents = bindCheckoutEvents;
+        break;
+      case 'order-tracking':
+        viewHtml       = renderOrderTrackingView(state);
+        bindViewEvents = bindOrderTrackingEvents;
+        break;
+      case 'schedule-service':
+        viewHtml       = renderScheduleServiceView(state);
+        bindViewEvents = bindScheduleServiceEvents;
+        break;
+      case 'report-issue':
+        viewHtml       = renderReportIssueView(state);
+        bindViewEvents = bindReportIssueEvents;
+        break;
+      case 'guest-requests':
+        viewHtml       = renderGuestRequestsView(state);
+        bindViewEvents = bindGuestRequestsEvents;
+        break;
+      case 'guest-home':
+      default:
+        viewHtml       = renderGuestHomeView(state);
         bindViewEvents = bindGuestHomeEvents;
     }
   }
 
   appContainer.innerHTML = `
-    <!-- Floating Frame / Preview Switcher for Desktop / Mobile -->
+    <!-- Preview Switcher Bar -->
     <div class="preview-control-bar">
       <button class="preview-pill-btn ${!isFrameFullscreen ? 'active' : ''}" id="toggle-frame-mode-btn">
         <span class="material-symbols-outlined" style="font-size: 16px;">smartphone</span>
@@ -127,27 +124,19 @@ function renderApp() {
   bindModalEvents();
   bindViewEvents();
 
-  // Bind frame switcher events
+  // Frame toggle events
   const frameBtn = document.getElementById('toggle-frame-mode-btn');
-  const fullBtn = document.getElementById('toggle-full-mode-btn');
-  if (frameBtn) {
-    frameBtn.addEventListener('click', () => {
-      isFrameFullscreen = false;
-      renderApp();
-    });
-  }
-  if (fullBtn) {
-    fullBtn.addEventListener('click', () => {
-      isFrameFullscreen = true;
-      renderApp();
-    });
-  }
+  const fullBtn  = document.getElementById('toggle-full-mode-btn');
+  if (frameBtn) frameBtn.addEventListener('click', () => { isFrameFullscreen = false; renderApp(); });
+  if (fullBtn)  fullBtn.addEventListener('click',  () => { isFrameFullscreen = true;  renderApp(); });
 }
 
-// Initial mount & subscription
+// Initial mount & state subscription
 document.addEventListener('DOMContentLoaded', () => {
+  // Default staff landing page = personal duties
+  if (store.state.currentMode === 'staff' && !['staff-personal','staff-tasks','staff-maintenance'].includes(store.state.currentView)) {
+    store.state.currentView = 'staff-personal';
+  }
   renderApp();
-  store.subscribe(() => {
-    renderApp();
-  });
+  store.subscribe(() => renderApp());
 });

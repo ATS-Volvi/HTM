@@ -383,11 +383,11 @@ class Store {
         this.state.currentView = 'guest-home';
       }
     } else if (mode === 'staff') {
-      if (!['staff-rooms', 'staff-tasks', 'staff-maintenance', 'staff-inventory', 'staff-shifts'].includes(this.state.currentView)) {
-        this.state.currentView = 'staff-rooms';
-      }
+      // Staff only sees their personal workspace
+      this.state.currentView = 'staff-personal';
     } else if (mode === 'admin') {
       this.state.currentView = 'admin-overview';
+      this.state.adminSubTab = 'overview';
     }
     this.notify();
   }
