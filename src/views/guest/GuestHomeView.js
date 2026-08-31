@@ -112,6 +112,19 @@ export function renderGuestHomeView(state) {
             </div>
           </div>
 
+          <!-- Laundry & Valet Tile -->
+          <div id="bento-laundry" class="bento-tile" data-view="laundry">
+            <div class="bento-img-wrap">
+              <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBcKiUSuo2x7YjQGSeZFcD-2vUw6H_G_w26XYKlnFKm4wGewvX_o-Ca07pfOqXlM8e86WKLl2fxDb5b4CsBHpfch3mYi1IN3O0GZS_m0Y0RQ4Nj7_2ROA2_6_MuLnQOgZwjVeVmPzaDZh01FPPfhRjmPiZl_1TvhzKpQ6ohrI824jA35kXMe_LMfUT8sej0s-71HKXkuyHG-2lmdeiKiIT30W2UOkaZnriGCaV-UGd72Dwyc59wlZhy" alt="Laundry & Valet" />
+              <div class="bento-gradient"></div>
+            </div>
+            <div class="bento-label">
+              <div class="bento-icon"><span class="material-symbols-outlined">local_laundry_service</span></div>
+              <h4>Laundry &amp; Valet</h4>
+              <p>Pressing &amp; dry clean</p>
+            </div>
+          </div>
+
           <!-- Chat / Messaging Tile -->
           <div id="bento-chat" class="bento-tile" data-view="chat">
             <div class="bento-img-wrap">

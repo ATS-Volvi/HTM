@@ -11,7 +11,7 @@ export function renderBottomNav(state) {
     const activeRequestsCount = state.requests.filter(r => r.status !== 'Completed').length;
     const isHome     = currentView === 'guest-home' || currentView === 'home';
     const isDining   = ['dining','checkout','order-tracking'].includes(currentView);
-    const isServices = ['services','schedule-service','report-issue'].includes(currentView);
+    const isServices = ['services','schedule-service','laundry','report-issue'].includes(currentView);
     const isRequests = ['guest-requests','chat'].includes(currentView);
 
     return `

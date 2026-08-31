@@ -10,6 +10,7 @@ import { renderScheduleServiceView, bindScheduleServiceEvents } from './views/gu
 import { renderReportIssueView, bindReportIssueEvents } from './views/guest/ReportIssueView.js';
 import { renderGuestRequestsView, bindGuestRequestsEvents } from './views/guest/GuestRequestsView.js';
 import { renderChatView, bindChatEvents } from './views/guest/ChatView.js';
+import { renderLaundryServiceView, bindLaundryServiceEvents } from './views/guest/LaundryServiceView.js';
 // Staff — personal workspace only
 import { renderStaffPersonalView, bindStaffPersonalEvents } from './views/staff/StaffPersonalView.js';
 import { renderTaskQueueView, bindTaskQueueEvents } from './views/staff/TaskQueueView.js';
@@ -75,6 +76,10 @@ function renderApp() {
       case 'schedule-service':
         viewHtml       = renderScheduleServiceView(state);
         bindViewEvents = bindScheduleServiceEvents;
+        break;
+      case 'laundry':
+        viewHtml       = renderLaundryServiceView(state);
+        bindViewEvents = bindLaundryServiceEvents;
         break;
       case 'report-issue':
         viewHtml       = renderReportIssueView(state);

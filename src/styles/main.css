@@ -1221,3 +1221,30 @@ input:checked + .dnd-slider:before {
   opacity: 0.75;
   margin-top: 2px;
 }
+
+/* ── Laundry Service ──────────────────────────────────────────────────── */
+.laundry-type-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1.5px solid var(--outline-variant);
+  background: var(--surface-container-lowest);
+  color: var(--on-surface);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.laundry-type-card.selected {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(4,22,39,0.18);
+}
+.laundry-type-card.selected .material-symbols-outlined {
+  color: var(--secondary-container) !important;
+}
+.laundry-type-card:not(.selected):hover {
+  background: var(--surface-container);
+}
+
