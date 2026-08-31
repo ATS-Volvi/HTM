@@ -1116,3 +1116,108 @@ input:checked + .dnd-slider:before {
   border-color: var(--primary);
 }
 
+/* ── Schedule Service ─────────────────────────────────────────────────── */
+.svc-date-card {
+  flex-shrink: 0;
+  width: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 8px;
+  border-radius: 10px;
+  border: 1.5px solid var(--outline-variant);
+  background: var(--surface-container-lowest);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+.svc-date-card.selected {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  transform: scale(1.04);
+  box-shadow: 0 4px 16px rgba(4,22,39,0.18);
+}
+.svc-date-card.checkout {
+  background: var(--surface-container);
+  opacity: 0.7;
+  cursor: default;
+}
+.svc-date-month {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  margin-bottom: 3px;
+}
+.svc-date-day {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+.svc-date-dow {
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.7;
+}
+.svc-checkout-label {
+  position: absolute;
+  bottom: 4px;
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--error);
+}
+
+.svc-slot-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 8px;
+  border-radius: 10px;
+  border: 1.5px solid var(--outline-variant);
+  background: var(--surface-container-lowest);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+.svc-slot-card.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(4,22,39,0.18);
+}
+.svc-slot-card:not(.active):hover {
+  background: var(--surface-container);
+}
+.svc-slot-dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--secondary-container);
+  flex-shrink: 0;
+}
+.svc-slot-time {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.svc-slot-ampm {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  margin-top: 2px;
+}
