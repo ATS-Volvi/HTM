@@ -7,32 +7,37 @@ export function renderBottomNav(state) {
 
   // ── GUEST ─────────────────────────────────────────────
   if (mode === 'guest') {
-    const cartCount          = state.cart.reduce((sum, i) => sum + i.quantity, 0);
+    const cartCount           = state.cart.reduce((sum, i) => sum + i.quantity, 0);
     const activeRequestsCount = state.requests.filter(r => r.status !== 'Completed').length;
+    const isHome     = currentView === 'guest-home' || currentView === 'home';
+    const isDining   = ['dining','checkout','order-tracking'].includes(currentView);
+    const isServices = ['services','schedule-service','report-issue'].includes(currentView);
+    const isRequests = ['guest-requests','chat'].includes(currentView);
 
     return `
       <nav class="bottom-nav">
-        <button class="nav-item ${currentView === 'guest-home' ? 'active' : ''}" data-view="guest-home">
+        <button class="nav-item ${isHome ? 'active' : ''}" data-view="guest-home">
           <span class="material-symbols-outlined">home</span>
           <span>Home</span>
         </button>
-        <button class="nav-item ${['dining','checkout','order-tracking'].includes(currentView) ? 'active' : ''}" data-view="dining">
+        <button class="nav-item ${isServices ? 'active' : ''}" data-view="services">
+          <span class="material-symbols-outlined">rebase_edit</span>
+          <span>Services</span>
+        </button>
+        <button class="nav-item ${isDining ? 'active' : ''}" data-view="dining">
           <span class="material-symbols-outlined">restaurant</span>
           <span>Dining</span>
           ${cartCount > 0 ? `<span class="nav-badge">${cartCount}</span>` : ''}
         </button>
-        <button class="nav-item ${['schedule-service','report-issue'].includes(currentView) ? 'active' : ''}" data-view="schedule-service">
-          <span class="material-symbols-outlined">room_service</span>
-          <span>Services</span>
-        </button>
-        <button class="nav-item ${currentView === 'guest-requests' ? 'active' : ''}" data-view="guest-requests">
-          <span class="material-symbols-outlined">description</span>
-          <span>Notes</span>
-          ${activeRequestsCount > 0 ? `<span class="nav-badge" style="background: var(--primary);">${activeRequestsCount}</span>` : ''}
+        <button class="nav-item ${isRequests ? 'active' : ''}" data-view="guest-requests">
+          <span class="material-symbols-outlined">receipt_long</span>
+          <span>Requests</span>
+          ${activeRequestsCount > 0 ? `<span class="nav-badge" style="background:var(--primary);">${activeRequestsCount}</span>` : ''}
         </button>
       </nav>
     `;
   }
+
 
   // ── STAFF (Personal Dashboard only) ───────────────────
   if (mode === 'staff') {
