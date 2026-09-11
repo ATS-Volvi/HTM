@@ -6,10 +6,11 @@
   "scripts": {
     "dev": "npm --prefix frontend run dev",
     "server": "npm --prefix backend run dev",
+    "start": "npm --prefix backend run start",
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "npm --prefix backend run dev",
     "db:migrate": "npm --prefix backend run migrate",
     "typecheck": "npm --prefix backend run typecheck && npm --prefix frontend run typecheck",
-    "build": "npm --prefix backend run typecheck && npm --prefix frontend run build"
+    "build": "npm --prefix frontend run build"
   }
 }
