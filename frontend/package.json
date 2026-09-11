@@ -10,12 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "canvas-confetti": "^1.9.4",
-    "volvitech-hospitality-os-root": "file:.."
-  },
-  "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",
+    "canvas-confetti": "^1.9.4",
     "typescript": "^5.4.5",
-    "vite": "^5.4.2"
+    "vite": "^5.4.2",
+    "volvitech-hospitality-os-root": "file:.."
   }
 }
