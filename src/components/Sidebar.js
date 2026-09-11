@@ -1,0 +1,248 @@
+// ==========================================================================
+// VOLVITECH HOSPITALITY OS — WORKSPACE NAVIGATION SIDEBAR
+// Human-Friendly, Visual Hotel Navigation (Front Desk & Housekeeping)
+// ==========================================================================
+import { store } from '../state/store.js';
+import { NewBookingModal } from '../views/frontoffice/NewBookingModal.js';
+
+export function renderSidebar(state) {
+  const isHousekeeping = state.activeWorkspace === 'HOUSEKEEPING';
+  const isMaintenance = state.activeWorkspace === 'MAINTENANCE';
+  const activeTab = state.activeNavTab || (isMaintenance ? 'maintenance' : (isHousekeeping ? 'housekeeping' : 'reservations'));
+
+  let navSections;
+  if (isMaintenance) {
+    navSections = [
+      {
+        title: 'OVERVIEW',
+        items: [
+          { id: 'maintenance', label: 'Maintenance Board', icon: 'engineering' },
+        ],
+      },
+      {
+        title: 'OPERATIONS',
+        items: [
+          { id: 'maint_workorders', label: 'Work Orders', icon: 'build' },
+          { id: 'maint_urgent', label: 'Urgent & Safety', icon: 'warning' },
+          { id: 'maint_pm', label: 'Preventive PM', icon: 'event_repeat' },
+          { id: 'maint_assets', label: 'Asset Registry', icon: 'inventory_2' },
+          { id: 'maint_team', label: 'Engineering Team', icon: 'groups' },
+        ],
+      },
+      {
+        title: 'ROOM INTEGRATION',
+        items: [
+          { id: 'room_status', label: 'Room Status', icon: 'meeting_room' },
+          { id: 'inventory', label: 'Room Board', icon: 'grid_view' },
+          { id: 'housekeeping', label: 'Housekeeping', icon: 'cleaning_services' },
+        ],
+      },
+    ];
+  } else if (isHousekeeping) {
+    navSections = [
+      {
+        title: 'OVERVIEW',
+        items: [
+          { id: 'housekeeping', label: 'Housekeeping Board', icon: 'cleaning_services' },
+        ],
+      },
+      {
+        title: 'OPERATIONS',
+        items: [
+          { id: 'hk_tasks', label: 'Cleaning Tasks', icon: 'checklist' },
+          { id: 'hk_inspections', label: 'Room Inspections', icon: 'verified' },
+          { id: 'hk_requests', label: 'Guest Requests', icon: 'room_service' },
+          { id: 'hk_lostfound', label: 'Lost & Found', icon: 'inventory_2' },
+        ],
+      },
+      {
+        title: 'ROOM INTEGRATION',
+        items: [
+          { id: 'room_status', label: 'Room Status', icon: 'meeting_room' },
+          { id: 'inventory', label: 'Room Board', icon: 'grid_view' },
+          { id: 'maintenance', label: 'Maintenance', icon: 'engineering' },
+        ],
+      },
+    ];
+  } else {
+    navSections = [
+      {
+        title: 'FRONT DESK',
+        items: [
+          { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+          { id: 'arrivals', label: 'Arrivals', icon: 'flight_land', badge: 24 },
+          { id: 'queue_reservations', label: 'Queue Reservations', icon: 'hourglass_top', badge: 5 },
+          { id: 'inhouse', label: 'In-House Guests', icon: 'hotel' },
+          { id: 'departures', label: 'Departures', icon: 'flight_takeoff', badge: 18 },
+        ],
+      },
+      {
+        title: 'OPERATIONS',
+        items: [
+          { id: 'room_status', label: 'Room Status', icon: 'meeting_room' },
+          { id: 'room_board', label: 'Room Board', icon: 'grid_view' },
+          { id: 'room_assignment', label: 'Room Assignment', icon: 'assignment_ind' },
+          { id: 'accounts', label: 'Accounts', icon: 'account_balance' },
+          { id: 'house_status', label: 'House Status', icon: 'domain' },
+        ],
+      },
+      {
+        title: 'GUESTS & SERVICE',
+        items: [
+          { id: 'crm', label: 'Guests', icon: 'person' },
+          { id: 'billing', label: 'Guest Folios', icon: 'receipt_long' },
+          { id: 'messages', label: 'Messages', icon: 'chat', badge: 3 },
+          { id: 'traces', label: 'Traces & Follow-ups', icon: 'flag', badge: 7 },
+          { id: 'wakeup_calls', label: 'Wake-up Calls', icon: 'alarm', badge: 2 },
+        ],
+      },
+    ];
+  }
+
+  return `
+    <aside class="fixed left-0 top-0 h-full flex flex-col py-5 z-40 bg-surface-bright border-r border-outline-variant w-64 pt-20 hidden md:flex select-none">
+      
+      <!-- Hotel Monogram & Identity -->
+      <div class="px-5 mb-5 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center font-bold text-sm shadow-sm border border-outline-variant">
+          GM
+        </div>
+        <div class="overflow-hidden">
+          <h2 class="font-headline-sm text-sm font-bold text-primary leading-tight truncate">The Grand Meridian</h2>
+          <p class="font-data-mono text-[10px] text-on-surface-variant uppercase tracking-wider mt-0.5">
+            ${isMaintenance ? 'Maintenance Workspace' : isHousekeeping ? 'Housekeeping Workspace' : 'Front Desk Workspace'}
+          </p>
+        </div>
+      </div>
+
+      <!-- Main Navigation Groups -->
+      <div class="flex-1 overflow-y-auto px-3 space-y-4 custom-scrollbar">
+        ${navSections.map((section) => `
+          <div>
+            <div class="px-3 mb-1 text-[10px] font-label-caps font-bold tracking-wider text-on-surface-variant/80 uppercase">
+              ${section.title}
+            </div>
+            <div class="space-y-0.5">
+              ${section.items.map((item) => {
+                const isFrontDesk = !isHousekeeping && !isMaintenance;
+                const isActive = (activeTab === item.id) || 
+                  (isFrontDesk && (
+                    (item.id === 'dashboard' && (activeTab === 'dashboard' || activeTab === 'reservations' || !activeTab)) ||
+                    (item.id === 'room_board' && activeTab === 'inventory') ||
+                    (item.id === 'crm' && activeTab === 'guests') ||
+                    (item.id === 'billing' && activeTab === 'guest_folios')
+                  )) ||
+                  (isHousekeeping && item.id === 'housekeeping' && (!activeTab || activeTab === 'housekeeping')) ||
+                  (isMaintenance && item.id === 'maintenance' && (!activeTab || activeTab === 'maintenance'));
+                return `
+                  <button 
+                    class="nav-sidebar-btn w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all text-left group ${
+                      isActive
+                        ? 'text-primary bg-primary/10 border-l-[3px] border-primary font-bold shadow-xs'
+                        : 'text-on-surface-variant hover:bg-surface-container hover:text-primary'
+                    }" 
+                    data-tab="${item.id}"
+                  >
+                    <div class="flex items-center gap-3 min-w-0">
+                      <span class="material-symbols-outlined text-[19px] ${isActive ? 'text-primary' : 'text-on-surface-variant group-hover:text-primary'}">${item.icon}</span>
+                      <span class="truncate">${item.label}</span>
+                    </div>
+                    ${item.badge !== undefined && item.badge !== null ? `
+                      <span class="ml-2 px-1.5 py-0.5 rounded-full text-[10px] font-bold font-data-mono shrink-0 transition-colors ${
+                        isActive 
+                          ? 'bg-primary text-white' 
+                          : 'bg-surface-container-highest text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary'
+                      }">
+                        ${item.badge}
+                      </span>
+                    ` : ''}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <!-- Quick Action + Bottom Navigation -->
+      <div class="mt-auto px-3 pt-3 border-t border-outline-variant/60 flex flex-col gap-2">
+        ${isMaintenance ? `
+          <button 
+            id="btn-sidebar-new-workorder"
+            class="w-full flex items-center justify-center gap-2 bg-primary text-on-primary py-2.5 px-3 rounded-lg font-label-caps text-xs font-bold shadow-sm hover:bg-primary/90 active:scale-[0.99] transition-all cursor-pointer"
+          >
+            <span class="material-symbols-outlined text-[18px]">add_circle</span>
+            <span>+ New Work Order</span>
+          </button>
+        ` : isHousekeeping ? `
+          <button 
+            id="btn-sidebar-new-hk-task"
+            class="w-full flex items-center justify-center gap-2 bg-primary text-on-primary py-2.5 px-3 rounded-lg font-label-caps text-xs font-bold shadow-sm hover:bg-primary/90 active:scale-[0.99] transition-all cursor-pointer"
+          >
+            <span class="material-symbols-outlined text-[18px]">add_task</span>
+            <span>+ Quick Cleaning Task</span>
+          </button>
+        ` : `
+          <button 
+            id="btn-sidebar-new-booking"
+            class="w-full flex items-center justify-center gap-2 bg-primary text-on-primary py-2.5 px-3 rounded-lg font-label-caps text-xs font-bold shadow-sm hover:bg-primary/90 active:scale-[0.99] transition-all cursor-pointer"
+          >
+            <span class="material-symbols-outlined text-[18px]">add</span>
+            <span>+ New Reservation</span>
+          </button>
+        `}
+
+        <div class="flex flex-col gap-0.5 pt-1">
+          <button class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors text-left" id="btn-side-settings">
+            <span class="material-symbols-outlined text-[17px]">settings</span>
+            <span>Terminal Settings</span>
+          </button>
+          <button class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors text-left" id="btn-side-support">
+            <span class="material-symbols-outlined text-[17px]">help</span>
+            <span>PMS Support</span>
+          </button>
+        </div>
+      </div>
+
+    </aside>
+  `;
+}
+
+export function bindSidebarEvents() {
+  document.querySelectorAll('.nav-sidebar-btn').forEach((btn) => {
+    btn.onclick = () => {
+      const tab = btn.dataset.tab;
+      store.setNavTab(tab);
+    };
+  });
+
+  const newBookingBtn = document.getElementById('btn-sidebar-new-booking');
+  if (newBookingBtn) {
+    newBookingBtn.onclick = () => {
+      const modal = new NewBookingModal({
+        onCreated: () => {
+          store.notify();
+        },
+      });
+      modal.init().then(() => {
+        document.body.appendChild(modal.render());
+      });
+    };
+  }
+
+  const newHkTaskBtn = document.getElementById('btn-sidebar-new-hk-task');
+  if (newHkTaskBtn) {
+    newHkTaskBtn.onclick = () => {
+      const addBtn = document.getElementById('btn-quick-new-task') || document.getElementById('btn-refresh-housekeeping');
+      if (addBtn) addBtn.click();
+    };
+  }
+
+  const newWorkOrderBtn = document.getElementById('btn-sidebar-new-workorder');
+  if (newWorkOrderBtn) {
+    newWorkOrderBtn.onclick = () => {
+      const addBtn = document.getElementById('btn-new-work-order');
+      if (addBtn) addBtn.click();
+    };
+  }
+}

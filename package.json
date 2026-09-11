@@ -1,17 +1,15 @@
 {
-  "name": "luxestay-hotel-sync",
+  "name": "volvitech-hospitality-os-root",
   "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 5173 --host",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "devDependencies": {
-    "vite": "^5.4.2"
-  },
-  "dependencies": {
-    "canvas-confetti": "^1.9.4"
+    "dev": "npm --prefix frontend run dev",
+    "server": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "db:migrate": "npm --prefix backend run migrate",
+    "typecheck": "npm --prefix backend run typecheck && npm --prefix frontend run typecheck",
+    "build": "npm --prefix backend run typecheck && npm --prefix frontend run build"
   }
 }

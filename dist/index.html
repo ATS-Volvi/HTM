@@ -3,15 +3,84 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>LuxeStay — Hotel Operations & Guest Sync</title>
+  <title>VOLVITECH Hospitality OS — Enterprise Hotel Operating Platform</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-  <script type="module" crossorigin src="/assets/index-BSSfmGyB.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-DJmWG_pO.css">
+  <!-- Tailwind CSS & Stitch Design Theme Tokens -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-bright": "#f7fafc",
+            "on-primary-container": "#8192a7",
+            "background": "#f7fafc",
+            "tertiary-fixed-dim": "#bcc7dd",
+            "on-primary-fixed-variant": "#38485a",
+            "on-error": "#ffffff",
+            "on-secondary-fixed-variant": "#574500",
+            "on-secondary": "#ffffff",
+            "error": "#ba1a1a",
+            "inverse-surface": "#2d3133",
+            "on-background": "#181c1e",
+            "on-primary": "#ffffff",
+            "secondary-fixed-dim": "#e9c349",
+            "on-error-container": "#93000a",
+            "secondary-fixed": "#ffe088",
+            "surface": "#f7fafc",
+            "tertiary": "#0a1526",
+            "on-tertiary-fixed-variant": "#3c475a",
+            "tertiary-container": "#1f2a3b",
+            "primary-fixed-dim": "#b7c8de",
+            "surface-container-low": "#f1f4f6",
+            "error-container": "#ffdad6",
+            "on-tertiary-container": "#8691a6",
+            "on-primary-fixed": "#0b1d2d",
+            "outline-variant": "#c4c6cd",
+            "on-surface": "#181c1e",
+            "primary": "#041627",
+            "on-tertiary": "#ffffff",
+            "surface-container-highest": "#e0e3e5",
+            "surface-dim": "#d7dadc",
+            "secondary-container": "#fed65b",
+            "secondary": "#735c00",
+            "outline": "#74777d",
+            "primary-fixed": "#d2e4fb",
+            "on-surface-variant": "#44474c",
+            "surface-container-high": "#e5e9eb",
+            "surface-container-lowest": "#ffffff",
+            "primary-container": "#1a2b3c",
+            "surface-tint": "#4f6073",
+            "tertiary-fixed": "#d8e3fa",
+            "surface-container": "#ebeef0",
+            "on-tertiary-fixed": "#111c2c",
+            "on-secondary-container": "#745c00",
+            "inverse-primary": "#b7c8de",
+            "surface-variant": "#e0e3e5",
+            "inverse-on-surface": "#eef1f3",
+            "on-secondary-fixed": "#241a00"
+          },
+          fontFamily: {
+            "data-mono": ["JetBrains Mono", "monospace"],
+            "body-sm": ["Inter", "sans-serif"],
+            "headline-lg": ["Inter", "sans-serif"],
+            "headline-sm": ["Inter", "sans-serif"],
+            "label-caps": ["Inter", "sans-serif"],
+            "display-lg": ["Inter", "sans-serif"],
+            "body-md": ["Inter", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+  <script type="module" crossorigin src="/assets/index-BKmNKShs.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-BCxHppBl.css">
 </head>
-<body class="bg-surface text-on-surface antialiased">
+<body class="bg-slate-900 text-slate-100 antialiased selection:bg-blue-600 selection:text-white">
   <div id="app"></div>
 </body>
 </html>
