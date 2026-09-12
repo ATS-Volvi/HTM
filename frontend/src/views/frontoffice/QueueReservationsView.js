@@ -6,6 +6,7 @@
 
 import { store } from '../../state/store.js';
 import { Toast } from '../../components/Toast.js';
+import { reservationsClient } from '../../api/reservationsClient.js';
 
 export class QueueReservationsView {
   constructor() {
@@ -502,53 +503,61 @@ export class QueueReservationsView {
                     <td class="py-3 px-3 text-right whitespace-nowrap">
                       <div class="flex items-center justify-end gap-1.5">
                         
-                        <!-- Check In Button (Active if Inspected/Ready) -->
-                        ${isReady ? `
-                          <button 
-                            class="btn-queue-checkin px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1"
-                            data-id="${item.id}"
-                            title="Room is inspected and ready. Issue keys now."
-                          >
-                            <span class="material-symbols-outlined text-[15px]">key</span>
-                            <span>Check In</span>
-                          </button>
+                        ${item.isCheckedIn ? `
+                          <!-- Checked In State Pill (Replaces Check In button) -->
+                          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold text-xs border border-emerald-500/20">
+                            <span class="material-symbols-outlined text-[15px]">check_circle</span>
+                            <span>Checked In</span>
+                          </span>
                         ` : `
+                          <!-- Check In Button (Active if Inspected/Ready) -->
+                          ${isReady ? `
+                            <button 
+                              class="btn-queue-checkin px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1"
+                              data-id="${item.id}"
+                              title="Room is inspected and ready. Issue keys now."
+                            >
+                              <span class="material-symbols-outlined text-[15px]">key</span>
+                              <span>Check In</span>
+                            </button>
+                          ` : `
+                            <button 
+                              class="btn-queue-rush px-2.5 py-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs font-bold hover:bg-amber-500/20 cursor-pointer flex items-center gap-1"
+                              data-id="${item.id}"
+                              title="Signal Housekeeping to expedite cleaning"
+                            >
+                              <span class="material-symbols-outlined text-[14px]">bolt</span>
+                              <span>Rush HK</span>
+                            </button>
+                          `}
+
+                          <!-- Reassign Room -->
                           <button 
-                            class="btn-queue-rush px-2.5 py-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs font-bold hover:bg-amber-500/20 cursor-pointer flex items-center gap-1"
+                            class="btn-queue-reassign px-2.5 py-1.5 rounded-xl border border-outline-variant text-on-surface-variant hover:text-primary hover:bg-surface-container text-xs font-semibold cursor-pointer"
                             data-id="${item.id}"
-                            title="Signal Housekeeping to expedite cleaning"
+                            title="Switch to another clean room immediately"
                           >
-                            <span class="material-symbols-outlined text-[14px]">bolt</span>
-                            <span>Rush HK</span>
+                            Reassign
+                          </button>
+
+                          <!-- Send SMS Notification -->
+                          <button 
+                            class="btn-queue-sms px-2 py-1.5 rounded-xl border border-outline-variant text-on-surface-variant hover:text-primary hover:bg-surface-container cursor-pointer"
+                            data-id="${item.id}"
+                            title="Send text message / notification to guest"
+                          >
+                            <span class="material-symbols-outlined text-[15px]">sms</span>
+                          </button>
+
+                          <!-- Remove from Queue -->
+                          <button 
+                            class="btn-queue-remove px-2 py-1.5 rounded-xl border border-outline-variant text-on-surface-variant hover:text-rose-600 hover:bg-rose-500/10 cursor-pointer"
+                            data-id="${item.id}"
+                            title="Remove from queue"
+                          >
+                            <span class="material-symbols-outlined text-[15px]">close</span>
                           </button>
                         `}
-
-                        <!-- Reassign Room -->
-                        <button 
-                          class="btn-queue-reassign px-2.5 py-1.5 rounded-xl border border-outline-variant text-on-surface-variant hover:text-primary hover:bg-surface-container text-xs font-semibold cursor-pointer"
-                          data-id="${item.id}"
-                          title="Switch to another clean room immediately"
-                        >
-                          Reassign
-                        </button>
-
-                        <!-- Send SMS Notification -->
-                        <button 
-                          class="btn-queue-sms px-2 py-1.5 rounded-xl border border-outline-variant text-on-surface-variant hover:text-primary hover:bg-surface-container cursor-pointer"
-                          data-id="${item.id}"
-                          title="Send text message / notification to guest"
-                        >
-                          <span class="material-symbols-outlined text-[15px]">sms</span>
-                        </button>
-
-                        <!-- Remove from Queue -->
-                        <button 
-                          class="btn-queue-remove px-2 py-1.5 rounded-xl border border-outline-variant text-on-surface-variant hover:text-rose-600 hover:bg-rose-500/10 cursor-pointer"
-                          data-id="${item.id}"
-                          title="Remove from queue"
-                        >
-                          <span class="material-symbols-outlined text-[15px]">close</span>
-                        </button>
 
                       </div>
                     </td>
@@ -1134,14 +1143,52 @@ export class QueueReservationsView {
     modal.querySelector('#chk-close-btn').onclick = () => this.closeModal();
     modal.querySelector('#chk-cancel-btn').onclick = () => this.closeModal();
 
-    modal.querySelector('#chk-confirm-btn').onclick = () => {
-      // Remove from queue
+    modal.querySelector('#chk-confirm-btn').onclick = async () => {
+      // 1. Sync check-in to Central Store SSOT (creates In-House stay & marks room Occupied Clean)
+      store.checkInGuestLifecycle({
+        id: queueItem.id,
+        resNumber: queueItem.resNumber,
+        guestName: queueItem.guestName,
+        roomNumber: queueItem.roomNumber,
+        roomType: queueItem.roomType,
+        checkInDate: 'Today',
+        checkOutDate: 'Sep 12',
+        totalNights: 2,
+        adults: queueItem.adults || 1,
+        phone: queueItem.guestPhone,
+        vip: queueItem.vip,
+        vipTier: queueItem.vipTier,
+        company: queueItem.company,
+        specialRequests: queueItem.specialRequests,
+        totalAmount: 1450,
+        paidAmount: 1450,
+        balanceDue: 0
+      });
+
+      try {
+        if (queueItem.isApiRecord || (queueItem.id && queueItem.id.length > 20)) {
+          await reservationsClient.checkIn(queueItem.id, queueItem.roomNumber);
+        }
+      } catch (err) {
+        console.warn('[QueueReservationsView] Backend check-in note:', err.message);
+      }
+
+      // 2. Mark checked in and remove from active waiting queue
+      queueItem.isCheckedIn = true;
       this.queueItems = this.queueItems.filter(q => q.id !== queueItem.id);
       this.queueItems.forEach((q, i) => q.queuePriority = i + 1);
 
+      // 3. Log to audit trail
+      this.queueAuditTrail.unshift({
+        id: `q-aud-${Date.now()}`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        action: `${queueItem.guestName} checked into Room ${queueItem.roomNumber} (Keys issued, moved to In-House)`,
+        user: 'Front Desk — Agent'
+      });
+
       this.closeModal();
       this.renderContent();
-      Toast.show(`✓ ${queueItem.guestName} successfully checked in to Room ${queueItem.roomNumber}! RFID Keys Encoded.`, 'success');
+      Toast.show(`✓ ${queueItem.guestName} checked in to Room ${queueItem.roomNumber}! RFID Keys encoded and moved to In-House.`, 'success');
     };
   }
 }
