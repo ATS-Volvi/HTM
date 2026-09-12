@@ -28,11 +28,21 @@ export function renderToast(state) {
 }
 
 export function showToast(message, type = 'info') {
-  store.showToast(message, type);
+  if (typeof message === 'object' && message !== null) {
+    const text = message.title && message.message ? `${message.title}: ${message.message}` : (message.message || message.title || '');
+    store.showToast(text, message.type || type);
+  } else {
+    store.showToast(message || '', type);
+  }
 }
 
 export const Toast = {
-  show: ({ title, message, type = 'info' }) => {
-    showToast(title ? `${title}: ${message}` : message, type);
+  show: (arg, fallbackType = 'info') => {
+    if (typeof arg === 'string') {
+      showToast(arg, fallbackType);
+    } else if (arg && typeof arg === 'object') {
+      const { title, message, type = fallbackType } = arg;
+      showToast(title && message ? `${title}: ${message}` : (message || title || ''), type);
+    }
   }
 };

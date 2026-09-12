@@ -616,7 +616,11 @@ class VolvitechStore {
   }
 
   showToast(message, type = 'info') {
-    this.state.toast = { id: Date.now(), message, type };
+    const text = typeof message === 'string' 
+      ? message 
+      : (message?.message || message?.title || (message != null ? String(message) : ''));
+    if (!text) return;
+    this.state.toast = { id: Date.now(), message: text, type };
     this.notify();
     setTimeout(() => {
       if (this.state.toast && Date.now() - this.state.toast.id >= 3500) {
