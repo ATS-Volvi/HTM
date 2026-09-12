@@ -15,8 +15,15 @@ export class QueueReservationsView {
     this.searchQuery = '';
     this.activeQuickFilter = 'ALL'; // 'ALL', 'READY', 'RUSHED', 'VIP', 'LONG_WAIT'
 
-    // Initial Queue Dataset (OPERA Reference Aligned to 10 Sep 2026)
-    this.queueItems = this.generateInitialQueue();
+    // Persistent Queue State Sync with Central Store SSOT
+    if (store.state.queueReservations && Array.isArray(store.state.queueReservations)) {
+      this.queueItems = store.state.queueReservations.filter(
+        item => !item.isCheckedIn && !store.isGuestOrRoomCheckedIn(item.id, item.resNumber, item.roomNumber)
+      );
+    } else {
+      this.queueItems = this.generateInitialQueue();
+      store.state.queueReservations = this.queueItems;
+    }
 
     // Available clean rooms pool for instant room reassignment
     this.availableCleanRooms = this.generateCleanRoomsPool();
@@ -29,11 +36,16 @@ export class QueueReservationsView {
     ];
   }
 
+  saveQueueState() {
+    store.state.queueReservations = this.queueItems;
+    store.saveState();
+  }
+
   // ──────────────────────────────────────────────────────────────────────────
   // 1. DATA INITIALIZATION
   // ──────────────────────────────────────────────────────────────────────────
   generateInitialQueue() {
-    return [
+    const rawQueue = [
       {
         id: 'q-101',
         resNumber: 'RES-10490',
@@ -145,6 +157,9 @@ export class QueueReservationsView {
         adults: 2,
       },
     ];
+    return rawQueue.filter(
+      item => !item.isCheckedIn && !store.isGuestOrRoomCheckedIn(item.id, item.resNumber, item.roomNumber)
+    );
   }
 
   generateCleanRoomsPool() {
@@ -161,12 +176,15 @@ export class QueueReservationsView {
   // 2. OPERATIONAL TELEMETRY CALCULATIONS
   // ──────────────────────────────────────────────────────────────────────────
   getOperationalTelemetry() {
-    const totalInQueue = this.queueItems.length;
-    const readyCount = this.queueItems.filter(q => q.hkStatus === 'INSPECTED').length;
-    const rushedCount = this.queueItems.filter(q => q.isRushed).length;
-    const vipCount = this.queueItems.filter(q => q.vip).length;
+    const activeItems = this.queueItems.filter(
+      q => !q.isCheckedIn && !store.isGuestOrRoomCheckedIn(q.id, q.resNumber, q.roomNumber)
+    );
+    const totalInQueue = activeItems.length;
+    const readyCount = activeItems.filter(q => q.hkStatus === 'INSPECTED').length;
+    const rushedCount = activeItems.filter(q => q.isRushed).length;
+    const vipCount = activeItems.filter(q => q.vip).length;
     const avgWait = totalInQueue > 0
-      ? Math.round(this.queueItems.reduce((sum, q) => sum + q.waitMinutes, 0) / totalInQueue)
+      ? Math.round(activeItems.reduce((sum, q) => sum + q.waitMinutes, 0) / totalInQueue)
       : 0;
 
     return {
@@ -180,6 +198,13 @@ export class QueueReservationsView {
 
   getFilteredQueue() {
     return this.queueItems.filter(item => {
+      // 0. Eliminate already checked-in guests
+      if (item.isCheckedIn) return false;
+      if (store.isGuestOrRoomCheckedIn(item.id, item.resNumber, item.roomNumber)) {
+        item.isCheckedIn = true;
+        return false;
+      }
+
       // 1. Search Query
       if (this.searchQuery.trim()) {
         const q = this.searchQuery.toLowerCase();
@@ -756,6 +781,7 @@ export class QueueReservationsView {
 
     // Re-sort array
     this.queueItems.sort((a, b) => a.queuePriority - b.queuePriority);
+    this.saveQueueState();
     this.renderContent();
     Toast.show(`Priority updated for ${this.queueItems[targetIdx].guestName}`, 'info');
   }
@@ -767,9 +793,68 @@ export class QueueReservationsView {
     this.queueItems = this.queueItems.filter(q => q.id !== id);
     // Recalculate priorities
     this.queueItems.forEach((q, i) => q.queuePriority = i + 1);
+    this.saveQueueState();
 
     this.renderContent();
     Toast.show(`Removed ${item.guestName} from queue.`, 'info');
+  }
+
+  async executeCheckInFromQueue(queueItem) {
+    if (!queueItem) return;
+
+    // 1. Mark checked in immediately and update queue list
+    queueItem.isCheckedIn = true;
+    this.queueItems = this.queueItems.filter(q => q.id !== queueItem.id);
+    this.queueItems.forEach((q, i) => q.queuePriority = i + 1);
+    this.saveQueueState();
+
+    // 2. Log to audit trail
+    this.queueAuditTrail.unshift({
+      id: `q-aud-${Date.now()}`,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      action: `${queueItem.guestName} checked into Room ${queueItem.roomNumber} (Keys issued, moved to In-House)`,
+      user: 'Front Desk — Agent'
+    });
+
+    this.closeModal();
+
+    // 3. Sync to Central Store SSOT (creates In-House stay & marks room Occupied Clean)
+    store.checkInGuestLifecycle({
+      id: queueItem.id,
+      resNumber: queueItem.resNumber,
+      guestName: queueItem.guestName,
+      roomNumber: queueItem.roomNumber,
+      roomType: queueItem.roomType,
+      checkInDate: 'Today',
+      checkOutDate: 'Sep 12',
+      totalNights: 2,
+      adults: queueItem.adults || 1,
+      phone: queueItem.guestPhone,
+      vip: queueItem.vip,
+      vipTier: queueItem.vipTier,
+      company: queueItem.company,
+      specialRequests: queueItem.specialRequests,
+      totalAmount: 1450,
+      paidAmount: 1450,
+      balanceDue: 0
+    });
+
+    // 4. Backend API Sync
+    try {
+      if (queueItem.isApiRecord || (queueItem.id && queueItem.id.length > 20)) {
+        await reservationsClient.checkIn(queueItem.id, queueItem.roomNumber);
+      }
+    } catch (err) {
+      console.warn('[QueueReservationsView] Backend check-in note:', err.message);
+    }
+
+    Toast.show({
+      title: 'Check-In Complete',
+      message: `✓ ${queueItem.guestName} checked into Room ${queueItem.roomNumber}. RFID keys encoded.`,
+      type: 'success'
+    });
+
+    this.renderContent();
   }
 
   closeModal() {
@@ -1143,52 +1228,8 @@ export class QueueReservationsView {
     modal.querySelector('#chk-close-btn').onclick = () => this.closeModal();
     modal.querySelector('#chk-cancel-btn').onclick = () => this.closeModal();
 
-    modal.querySelector('#chk-confirm-btn').onclick = async () => {
-      // 1. Sync check-in to Central Store SSOT (creates In-House stay & marks room Occupied Clean)
-      store.checkInGuestLifecycle({
-        id: queueItem.id,
-        resNumber: queueItem.resNumber,
-        guestName: queueItem.guestName,
-        roomNumber: queueItem.roomNumber,
-        roomType: queueItem.roomType,
-        checkInDate: 'Today',
-        checkOutDate: 'Sep 12',
-        totalNights: 2,
-        adults: queueItem.adults || 1,
-        phone: queueItem.guestPhone,
-        vip: queueItem.vip,
-        vipTier: queueItem.vipTier,
-        company: queueItem.company,
-        specialRequests: queueItem.specialRequests,
-        totalAmount: 1450,
-        paidAmount: 1450,
-        balanceDue: 0
-      });
-
-      try {
-        if (queueItem.isApiRecord || (queueItem.id && queueItem.id.length > 20)) {
-          await reservationsClient.checkIn(queueItem.id, queueItem.roomNumber);
-        }
-      } catch (err) {
-        console.warn('[QueueReservationsView] Backend check-in note:', err.message);
-      }
-
-      // 2. Mark checked in and remove from active waiting queue
-      queueItem.isCheckedIn = true;
-      this.queueItems = this.queueItems.filter(q => q.id !== queueItem.id);
-      this.queueItems.forEach((q, i) => q.queuePriority = i + 1);
-
-      // 3. Log to audit trail
-      this.queueAuditTrail.unshift({
-        id: `q-aud-${Date.now()}`,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        action: `${queueItem.guestName} checked into Room ${queueItem.roomNumber} (Keys issued, moved to In-House)`,
-        user: 'Front Desk — Agent'
-      });
-
-      this.closeModal();
-      this.renderContent();
-      Toast.show(`✓ ${queueItem.guestName} checked in to Room ${queueItem.roomNumber}! RFID Keys encoded and moved to In-House.`, 'success');
+    modal.querySelector('#chk-confirm-btn').onclick = () => {
+      this.executeCheckInFromQueue(queueItem);
     };
   }
 }

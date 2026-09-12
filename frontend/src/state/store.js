@@ -792,9 +792,42 @@ class VolvitechStore {
       };
     }
 
+    // 5. Explicitly register checked-in identifiers for instant cross-view deduplication
+    if (!this.state.checkedInGuestIds) {
+      this.state.checkedInGuestIds = [];
+    }
+    [id, resNumber, roomNumber].forEach(val => {
+      if (val && !this.state.checkedInGuestIds.includes(String(val))) {
+        this.state.checkedInGuestIds.push(String(val));
+      }
+    });
+
     this.showToast(`Checked in ${guestName} to Room ${roomNumber}`, 'success');
     this.notify();
     return inHouseRecord;
+  }
+
+  isGuestOrRoomCheckedIn(id, resNumber, roomNumber) {
+    if (this.state.checkedInGuestIds && Array.isArray(this.state.checkedInGuestIds)) {
+      if (id && this.state.checkedInGuestIds.includes(String(id))) return true;
+      if (resNumber && this.state.checkedInGuestIds.includes(String(resNumber))) return true;
+      if (roomNumber && this.state.checkedInGuestIds.includes(String(roomNumber))) return true;
+    }
+    if (this.state.activeCheckedInGuests && Array.isArray(this.state.activeCheckedInGuests)) {
+      if (this.state.activeCheckedInGuests.some(g => 
+        (id && g.id === id) || 
+        (resNumber && (g.reservationNumber === resNumber || g.resNumber === resNumber)) || 
+        (roomNumber && String(g.roomNumber) === String(roomNumber))
+      )) return true;
+    }
+    if (this.state.reservations && Array.isArray(this.state.reservations)) {
+      const res = this.state.reservations.find(r => 
+        (id && r.id === id) || 
+        (resNumber && (r.confirmationCode === resNumber || r.id === resNumber))
+      );
+      if (res && (res.status === 'Checked In' || res.status === 'In-House')) return true;
+    }
+    return false;
   }
 
   // WORKFLOW 2: Checkout Guest (Simple Signature)
