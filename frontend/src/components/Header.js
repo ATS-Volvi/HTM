@@ -153,15 +153,153 @@ export function renderHeader(state) {
             : ''
         }
 
-        <div class="flex items-center gap-1">
-          <button class="p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors relative flex items-center justify-center" title="Notifications">
+        <!-- Real-Time Service & Arrival Triggers Notification Center -->
+        <div class="relative">
+          <button 
+            id="btn-header-notifications" 
+            class="p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors relative flex items-center justify-center cursor-pointer" 
+            title="Real-Time Triggers & Notifications"
+          >
             <span class="material-symbols-outlined text-[20px]">notifications</span>
-            <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full"></span>
+            ${(() => {
+              const activeCount = store.getActiveTriggerCount ? store.getActiveTriggerCount() : 0;
+              if (activeCount <= 0) return '';
+              return `
+                <span class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-error text-[10px] font-bold font-data-mono text-on-error rounded-full flex items-center justify-center shadow-xs animate-pulse">
+                  ${activeCount}
+                </span>
+                <span class="absolute top-0 right-0 w-2.5 h-2.5 bg-error rounded-full animate-ping opacity-75"></span>
+              `;
+            })()}
           </button>
-          <button id="btn-header-help" class="p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors flex items-center justify-center" title="Terminal Guide">
-            <span class="material-symbols-outlined text-[20px]">help</span>
-          </button>
+
+          <!-- Triggers Dropdown Menu -->
+          <div 
+            id="dropdown-header-notifications" 
+            class="hidden absolute right-0 top-full mt-2 w-96 sm:w-[420px] bg-surface-container-lowest border border-outline-variant rounded-2xl shadow-2xl z-50 animate-fadeIn overflow-hidden flex flex-col"
+          >
+            <!-- Dropdown Header -->
+            <div class="p-3.5 bg-surface-bright border-b border-outline-variant/70 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary text-[20px]">campaign</span>
+                <div>
+                  <h4 class="text-xs font-bold text-primary leading-tight">Live Service & Arrival Triggers</h4>
+                  <p class="text-[10px] text-on-surface-variant font-medium">Immediate Alerts • Time-Sensitive</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button 
+                  id="btn-header-test-chime" 
+                  class="px-2 py-1 text-on-surface-variant hover:text-primary rounded-lg text-[10px] flex items-center gap-1 font-semibold hover:bg-surface-container transition-colors cursor-pointer"
+                  title="Test Sound Chime"
+                >
+                  <span class="material-symbols-outlined text-[15px] text-primary">volume_up</span>
+                  <span>Chime</span>
+                </button>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold font-data-mono bg-amber-100 text-amber-900 border border-amber-300">
+                  ${store.getActiveTriggerCount ? store.getActiveTriggerCount() : 0} Active
+                </span>
+              </div>
+            </div>
+
+            <!-- Triggers List -->
+            <div class="max-h-[380px] overflow-y-auto divide-y divide-outline-variant/40" id="header-triggers-list">
+              ${(() => {
+                const triggers = store.getServiceTriggers ? store.getServiceTriggers() : [];
+                if (!triggers || triggers.length === 0) {
+                  return `
+                    <div class="p-8 text-center text-xs text-on-surface-variant">
+                      <span class="material-symbols-outlined text-3xl text-on-surface-variant/50 mb-1">notifications_off</span>
+                      <p>No active service or arrival triggers right now.</p>
+                    </div>
+                  `;
+                }
+
+                return triggers.map(t => {
+                  const isUrgent = t.alertUrgency === 'URGENT';
+                  const isHigh = t.alertUrgency === 'HIGH';
+                  const isPending = t.status === 'Pending';
+                  const isTransport = t.triggerType === 'TRANSPORT';
+                  const isLaundry = t.triggerType === 'LAUNDRY';
+                  
+                  const icon = t.triggerIcon || (isTransport ? 'directions_car' : (isLaundry ? 'local_laundry_service' : 'room_service'));
+                  const colorClass = isUrgent ? 'text-rose-600 bg-rose-50 border-rose-200' : (isHigh ? 'text-blue-600 bg-blue-50 border-blue-200' : 'text-amber-600 bg-amber-50 border-amber-200');
+                  const badgeClass = isUrgent ? 'bg-rose-100 text-rose-800' : (isHigh ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800');
+
+                  return `
+                    <div class="p-3 hover:bg-surface-container-low/80 transition-colors flex flex-col gap-2 relative ${t.triggerStatus === 'ACTIVE_TRIGGER' ? 'bg-surface-bright/70' : ''}">
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-start gap-2.5">
+                          <div class="w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 ${colorClass}">
+                            <span class="material-symbols-outlined text-[18px]">${icon}</span>
+                          </div>
+                          <div>
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                              <span class="text-xs font-bold text-primary">${t.guestName}</span>
+                              <span class="text-[10px] text-on-surface-variant font-data-mono font-semibold">
+                                ${t.roomNumber ? `(Room #${t.roomNumber})` : ''}
+                              </span>
+                            </div>
+                            <p class="text-[11px] text-on-surface font-medium mt-0.5 line-clamp-2">${t.details}</p>
+                          </div>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-bold font-data-mono shrink-0 uppercase tracking-wider ${badgeClass}">
+                          ${t.triggerBadge || t.alertUrgency}
+                        </span>
+                      </div>
+
+                      <div class="flex items-center justify-between gap-2 pt-1 border-t border-outline-variant/30 text-[10px]">
+                        <div class="flex items-center gap-1 text-primary font-bold">
+                          <span class="material-symbols-outlined text-[14px] text-amber-600">schedule</span>
+                          <span>${t.timingTrigger || t.allottedWindow}</span>
+                        </div>
+
+                        <div class="flex items-center gap-1.5">
+                          ${t.triggerStatus === 'ACTIVE_TRIGGER' ? `
+                            <button class="btn-hdr-ack-trigger px-2 py-1 rounded-md bg-surface-container hover:bg-surface-container-high text-on-surface font-semibold text-[10px] cursor-pointer transition-colors" data-id="${t.id}">
+                              Acknowledge
+                            </button>
+                          ` : ''}
+                          ${isPending ? `
+                            <button class="btn-hdr-dispatch-trigger px-2.5 py-1 rounded-md bg-primary hover:bg-primary/90 text-on-primary font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors" data-id="${t.id}">
+                              <span class="material-symbols-outlined text-[12px]">send</span>
+                              <span>Dispatch</span>
+                            </button>
+                          ` : `
+                            <span class="text-[10px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">In Progress</span>
+                          `}
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                }).join('');
+              })()}
+            </div>
+
+            <!-- Dropdown Footer -->
+            <div class="p-2.5 bg-surface-bright/80 border-t border-outline-variant/70 flex items-center justify-between">
+              <button 
+                id="btn-simulate-header-trigger"
+                class="px-2.5 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-[11px] font-semibold text-primary flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <span class="material-symbols-outlined text-[15px] text-amber-600">electric_bolt</span>
+                <span>Simulate Guest Trigger</span>
+              </button>
+
+              <button 
+                id="btn-view-all-services-hdr"
+                class="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-[11px] font-bold flex items-center gap-1 hover:bg-primary/90 transition-colors cursor-pointer"
+              >
+                <span>Services Workspace</span>
+                <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+              </button>
+            </div>
+          </div>
         </div>
+
+        <button id="btn-header-help" class="p-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors flex items-center justify-center cursor-pointer" title="Terminal Guide">
+          <span class="material-symbols-outlined text-[20px]">help</span>
+        </button>
 
         <!-- 3. USER PROFILE & LOGOUT DROPDOWN -->
         <div class="relative border-l border-outline-variant pl-3">
@@ -316,6 +454,76 @@ export function bindHeaderEvents() {
     }
   }
 
+  // 4. Notifications & Live Triggers Dropdown
+  const notifBtn = document.getElementById('btn-header-notifications');
+  const notifDropdown = document.getElementById('dropdown-header-notifications');
+  if (notifBtn && notifDropdown) {
+    notifBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isCurrentlyHidden = notifDropdown.classList.contains('hidden');
+      closeAllHeaderDropdowns();
+      if (isCurrentlyHidden) {
+        notifDropdown.classList.remove('hidden');
+      } else {
+        notifDropdown.classList.add('hidden');
+      }
+    });
+
+    // Prevent clicks inside the dropdown from closing it
+    notifDropdown.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    // Test sound chime
+    const testChimeBtn = document.getElementById('btn-header-test-chime');
+    if (testChimeBtn) {
+      testChimeBtn.addEventListener('click', () => {
+        store.playChime();
+        Toast.show({
+          title: 'Concierge Alert Chime',
+          message: 'Audio alert signal tested successfully',
+          type: 'info'
+        });
+      });
+    }
+
+    // Acknowledge trigger buttons
+    notifDropdown.querySelectorAll('.btn-hdr-ack-trigger').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = btn.dataset.id;
+        store.acknowledgeServiceTrigger(id);
+      });
+    });
+
+    // Dispatch trigger buttons
+    notifDropdown.querySelectorAll('.btn-hdr-dispatch-trigger').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = btn.dataset.id;
+        store.dispatchServiceTrigger(id);
+      });
+    });
+
+    // Simulate guest trigger button
+    const simBtn = document.getElementById('btn-simulate-header-trigger');
+    if (simBtn) {
+      simBtn.addEventListener('click', () => {
+        const sampleTypes = ['transport', 'laundry', 'fnb'];
+        const randomChoice = sampleTypes[Math.floor(Math.random() * sampleTypes.length)];
+        store.simulateNewServiceTrigger(randomChoice);
+      });
+    }
+
+    // View All Services Workspace link
+    const viewAllBtn = document.getElementById('btn-view-all-services-hdr');
+    if (viewAllBtn) {
+      viewAllBtn.addEventListener('click', () => {
+        notifDropdown.classList.add('hidden');
+        store.selectWorkspace('FRONT_DESK');
+        store.setNavTab('services');
+      });
+    }
+  }
+
   // Close all dropdowns on outside click
   document.addEventListener('click', () => {
     closeAllHeaderDropdowns();
@@ -325,6 +533,7 @@ export function bindHeaderEvents() {
     if (wsDropdown) wsDropdown.classList.add('hidden');
     if (propDropdown) propDropdown.classList.add('hidden');
     if (userDropdown) userDropdown.classList.add('hidden');
+    if (notifDropdown) notifDropdown.classList.add('hidden');
   }
 
   // Create Booking CTA

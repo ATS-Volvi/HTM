@@ -93,4 +93,51 @@ export const reservationsClient = {
       method: 'POST',
       body: JSON.stringify(chargeData),
     }),
+
+  // ── ROOM MASTER & INVENTORY MANAGEMENT ─────────────────────────────────────
+  // Physical Rooms Directory
+  getRoomsMaster: () => request('/rooms'),
+
+  createRoom: (roomData) =>
+    request('/rooms', {
+      method: 'POST',
+      body: JSON.stringify(roomData),
+    }),
+
+  batchCreateRooms: (batchData) =>
+    request('/rooms/batch', {
+      method: 'POST',
+      body: JSON.stringify(batchData),
+    }),
+
+  updateRoom: (id, roomData) =>
+    request(`/rooms/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(roomData),
+    }),
+
+  deleteRoom: (id) =>
+    request(`/rooms/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // Room Types Master
+  getRoomTypesMaster: () => request('/room-types'),
+
+  createRoomType: (typeData) =>
+    request('/room-types', {
+      method: 'POST',
+      body: JSON.stringify(typeData),
+    }),
+
+  updateRoomType: (id, typeData) =>
+    request(`/room-types/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(typeData),
+    }),
+
+  deleteRoomType: (id) =>
+    request(`/room-types/${id}`, {
+      method: 'DELETE',
+    }),
 };

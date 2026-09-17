@@ -968,3 +968,18 @@ html, body {
   animation: floatGentle 4s ease-in-out infinite;
 }
 
+/* ==========================================================================
+   UNIVERSAL FORM SELECT & DROPDOWN HIGH-CONTRAST TYPOGRAPHY
+   ========================================================================== */
+select {
+  color: #0F172A !important;
+  background-color: #FFFFFF !important;
+}
+
+select option {
+  color: #0F172A !important;
+  background-color: #FFFFFF !important;
+  font-weight: 500;
+  padding: 6px 12px;
+}
+

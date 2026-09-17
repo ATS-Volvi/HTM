@@ -57,9 +57,22 @@ export interface RoomEntity {
   room_number: string;
   floor: string;
   operational_status: RoomOperationalStatus;
+  bed_count?: number;
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface RoomWithDetails extends RoomEntity {
+  room_type_code: string;
+  room_type_name: string;
+  room_type_color: string;
+  base_price: string | number;
+  base_occupancy: number;
+  max_occupancy: number;
+  active_allocation_status?: string | null;
+  active_reservation_number?: string | null;
+  occupant_name?: string | null;
 }
 
 export interface BookingSourceEntity {

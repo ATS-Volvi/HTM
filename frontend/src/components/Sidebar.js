@@ -32,8 +32,9 @@ export function renderSidebar(state) {
       {
         title: 'ROOM INTEGRATION',
         items: [
-          { id: 'room_status', label: 'Room Status', icon: 'meeting_room' },
-          { id: 'inventory', label: 'Room Board', icon: 'grid_view' },
+          { id: 'house_status', label: 'House Status', icon: 'grid_view' },
+          { id: 'room_master', label: 'Room Master', icon: 'meeting_room' },
+          { id: 'inventory', label: 'Room Board', icon: 'table_chart' },
           { id: 'housekeeping', label: 'Housekeeping', icon: 'cleaning_services' },
         ],
       },
@@ -58,42 +59,28 @@ export function renderSidebar(state) {
       {
         title: 'ROOM INTEGRATION',
         items: [
-          { id: 'room_status', label: 'Room Status', icon: 'meeting_room' },
-          { id: 'inventory', label: 'Room Board', icon: 'grid_view' },
+          { id: 'house_status', label: 'House Status', icon: 'grid_view' },
+          { id: 'room_master', label: 'Room Master', icon: 'meeting_room' },
+          { id: 'inventory', label: 'Room Board', icon: 'table_chart' },
           { id: 'maintenance', label: 'Maintenance', icon: 'engineering' },
         ],
       },
     ];
   } else {
+    const arrivalsCount = (state.reservations || []).filter(r => r.status === 'Confirmed' || r.status === 'ARRIVED').length;
+    const inHouseCount = (state.activeCheckedInGuests || []).length || (state.reservations || []).filter(r => r.status === 'Checked In' || r.status === 'IN_HOUSE').length;
+    const pendingServicesCount = (state.serviceRequests || []).filter(s => s.status === 'Pending').length;
+
     navSections = [
       {
         title: 'FRONT DESK',
         items: [
           { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
-          { id: 'arrivals', label: 'Arrivals', icon: 'flight_land', badge: 24 },
-          { id: 'queue_reservations', label: 'Queue Reservations', icon: 'hourglass_top', badge: 5 },
-          { id: 'inhouse', label: 'In-House Guests', icon: 'hotel' },
-          { id: 'departures', label: 'Departures', icon: 'flight_takeoff', badge: 18 },
-        ],
-      },
-      {
-        title: 'OPERATIONS',
-        items: [
-          { id: 'room_status', label: 'Room Status', icon: 'meeting_room' },
-          { id: 'room_board', label: 'Room Board', icon: 'grid_view' },
-          { id: 'room_assignment', label: 'Room Assignment', icon: 'assignment_ind' },
-          { id: 'accounts', label: 'Accounts', icon: 'account_balance' },
-          { id: 'house_status', label: 'House Status', icon: 'domain' },
-        ],
-      },
-      {
-        title: 'GUESTS & SERVICE',
-        items: [
-          { id: 'crm', label: 'Guests', icon: 'person' },
-          { id: 'billing', label: 'Guest Folios', icon: 'receipt_long' },
-          { id: 'messages', label: 'Messages', icon: 'chat', badge: 3 },
-          { id: 'traces', label: 'Traces & Follow-ups', icon: 'flag', badge: 7 },
-          { id: 'wakeup_calls', label: 'Wake-up Calls', icon: 'alarm', badge: 2 },
+          { id: 'bookings', label: 'Bookings', icon: 'book_online', badge: arrivalsCount ? `${arrivalsCount} arr` : (inHouseCount ? `${inHouseCount} in-house` : null) },
+          { id: 'house_status', label: 'House Status', icon: 'grid_view' },
+          { id: 'room_master', label: 'Room Master', icon: 'meeting_room' },
+          { id: 'crm', label: 'Guest Profiles', icon: 'person' },
+          { id: 'services', label: 'Services / Requests', icon: 'room_service', badge: pendingServicesCount || null },
         ],
       },
     ];
@@ -127,10 +114,12 @@ export function renderSidebar(state) {
                 const isFrontDesk = !isHousekeeping && !isMaintenance;
                 const isActive = (activeTab === item.id) || 
                   (isFrontDesk && (
-                    (item.id === 'dashboard' && (activeTab === 'dashboard' || activeTab === 'reservations' || !activeTab)) ||
-                    (item.id === 'room_board' && activeTab === 'inventory') ||
-                    (item.id === 'crm' && activeTab === 'guests') ||
-                    (item.id === 'billing' && activeTab === 'guest_folios')
+                    (item.id === 'dashboard' && (activeTab === 'dashboard')) ||
+                    (item.id === 'bookings' && (activeTab === 'bookings' || activeTab === 'reservations' || activeTab === 'online_booking' || activeTab === 'walkin_booking' || activeTab === 'arrivals' || activeTab === 'profiles' || activeTab === 'inhouse')) ||
+                    (item.id === 'house_status' && (activeTab === 'house_status' || activeTab === 'room_grid' || activeTab === 'room_matrix' || activeTab === 'room_status')) ||
+                    (item.id === 'room_master' && (activeTab === 'room_master' || activeTab === 'room_configuration' || activeTab === 'room_inventory')) ||
+                    (item.id === 'crm' && (activeTab === 'crm' || activeTab === 'guests')) ||
+                    (item.id === 'services' && (activeTab === 'services' || activeTab === 'requests'))
                   )) ||
                   (isHousekeeping && item.id === 'housekeeping' && (!activeTab || activeTab === 'housekeeping')) ||
                   (isMaintenance && item.id === 'maintenance' && (!activeTab || activeTab === 'maintenance'));
@@ -219,14 +208,7 @@ export function bindSidebarEvents() {
   const newBookingBtn = document.getElementById('btn-sidebar-new-booking');
   if (newBookingBtn) {
     newBookingBtn.onclick = () => {
-      const modal = new NewBookingModal({
-        onCreated: () => {
-          store.notify();
-        },
-      });
-      modal.init().then(() => {
-        document.body.appendChild(modal.render());
-      });
+      store.setNavTab('bookings');
     };
   }
 

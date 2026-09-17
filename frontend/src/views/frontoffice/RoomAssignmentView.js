@@ -165,12 +165,12 @@ export class RoomAssignmentView {
         roomType: 'Deluxe King',
         roomTypeCode: 'DKR',
         roomClass: 'DELUXE',
-        assignedRoom: '204',
-        hkStatus: 'Clean',
+        assignedRoom: null,
+        hkStatus: 'Dirty',
         eta: '15:00',
         adults: 1,
         children: 0,
-        status: 'ASSIGNED',
+        status: 'UNASSIGNED',
         company: 'Merck Pharma',
         agent: 'Direct',
         groupName: 'ABC Conference',
@@ -728,14 +728,14 @@ export class RoomAssignmentView {
         roomClass: 'DELUXE',
         bedType: '1 King Bed',
         view: 'City View',
-        hkStatus: 'CLEAN',
-        occupancy: 'OCCUPIED',
-        assignedTo: 'res-10483',
+        hkStatus: 'DIRTY',
+        occupancy: 'VACANT',
+        assignedTo: null,
         capacity: 2,
         features: ['Low Floor', 'King Bed', 'Non-Smoking', 'City View'],
         smoking: false,
         available: false,
-        unavailableReason: 'Assigned to Lyle Ehrke (10-12 Sep)',
+        unavailableReason: 'Not Ready - Room is Vacant but Dirty (HK Turnover Required)',
       },
       {
         roomNumber: '205',
@@ -2827,6 +2827,23 @@ export class RoomAssignmentView {
     const room = this.rooms.find((r) => r.roomNumber === roomNumber);
 
     if (!res || !room) return;
+
+    // SECTION 10 & 28 RULE: VACANT != READY
+    // If room is dirty or not ready, block assignment
+    const readiness = store.checkRoomReadiness(roomNumber);
+    if (!readiness.ready || room.hkStatus === 'DIRTY') {
+      const cause = readiness.reason || (room.hkStatus === 'DIRTY' ? 'Room is Vacant but DIRTY (HK Turnover Required)' : 'Room Not Ready');
+      Toast.show(`⚠️ Blocked: Room ${roomNumber} is NOT READY (${cause})`, 'warning');
+      alert(`ROOM ASSIGNMENT BLOCKED (Section 28 Compliance)\n\nRoom ${roomNumber} is currently Vacant but DIRTY.\n\nCore Operational Rule: VACANT != READY.\n\nYou cannot assign an uncleaned room to a guest for arrival.\nPlease dispatch housekeeping turnover before proceeding.`);
+      return;
+    }
+
+    // Sync with central reactive store
+    try {
+      store.assignRoomToReservation(reservationId, roomNumber);
+    } catch (e) {
+      console.warn('[RoomAssignmentView] store.assignRoomToReservation notice:', e);
+    }
 
     const prevRoomNum = res.assignedRoom;
 

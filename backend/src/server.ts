@@ -10,6 +10,7 @@ import { foliosRouter } from './controllers/foliosController.js';
 import { dashboardRouter } from './controllers/dashboardController.js';
 import { metaRouter } from './controllers/metaController.js';
 import { authRouter } from './controllers/authController.js';
+import { roomsRouter, roomTypesRouter } from './controllers/roomsController.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -34,6 +35,8 @@ app.use('/api/reservations', checkInRouter);
 app.use('/api/reservations', foliosRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/meta', metaRouter);
+app.use('/api/rooms', roomsRouter);
+app.use('/api/room-types', roomTypesRouter);
 
 
 import path from 'path';

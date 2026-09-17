@@ -1,2100 +1,2005 @@
 // ==========================================================================
-// VOLVITECH HOSPITALITY OS — FRONT DESK HOUSE STATUS COMMAND CENTER
-// Complete OPERA / Oracle HMS Feature Parity within Modern Luxury UI
+// VOLVITECH HOSPITALITY OS — HOUSE STATUS & ROOM MATRIX (STITCH DESIGN SYSTEM)
+// Ultra-Premium Visual Room Status Matrix, Telemetry Ribbon & Comprehensive Drawer
+// Supports: Detailed Summary, In-Drawer Check-Out, Services Hub, Housekeeping & Restaurant F&B
 // ==========================================================================
 
 import { store } from '../../state/store.js';
 import { Toast } from '../../components/Toast.js';
+import { CheckInModal } from './CheckInModal.js';
+import { CheckOutModal } from './CheckOutModal.js';
+import { NewBookingModal } from './NewBookingModal.js';
+import { RoomStatusView } from './RoomStatusView.js';
+
 
 export class HouseStatusView {
   constructor() {
     this.container = null;
-    this.clockTimer = null;
-    this.includeDayUse = false;
-    this.currentDate = '09 Sep 2026';
-    this.selectedRoomClass = 'ALL';
-    this.selectedRoomType = 'ALL';
-    this.activeModal = null;
-  }
+    this.isLoading = false;
+    this.searchQuery = '';
+    this.selectedFloor = 'ALL'; // 'ALL', '1', '2', '3', '4', '5'
+    this.selectedCategory = 'ALL'; // 'ALL', 'Standard', 'Executive', 'Suite', 'Deluxe', 'Penthouse'
+    this.selectedStatus = 'ALL'; // 'ALL', 'Available', 'Checked In', 'Reserved', 'Paid', 'Checked Out', 'Damaged'
+    this.activeDrawerTab = 'overview'; // 'overview' | 'checkout' | 'services' | 'housekeeping' | 'restaurant'
+    this.selectedRoom = null;
 
-  getCurrentTimeFormatted() {
-    const now = new Date();
-    return now.toTimeString().split(' ')[0];
-  }
+    // Page-level tab: 'matrix' (House Matrix Board) | 'operations' (Room Operations Board)
+    this.activePageTab = 'matrix';
+    this.roomOpsView = new RoomStatusView();
 
-  render() {
-    const el = document.createElement('div');
-    el.className = 'w-full flex flex-col gap-6 animate-fadeIn pb-16';
-    this.container = el;
-    this.renderContent();
-    this.startLiveClock();
-    return el;
-  }
-
-  startLiveClock() {
-    if (this.clockTimer) clearInterval(this.clockTimer);
-    this.clockTimer = setInterval(() => {
-      const clockEl = document.getElementById('house-status-live-clock');
-      if (clockEl) {
-        clockEl.textContent = this.getCurrentTimeFormatted();
-      }
-    }, 1000);
+    this.initRooms();
   }
 
   destroy() {
-    if (this.clockTimer) {
-      clearInterval(this.clockTimer);
-      this.clockTimer = null;
+    if (this.roomOpsView && typeof this.roomOpsView.destroy === 'function') {
+      this.roomOpsView.destroy();
     }
-    this.closeModal();
   }
 
-  // =========================================================================
-  // DYNAMIC OPERATIONAL FILTERING ENGINE (Real calculations for Class/Type/Date)
-  // =========================================================================
-  getActiveData() {
-    // Base 120-room hotel totals for Today (09 Sep 2026)
-    let data = {
-      // Room Summary
-      totalPhysicalRooms: 120,
-      roomsToSell: 108,
-      outOfOrder: 8,
-      outOfService: 4,
-
-      // Activity
-      stayovers: { rooms: 76, persons: 94, vip: 2 },
-      departuresExpected: { rooms: 18, persons: 21, vip: 1 },
-      departuresActual: { rooms: 11, persons: 12, vip: 1 },
-      arrivalsExpected: { rooms: 24, persons: 31, vip: 2 },
-      arrivalsMadeToday: { rooms: 16, persons: 19, vip: 1 },
-      arrivalsActual: { rooms: 8, persons: 10, vip: 1 },
-      extendedStays: { rooms: 3, persons: 4, vip: 0 },
-      earlyDepartures: { rooms: 2, persons: 2, vip: 0 },
-      dayUseRooms: { rooms: 1, persons: 1, vip: 0 },
-      walkIns: { rooms: 3, persons: 5, vip: 0 },
-      dayOfArrivalCancellations: { rooms: 1, persons: 2, vip: 0 },
-
-      // End of Day Projection
-      minAvailableTonight: 26,
-      maxOccupiedTonight: { rooms: 94, persons: 118, vip: 3 },
-      maxOccupancyPct: 78.0,
-      blocksNotPickedUp: { rooms: 12, blocks: 1, persons: 16 },
-      individuals: { rooms: 58, persons: 72, vip: 2 },
-      groupsAndBlocks: { rooms: 36, persons: 46, vip: 1 },
-      projectedRoomRevenue: 371300,
-      averageDailyRate: 3950,
-
-      // Housekeeping Matrix (Vacant & Occupied)
-      housekeeping: {
-        inspected: { vacant: 12, occupied: 34 },
-        clean: { vacant: 18, occupied: 42 },
-        dirty: { vacant: 4, occupied: 8 },
-        pickup: { vacant: 2, occupied: 3 },
-        outOfOrder: { vacant: 8, occupied: 0 },
-        outOfService: { vacant: 4, occupied: 0 },
-        queue: { vacant: 3, occupied: 0 },
-      },
-
-      // Complimentary & House Use
-      compHouseUse: {
-        compArrivals: { rooms: 3, persons: 4, vip: 1 },
-        compStayovers: { rooms: 2, persons: 3, vip: 0 },
-        compDepartures: { rooms: 1, persons: 2, vip: 0 },
-        houseUseArrivals: { rooms: 1, persons: 1, vip: 0 },
-        houseUseStayovers: { rooms: 2, persons: 2, vip: 0 },
-        houseUseDepartures: { rooms: 0, persons: 0, vip: 0 },
-      },
-
-      // Turndown Status
-      turndown: {
-        required: { vacant: 0, occupied: 12 },
-        notRequired: { vacant: 0, occupied: 64 },
-        completed: { vacant: 0, occupied: 9 },
-      },
-
-      // Operational Alerts
-      alerts: [
-        { id: 'alt-1', type: 'warning', icon: 'hourglass_top', text: '4 arriving guests are waiting for rooms in queue', badge: 'High Priority', targetTab: 'queue_reservations' },
-        { id: 'alt-2', type: 'error', icon: 'warning', text: '8 rooms are currently Out of Order (Engineering follow-up required)', badge: 'Maintenance', targetTab: 'room_status' },
-        { id: 'alt-3', type: 'warning', icon: 'schedule', text: '3 rooms have been in "Dirty" status for more than 60 minutes', badge: 'Housekeeping', targetTab: 'room_status' },
-        { id: 'alt-4', type: 'vip', icon: 'star', text: '1 VIP arrival requires Front Desk greeting protocol (Arrival at 2:00 PM)', badge: 'VIP Protocol', targetTab: 'arrivals' },
-        { id: 'alt-5', type: 'info', icon: 'groups', text: '1 group block has not been picked up (Reed Biotech - Cutoff today)', badge: 'Sales / Block', targetTab: 'groups' },
-      ],
-    };
-
-    // 1. Filter by Room Class
-    if (this.selectedRoomClass === 'SUITES') {
-      data.totalPhysicalRooms = 24;
-      data.roomsToSell = 21;
-      data.outOfOrder = 2;
-      data.outOfService = 1;
-      data.stayovers = { rooms: 14, persons: 18, vip: 2 };
-      data.departuresExpected = { rooms: 4, persons: 5, vip: 1 };
-      data.departuresActual = { rooms: 2, persons: 2, vip: 1 };
-      data.arrivalsExpected = { rooms: 5, persons: 7, vip: 2 };
-      data.arrivalsMadeToday = { rooms: 3, persons: 4, vip: 1 };
-      data.arrivalsActual = { rooms: 2, persons: 3, vip: 1 };
-      data.extendedStays = { rooms: 1, persons: 2, vip: 0 };
-      data.earlyDepartures = { rooms: 0, persons: 0, vip: 0 };
-      data.dayUseRooms = { rooms: 0, persons: 0, vip: 0 };
-      data.walkIns = { rooms: 1, persons: 2, vip: 0 };
-      data.dayOfArrivalCancellations = { rooms: 0, persons: 0, vip: 0 };
-      data.minAvailableTonight = 5;
-      data.maxOccupiedTonight = { rooms: 17, persons: 23, vip: 2 };
-      data.maxOccupancyPct = 70.8;
-      data.blocksNotPickedUp = { rooms: 2, blocks: 1, persons: 3 };
-      data.individuals = { rooms: 11, persons: 15, vip: 2 };
-      data.groupsAndBlocks = { rooms: 6, persons: 8, vip: 0 };
-      data.projectedRoomRevenue = 155000;
-      data.averageDailyRate = 9118;
-      data.housekeeping = {
-        inspected: { vacant: 3, occupied: 6 },
-        clean: { vacant: 4, occupied: 8 },
-        dirty: { vacant: 1, occupied: 2 },
-        pickup: { vacant: 0, occupied: 1 },
-        outOfOrder: { vacant: 2, occupied: 0 },
-        outOfService: { vacant: 1, occupied: 0 },
-        queue: { vacant: 1, occupied: 0 },
-      };
-      data.turndown = {
-        required: { vacant: 0, occupied: 12 },
-        notRequired: { vacant: 0, occupied: 0 },
-        completed: { vacant: 0, occupied: 9 },
-      };
-    } else if (this.selectedRoomClass === 'DELUXE') {
-      data.totalPhysicalRooms = 56;
-      data.roomsToSell = 51;
-      data.outOfOrder = 4;
-      data.outOfService = 1;
-      data.stayovers = { rooms: 36, persons: 44, vip: 0 };
-      data.departuresExpected = { rooms: 8, persons: 9, vip: 0 };
-      data.departuresActual = { rooms: 5, persons: 6, vip: 0 };
-      data.arrivalsExpected = { rooms: 11, persons: 14, vip: 0 };
-      data.arrivalsMadeToday = { rooms: 8, persons: 9, vip: 0 };
-      data.arrivalsActual = { rooms: 3, persons: 5, vip: 0 };
-      data.extendedStays = { rooms: 1, persons: 1, vip: 0 };
-      data.earlyDepartures = { rooms: 1, persons: 1, vip: 0 };
-      data.dayUseRooms = { rooms: 1, persons: 1, vip: 0 };
-      data.walkIns = { rooms: 1, persons: 2, vip: 0 };
-      data.dayOfArrivalCancellations = { rooms: 1, persons: 2, vip: 0 };
-      data.minAvailableTonight = 11;
-      data.maxOccupiedTonight = { rooms: 44, persons: 53, vip: 1 };
-      data.maxOccupancyPct = 78.6;
-      data.blocksNotPickedUp = { rooms: 6, blocks: 1, persons: 8 };
-      data.individuals = { rooms: 26, persons: 31, vip: 0 };
-      data.groupsAndBlocks = { rooms: 18, persons: 22, vip: 1 };
-      data.projectedRoomRevenue = 154000;
-      data.averageDailyRate = 3500;
-      data.housekeeping = {
-        inspected: { vacant: 6, occupied: 16 },
-        clean: { vacant: 8, occupied: 20 },
-        dirty: { vacant: 2, occupied: 4 },
-        pickup: { vacant: 1, occupied: 1 },
-        outOfOrder: { vacant: 4, occupied: 0 },
-        outOfService: { vacant: 1, occupied: 0 },
-        queue: { vacant: 1, occupied: 0 },
-      };
-      data.turndown = {
-        required: { vacant: 0, occupied: 0 },
-        notRequired: { vacant: 0, occupied: 44 },
-        completed: { vacant: 0, occupied: 0 },
-      };
-    } else if (this.selectedRoomClass === 'CLASSIC') {
-      data.totalPhysicalRooms = 40;
-      data.roomsToSell = 36;
-      data.outOfOrder = 2;
-      data.outOfService = 2;
-      data.stayovers = { rooms: 26, persons: 32, vip: 0 };
-      data.departuresExpected = { rooms: 6, persons: 7, vip: 0 };
-      data.departuresActual = { rooms: 4, persons: 4, vip: 0 };
-      data.arrivalsExpected = { rooms: 8, persons: 10, vip: 0 };
-      data.arrivalsMadeToday = { rooms: 5, persons: 6, vip: 0 };
-      data.arrivalsActual = { rooms: 3, persons: 4, vip: 0 };
-      data.extendedStays = { rooms: 1, persons: 1, vip: 0 };
-      data.earlyDepartures = { rooms: 1, persons: 1, vip: 0 };
-      data.dayUseRooms = { rooms: 0, persons: 0, vip: 0 };
-      data.walkIns = { rooms: 1, persons: 1, vip: 0 };
-      data.dayOfArrivalCancellations = { rooms: 0, persons: 0, vip: 0 };
-      data.minAvailableTonight = 10;
-      data.maxOccupiedTonight = { rooms: 33, persons: 42, vip: 0 };
-      data.maxOccupancyPct = 82.5;
-      data.blocksNotPickedUp = { rooms: 4, blocks: 0, persons: 5 };
-      data.individuals = { rooms: 21, persons: 26, vip: 0 };
-      data.groupsAndBlocks = { rooms: 12, persons: 16, vip: 0 };
-      data.projectedRoomRevenue = 62300;
-      data.averageDailyRate = 1888;
-      data.housekeeping = {
-        inspected: { vacant: 3, occupied: 12 },
-        clean: { vacant: 6, occupied: 14 },
-        dirty: { vacant: 1, occupied: 2 },
-        pickup: { vacant: 1, occupied: 1 },
-        outOfOrder: { vacant: 2, occupied: 0 },
-        outOfService: { vacant: 2, occupied: 0 },
-        queue: { vacant: 1, occupied: 0 },
-      };
-      data.turndown = {
-        required: { vacant: 0, occupied: 0 },
-        notRequired: { vacant: 0, occupied: 33 },
-        completed: { vacant: 0, occupied: 0 },
-      };
+  initRooms() {
+    if (store.state.houseStatusRooms && store.state.houseStatusRooms.length > 0) {
+      this.rooms = store.state.houseStatusRooms;
+      if (!this.selectedRoom) {
+        this.selectedRoom = this.rooms.find(r => r.number === '102') || this.rooms[0];
+      }
+      return;
     }
 
-    // 2. Specific Room Type Filter Override (PRP, EPS, DOS, CKR)
-    if (this.selectedRoomType === 'PRP') {
-      data.totalPhysicalRooms = 4;
-      data.roomsToSell = 4;
-      data.outOfOrder = 0;
-      data.outOfService = 0;
-      data.stayovers = { rooms: 2, persons: 4, vip: 1 };
-      data.departuresExpected = { rooms: 1, persons: 2, vip: 1 };
-      data.departuresActual = { rooms: 0, persons: 0, vip: 0 };
-      data.arrivalsExpected = { rooms: 1, persons: 2, vip: 1 };
-      data.arrivalsMadeToday = { rooms: 1, persons: 2, vip: 1 };
-      data.arrivalsActual = { rooms: 0, persons: 0, vip: 0 };
-      data.minAvailableTonight = 1;
-      data.maxOccupiedTonight = { rooms: 3, persons: 6, vip: 2 };
-      data.maxOccupancyPct = 75.0;
-      data.projectedRoomRevenue = 43500;
-      data.averageDailyRate = 14500;
-      data.housekeeping = {
-        inspected: { vacant: 1, occupied: 2 },
-        clean: { vacant: 0, occupied: 1 },
-        dirty: { vacant: 0, occupied: 0 },
-        pickup: { vacant: 0, occupied: 0 },
-        outOfOrder: { vacant: 0, occupied: 0 },
-        outOfService: { vacant: 0, occupied: 0 },
-        queue: { vacant: 0, occupied: 0 },
-      };
-    } else if (this.selectedRoomType === 'EPS') {
-      data.totalPhysicalRooms = 8;
-      data.roomsToSell = 7;
-      data.outOfOrder = 1;
-      data.outOfService = 0;
-      data.stayovers = { rooms: 5, persons: 6, vip: 1 };
-      data.departuresExpected = { rooms: 1, persons: 1, vip: 0 };
-      data.departuresActual = { rooms: 1, persons: 1, vip: 0 };
-      data.arrivalsExpected = { rooms: 2, persons: 3, vip: 1 };
-      data.arrivalsMadeToday = { rooms: 1, persons: 1, vip: 0 };
-      data.arrivalsActual = { rooms: 1, persons: 2, vip: 1 };
-      data.minAvailableTonight = 2;
-      data.maxOccupiedTonight = { rooms: 6, persons: 8, vip: 1 };
-      data.maxOccupancyPct = 75.0;
-      data.projectedRoomRevenue = 43200;
-      data.averageDailyRate = 7200;
-    } else if (this.selectedRoomType === 'DOS') {
-      data.totalPhysicalRooms = 12;
-      data.roomsToSell = 10;
-      data.outOfOrder = 1;
-      data.outOfService = 1;
-      data.stayovers = { rooms: 7, persons: 8, vip: 0 };
-      data.departuresExpected = { rooms: 2, persons: 2, vip: 0 };
-      data.departuresActual = { rooms: 1, persons: 1, vip: 0 };
-      data.arrivalsExpected = { rooms: 2, persons: 2, vip: 0 };
-      data.arrivalsMadeToday = { rooms: 1, persons: 1, vip: 0 };
-      data.arrivalsActual = { rooms: 1, persons: 1, vip: 0 };
-      data.minAvailableTonight = 2;
-      data.maxOccupiedTonight = { rooms: 9, persons: 11, vip: 0 };
-      data.maxOccupancyPct = 75.0;
-      data.projectedRoomRevenue = 40500;
-      data.averageDailyRate = 4500;
-    } else if (this.selectedRoomType === 'CKR') {
-      data.totalPhysicalRooms = 8;
-      data.roomsToSell = 7;
-      data.outOfOrder = 1;
-      data.outOfService = 0;
-      data.stayovers = { rooms: 5, persons: 6, vip: 0 };
-      data.departuresExpected = { rooms: 1, persons: 1, vip: 0 };
-      data.departuresActual = { rooms: 1, persons: 1, vip: 0 };
-      data.arrivalsExpected = { rooms: 2, persons: 2, vip: 0 };
-      data.arrivalsMadeToday = { rooms: 1, persons: 1, vip: 0 };
-      data.arrivalsActual = { rooms: 1, persons: 1, vip: 0 };
-      data.minAvailableTonight = 1;
-      data.maxOccupiedTonight = { rooms: 6, persons: 7, vip: 0 };
-      data.maxOccupancyPct = 75.0;
-      data.projectedRoomRevenue = 19200;
-      data.averageDailyRate = 3200;
-    }
+    // Comprehensive 6-column hotel rooms matching reference matrix & Stitch design
+    this.rooms = [
+      // ── Floor 1: Standard (101 - 112) ──
+      {
+        number: '101', category: 'Standard', floor: '1', status: 'Available', rate: 4500,
+        bedding: '1 Queen Bed', size: '28 m²', wing: 'East Wing',
+        hkStaff: 'Maria Santos', hkStatus: 'Ready / Inspected',
+        housekeeper: 'Maria Santos - Team A',
+        services: [], diningOrders: []
+      },
+      {
+        number: '102', category: 'Standard', floor: '1', status: 'Checked In', rate: 4500,
+        bedding: '1 Queen Bed', size: '28 m²', wing: 'East Wing',
+        guest: 'Elena Rostova', reservationId: 'RES-102', phone: '+1 (555) 234-5678', email: 'elena.rostova@traveler.com',
+        nationality: 'France / EU', idVerified: true, idDoc: 'Passport #FR-982341-P',
+        vipTier: 'VIP Gold', corporateAccount: 'Global Media Network',
+        checkIn: '15 Sep 2026', checkOut: '18 Sep 2026', currentNight: 3, totalNights: 4,
+        adults: 2, children: 0, bookingChannel: 'Direct Web (VIP Corporate)',
+        folioTotal: 13500, roomCharges: 13500, serviceCharges: 2450, taxTotal: 1595, totalBalance: 17545, paidAmount: 13500,
+        keycard: 'RFID-102-A', tempSetting: '21.5°C (Eco)', dnd: false, doorLatched: true,
+        lastCleaned: 'Yesterday 11:20 AM', housekeeper: 'Elena Gomez - Team Alpha', hkStatus: 'Clean', turnDownTime: '19:30',
+        preferences: {
+          pillow: 'Goose Down Soft Silk Casing',
+          temp: '20.5°C',
+          dietary: 'Nut Allergy (Severe), Gluten-Free',
+          beverage: 'Sparkling San Pellegrino & Nespresso Intenso'
+        },
+        checkoutChecklist: {
+          folioSettled: true,
+          minibarAudited: true,
+          keycardReturned: true,
+          safeCleared: true,
+          transportAssisted: true
+        },
+        services: [
+          { id: 'srv-101', name: 'Extra Hypoallergenic Goose Down Pillows', department: 'Housekeeping', priority: 'VIP Urgent', price: 0, status: 'Completed', time: '09:30 AM' },
+          { id: 'srv-102', name: 'Evening Turndown & Lavender Aromatherapy', department: 'Housekeeping', priority: 'Normal', price: 0, status: 'In Progress', time: '19:30 Scheduled' },
+          { id: 'srv-103', name: 'Executive Mercedes Airport Transfer', department: 'Concierge', priority: 'High', price: 2500, status: 'Pending', time: 'Tomorrow 08:00 AM' }
+        ],
+        diningOrders: [
+          { id: 'ORD-882', items: '2x Prime Wagyu Sliders, Truffle Parmesan Fries, San Pellegrino', total: 2450, status: 'Delivered & Billed', time: '13:15 PM' },
+          { id: 'ORD-904', items: 'Executive Continental Breakfast Tray, 2x Double Espresso', total: 1800, status: 'Delivered & Billed', time: '08:45 AM' }
+        ]
+      },
+      {
+        number: '103', category: 'Standard', floor: '1', status: 'Available', rate: 4500,
+        bedding: '2 Twin Beds', size: '30 m²', wing: 'East Wing',
+        hkStaff: 'Fatima Zahra', hkStatus: 'Ready / Inspected',
+        housekeeper: 'Fatima Zahra - Team B', services: [], diningOrders: []
+      },
+      {
+        number: '104', category: 'Standard', floor: '1', status: 'Reserved', rate: 4500,
+        bedding: '1 Queen Bed', size: '28 m²', wing: 'East Wing',
+        guest: 'Marcus Vance', reservationId: 'RES-104', phone: '+44 20 7946 0192', email: 'm.vance@londoncorp.co.uk',
+        checkIn: '17 Sep 2026', checkOut: '20 Sep 2026', currentNight: 1, totalNights: 3,
+        eta: '14:30 Arriving', folioTotal: 13500, paidAmount: 0,
+        housekeeper: 'Maria Santos - Team A', hkStatus: 'Ready / Inspected',
+        services: [], diningOrders: []
+      },
+      {
+        number: '105', category: 'Standard', floor: '1', status: 'Available', rate: 4500,
+        bedding: '1 Queen Bed', size: '28 m²', wing: 'East Wing',
+        hkStaff: 'Maria Santos', hkStatus: 'Ready / Inspected', services: [], diningOrders: []
+      },
+      {
+        number: '106', category: 'Standard', floor: '1', status: 'Paid', rate: 4500,
+        bedding: '1 Queen Bed', size: '28 m²', wing: 'East Wing',
+        guest: 'David Sterling', reservationId: 'RES-106', phone: '+1 (555) 890-1234', email: 'd.sterling@vanguard.com',
+        vipTier: 'VIP Platinum', checkIn: '17 Sep 2026', checkOut: '19 Sep 2026', currentNight: 1, totalNights: 2,
+        folioTotal: 9000, paidAmount: 9000, badgeNote: 'Guaranteed VIP', services: [], diningOrders: []
+      },
+      {
+        number: '107', category: 'Standard', floor: '1', status: 'Reserved', rate: 4500,
+        bedding: '1 Queen Bed', size: '28 m²', wing: 'East Wing',
+        guest: 'Clara Dubois', reservationId: 'RES-107', phone: '+33 6 12 34 56 78', email: 'c.dubois@paris-art.fr',
+        checkIn: '18 Sep 2026', checkOut: '22 Sep 2026', eta: '16:00 Arriving', totalNights: 4, folioTotal: 18000, paidAmount: 4500,
+        services: [], diningOrders: []
+      },
+      {
+        number: '108', category: 'Standard', floor: '1', status: 'Available', rate: 4500,
+        bedding: '2 Twin Beds', size: '30 m²', wing: 'East Wing',
+        hkStaff: 'Fatima Zahra', hkStatus: 'Ready / Inspected', services: [], diningOrders: []
+      },
+      {
+        number: '109', category: 'Standard', floor: '1', status: 'Checked In', rate: 4500,
+        bedding: '1 Queen Bed', size: '28 m²', wing: 'East Wing',
+        guest: 'Arthur Pendelton', reservationId: 'RES-109', phone: '+1 (555) 345-6789', email: 'a.pendelton@apex.com',
+        vipTier: 'Standard', checkIn: '14 Sep 2026', checkOut: '19 Sep 2026', currentNight: 4, totalNights: 5,
+        folioTotal: 22500, roomCharges: 22500, serviceCharges: 850, totalBalance: 23350, paidAmount: 22500, keycard: 'RFID-109-B',
+        services: [{ id: 'srv-109', name: 'Late Departure Request (14:00)', department: 'Front Desk', priority: 'Normal', price: 0, status: 'In Progress', time: '10:00 AM' }],
+        diningOrders: [{ id: 'ORD-771', items: 'Club Sandwich & Belgian Beer', total: 850, status: 'Delivered & Billed', time: 'Yesterday' }]
+      },
+      {
+        number: '110', category: 'Standard', floor: '1', status: 'Available', rate: 4500,
+        bedding: '1 Queen Bed', size: '28 m²', wing: 'East Wing',
+        hkStaff: 'David Kim', hkStatus: 'Ready / Inspected', services: [], diningOrders: []
+      },
+      {
+        number: '111', category: 'Standard', floor: '1', status: 'Paid', rate: 4500,
+        bedding: '1 Queen Bed', size: '28 m²', wing: 'East Wing',
+        guest: 'Beatrice Webb', reservationId: 'RES-111', phone: '+44 20 7946 0881', email: 'beatrice.webb@oxford.edu',
+        vipTier: 'VIP Gold', checkIn: '17 Sep 2026', checkOut: '21 Sep 2026', currentNight: 1, totalNights: 4,
+        folioTotal: 18000, paidAmount: 18000, badgeNote: 'Pre-Settled', services: [], diningOrders: []
+      },
+      {
+        number: '112', category: 'Standard', floor: '1', status: 'Available', rate: 4500,
+        bedding: '2 Twin Beds', size: '30 m²', wing: 'East Wing',
+        hkStaff: 'David Kim', hkStatus: 'Ready / Inspected', services: [], diningOrders: []
+      },
 
-    // 3. Filter by Date (+1 Day, +2 Days)
-    if (this.currentDate === '10 Sep 2026') {
-      data.stayovers.rooms = Math.round(data.stayovers.rooms * 0.95);
-      data.departuresExpected.rooms = 22;
-      data.departuresActual.rooms = 0;
-      data.departuresActual.persons = 0;
-      data.arrivalsExpected.rooms = 29;
-      data.arrivalsExpected.persons = 38;
-      data.arrivalsMadeToday.rooms = 0;
-      data.arrivalsMadeToday.persons = 0;
-      data.arrivalsActual.rooms = 29;
-      data.arrivalsActual.persons = 38;
-      data.minAvailableTonight = 22;
-      data.maxOccupiedTonight.rooms = 97;
-      data.maxOccupiedTonight.persons = 124;
-      data.maxOccupancyPct = 80.8;
-      data.projectedRoomRevenue = 388500;
-      data.averageDailyRate = 4005;
-    } else if (this.currentDate === '11 Sep 2026') {
-      data.stayovers.rooms = Math.round(data.stayovers.rooms * 0.92);
-      data.departuresExpected.rooms = 25;
-      data.departuresActual.rooms = 0;
-      data.departuresActual.persons = 0;
-      data.arrivalsExpected.rooms = 19;
-      data.arrivalsExpected.persons = 25;
-      data.arrivalsMadeToday.rooms = 0;
-      data.arrivalsMadeToday.persons = 0;
-      data.arrivalsActual.rooms = 19;
-      data.arrivalsActual.persons = 25;
-      data.minAvailableTonight = 29;
-      data.maxOccupiedTonight.rooms = 91;
-      data.maxOccupiedTonight.persons = 114;
-      data.maxOccupancyPct = 75.8;
-      data.projectedRoomRevenue = 362000;
-      data.averageDailyRate = 3978;
-    }
+      // ── Floor 2: Executive (201 - 212) ──
+      { number: '201', category: 'Executive', floor: '2', status: 'Available', rate: 7500, bedding: '1 King Bed', size: '42 m²', wing: 'West Wing', hkStatus: 'Ready / Inspected', services: [], diningOrders: [] },
+      {
+        number: '202', category: 'Executive', floor: '2', status: 'Reserved', rate: 7500, bedding: '1 King Bed', size: '42 m²', wing: 'West Wing',
+        guest: 'Julian Croft', reservationId: 'RES-202', phone: '+1 (555) 678-9012', email: 'j.croft@croft-holdings.com',
+        checkIn: '17 Sep 2026', checkOut: '22 Sep 2026', eta: '15:00 Arriving', totalNights: 5, folioTotal: 37500, paidAmount: 0, services: [], diningOrders: []
+      },
+      {
+        number: '203', category: 'Executive', floor: '2', status: 'Paid', rate: 7500, bedding: '1 King Bed', size: '42 m²', wing: 'West Wing',
+        guest: 'Sophia Laurent', reservationId: 'RES-203', phone: '+33 6 98 76 54 32', email: 'sophia.laurent@luxury.fr',
+        vipTier: 'VIP Platinum', checkIn: '17 Sep 2026', checkOut: '20 Sep 2026', totalNights: 3, folioTotal: 22500, paidAmount: 22500, badgeNote: 'Guaranteed', services: [], diningOrders: []
+      },
+      { number: '204', category: 'Executive', floor: '2', status: 'Available', rate: 7500, bedding: '1 King Bed', size: '42 m²', wing: 'West Wing', hkStatus: 'Ready / Inspected', services: [], diningOrders: [] },
+      {
+        number: '205', category: 'Executive', floor: '2', status: 'Reserved', rate: 7500, bedding: '1 King Bed', size: '42 m²', wing: 'West Wing',
+        guest: 'Robert Lang', reservationId: 'RES-205', phone: '+1 (555) 789-0123', email: 'robert.lang@techcorp.io',
+        checkIn: '18 Sep 2026', checkOut: '23 Sep 2026', eta: '17:30 Arriving', totalNights: 5, folioTotal: 37500, paidAmount: 7500, services: [], diningOrders: []
+      },
+      { number: '206', category: 'Executive', floor: '2', status: 'Available', rate: 7500, bedding: '2 Queen Beds', size: '45 m²', wing: 'West Wing', hkStatus: 'Ready / Inspected', services: [], diningOrders: [] },
+      {
+        number: '207', category: 'Executive', floor: '2', status: 'Checked In', rate: 7500, bedding: '1 King Bed', size: '42 m²', wing: 'West Wing',
+        guest: 'Anna Becker', reservationId: 'RES-207', phone: '+49 30 1234567', email: 'a.becker@berlin-design.de',
+        vipTier: 'VIP Gold', checkIn: '16 Sep 2026', checkOut: '19 Sep 2026', currentNight: 2, totalNights: 3,
+        folioTotal: 22500, roomCharges: 22500, serviceCharges: 1100, totalBalance: 23600, paidAmount: 22500, keycard: 'RFID-207-A',
+        services: [{ id: 'srv-207', name: 'Spa Session (Swedish Massage 60m)', department: 'Spa & Wellness', priority: 'High', price: 3500, status: 'Pending', time: '17:00 PM' }],
+        diningOrders: [{ id: 'ORD-912', items: 'Wood-Fired Margherita Pizza, Sparkling Water', total: 1100, status: 'Delivered & Billed', time: '14:00 PM' }]
+      },
+      { number: '208', category: 'Executive', floor: '2', status: 'Available', rate: 7500, bedding: '1 King Bed', size: '42 m²', wing: 'West Wing', hkStatus: 'Ready / Inspected', services: [], diningOrders: [] },
+      {
+        number: '209', category: 'Executive', floor: '2', status: 'Checked In', rate: 7500, bedding: '1 King Bed', size: '42 m²', wing: 'West Wing',
+        guest: 'Charles Montgomery', reservationId: 'RES-209', phone: '+1 (555) 456-7890', email: 'c.montgomery@equity.com',
+        vipTier: 'VIP Platinum', checkIn: '15 Sep 2026', checkOut: '20 Sep 2026', currentNight: 3, totalNights: 5,
+        folioTotal: 37500, roomCharges: 37500, serviceCharges: 4200, totalBalance: 41700, paidAmount: 37500, keycard: 'RFID-209-A',
+        services: [{ id: 'srv-209', name: 'Executive Meeting Room Booking (Boardroom B)', department: 'Front Desk', priority: 'High', price: 5000, status: 'Completed', time: 'Yesterday' }],
+        diningOrders: [{ id: 'ORD-899', items: '2x Grilled Atlantic Salmon, Champagne Bottle', total: 4200, status: 'Delivered & Billed', time: 'Yesterday 20:30' }]
+      },
+      { number: '210', category: 'Executive', floor: '2', status: 'Available', rate: 7500, bedding: '2 Queen Beds', size: '45 m²', wing: 'West Wing', hkStatus: 'Ready / Inspected', services: [], diningOrders: [] },
+      {
+        number: '211', category: 'Executive', floor: '2', status: 'Checked Out', rate: 7500, bedding: '1 King Bed', size: '42 m²', wing: 'West Wing',
+        housekeepingStatus: 'Vacant Dirty (Housekeeping turnover dispatched)', lastOccupant: 'Maximilian Sterling', depTime: '11:15 Departed',
+        services: [], diningOrders: []
+      },
+      { number: '212', category: 'Executive', floor: '2', status: 'Available', rate: 7500, bedding: '1 King Bed', size: '42 m²', wing: 'West Wing', hkStatus: 'Ready / Inspected', services: [], diningOrders: [] },
 
-    return data;
-  }
+      // ── Floor 3: Suite (301 - 312) ──
+      { number: '301', category: 'Suite', floor: '3', status: 'Available', rate: 12000, bedding: 'Master Suite + Living Area', size: '65 m²', wing: 'Executive Tower', hkStatus: 'Ready / Inspected', services: [], diningOrders: [] },
+      {
+        number: '302', category: 'Suite', floor: '3', status: 'Reserved', rate: 12000, bedding: 'Master Suite + Living Area', size: '65 m²', wing: 'Executive Tower',
+        guest: 'Diana Prince', reservationId: 'RES-302', phone: '+1 (555) 567-8901', email: 'diana.prince@themyscira.org',
+        checkIn: '17 Sep 2026', checkOut: '21 Sep 2026', eta: '15:30 Arriving', totalNights: 4, folioTotal: 48000, paidAmount: 12000, services: [], diningOrders: []
+      },
+      {
+        number: '303', category: 'Suite', floor: '3', status: 'Checked In', rate: 12000, bedding: 'Master Suite + Balcony', size: '70 m²', wing: 'Executive Tower',
+        guest: 'Edward Norton', reservationId: 'RES-303', phone: '+1 (555) 678-1234', email: 'edward.norton@hollywood.com',
+        vipTier: 'VIP Platinum', checkIn: '14 Sep 2026', checkOut: '19 Sep 2026', currentNight: 4, totalNights: 5,
+        folioTotal: 60000, roomCharges: 60000, serviceCharges: 5400, totalBalance: 65400, paidAmount: 60000, keycard: 'RFID-303-VIP',
+        services: [{ id: 'srv-303', name: 'VIP Organic Fruit & Champagne Basket', department: 'Room Service', priority: 'VIP Urgent', price: 0, status: 'Completed', time: '11:00 AM' }],
+        diningOrders: [{ id: 'ORD-930', items: 'Caviar Service, Beluga & Blinis, Champagne', total: 5400, status: 'Delivered & Billed', time: 'Yesterday' }]
+      },
+      { number: '304', category: 'Suite', floor: '3', status: 'Available', rate: 12000, bedding: 'Master Suite + Living Area', size: '65 m²', wing: 'Executive Tower', hkStatus: 'Ready / Inspected', services: [], diningOrders: [] },
+      {
+        number: '305', category: 'Suite', floor: '3', status: 'Checked In', rate: 12000, bedding: 'Master Suite + Jacuzzi', size: '72 m²', wing: 'Executive Tower',
+        guest: 'Fiona Gallagher', reservationId: 'RES-305', phone: '+1 (555) 789-2345', email: 'fiona.g@gallagher.com',
+        checkIn: '16 Sep 2026', checkOut: '21 Sep 2026', currentNight: 2, totalNights: 5,
+        folioTotal: 60000, roomCharges: 60000, serviceCharges: 1850, totalBalance: 61850, paidAmount: 60000, keycard: 'RFID-305-A',
+        services: [], diningOrders: []
+      },
+      {
+        number: '306', category: 'Suite', floor: '3', status: 'Checked Out', rate: 12000, bedding: 'Master Suite + Living Area', size: '65 m²', wing: 'Executive Tower',
+        housekeepingStatus: 'Vacant Dirty (Rush Turnover)', lastOccupant: 'Baroness Von Meyer', depTime: '10:45 Departed', services: [], diningOrders: []
+      },
+      { number: '307', category: 'Suite', floor: '3', status: 'Available', rate: 12000, bedding: 'Master Suite + Living Area', size: '65 m²', wing: 'Executive Tower', hkStatus: 'Ready / Inspected', services: [], diningOrders: [] },
+      {
+        number: '308', category: 'Suite', floor: '3', status: 'Checked In', rate: 12000, bedding: 'Master Suite + Panoramic View', size: '75 m²', wing: 'Executive Tower',
+        guest: 'George Harrison', reservationId: 'RES-308', phone: '+44 20 7946 0992', email: 'george.harrison@applecorps.uk',
+        vipTier: 'Royal Diamond', checkIn: '15 Sep 2026', checkOut: '20 Sep 2026', currentNight: 3, totalNights: 5,
+        folioTotal: 60000, roomCharges: 60000, serviceCharges: 7500, totalBalance: 67500, paidAmount: 60000, keycard: 'RFID-308-VIP',
+        services: [{ id: 'srv-308', name: 'Steinway Grand Piano Tuning in Suite', department: 'Concierge', priority: 'VIP Urgent', price: 0, status: 'Completed', time: '10:15 AM' }],
+        diningOrders: [{ id: 'ORD-945', items: 'Château Margaux 2015, Artisanal Cheese Board', total: 7500, status: 'Delivered & Billed', time: 'Yesterday' }]
+      },
+      { number: '309', category: 'Suite', floor: '3', status: 'Available', rate: 12000, bedding: 'Master Suite + Living Area', size: '65 m²', wing: 'Executive Tower', hkStatus: 'Ready / Inspected', services: [], diningOrders: [] },
+      {
+        number: '310', category: 'Suite', floor: '3', status: 'Reserved', rate: 12000, bedding: 'Master Suite + Living Area', size: '65 m²', wing: 'Executive Tower',
+        guest: 'Helena Bonham', reservationId: 'RES-310', phone: '+44 20 7946 0773', email: 'helena.b@cinema.co.uk',
+        checkIn: '18 Sep 2026', checkOut: '22 Sep 2026', eta: '18:00 Arriving', totalNights: 4, folioTotal: 48000, paidAmount: 24000, services: [], diningOrders: []
+      },
+      {
+        number: '311', category: 'Suite', floor: '3', status: 'Paid', rate: 12000, bedding: 'Master Suite + Living Area', size: '65 m²', wing: 'Executive Tower',
+        guest: 'Ian Malcolm', reservationId: 'RES-311', phone: '+1 (555) 890-3456', email: 'ian.malcolm@jurassic.edu',
+        vipTier: 'VIP Gold', checkIn: '17 Sep 2026', checkOut: '20 Sep 2026', totalNights: 3, folioTotal: 36000, paidAmount: 36000, badgeNote: 'Guaranteed', services: [], diningOrders: []
+      },
+      {
+        number: '312', category: 'Suite', floor: '3', status: 'Damaged', rate: 12000, bedding: 'Master Suite', size: '65 m²', wing: 'Executive Tower',
+        damageReason: 'AC Coolant Pipe Leak & Carpet Moisture Remediation', workOrder: '#WO-1038',
+        reportedBy: 'Housekeeping Supervisor', etaRepair: '18 Sep 2026 14:00', services: [], diningOrders: []
+      },
 
-  // =========================================================================
-  // DRILL-DOWN MODAL GENERATOR (Oracle HMS [↓] Feature)
-  // =========================================================================
-  getDrilldownRecords(categoryKey) {
-    const allRecords = {
-      stayovers: [
-        { room: '201', type: 'Deluxe Ocean Suite', guest: 'Dr. Sarah Jenkins', persons: 2, vip: 'VIP 1', status: 'In-House', rate: '₹4,500', time: 'Stay through 12 Sep', targetTab: 'inhouse' },
-        { room: '304', type: 'Executive Panoramic Suite', guest: 'Marcus Sterling', persons: 1, vip: 'VIP 2', status: 'In-House', rate: '₹7,200', time: 'Stay through 14 Sep', targetTab: 'inhouse' },
-        { room: '108', type: 'Classic King Room', guest: 'Elena Rostova', persons: 2, vip: 'Standard', status: 'In-House', rate: '₹3,200', time: 'Stay through 10 Sep', targetTab: 'inhouse' },
-        { room: '402', type: 'Presidential Royal Penthouse', guest: 'Julian Vane', persons: 2, vip: 'VIP 1', status: 'In-House', rate: '₹14,500', time: 'Stay through 15 Sep', targetTab: 'inhouse' },
-      ],
-      departuresExpected: [
-        { room: '105', type: 'Classic King Room', guest: 'Robert Davis', persons: 1, vip: 'Standard', status: 'Due Out', rate: '₹3,200', time: 'Est: 11:00 AM', targetTab: 'departures' },
-        { room: '210', type: 'Deluxe Ocean Suite', guest: 'Samantha Vance', persons: 2, vip: 'VIP 1', status: 'Late Check-out', rate: '₹4,500', time: 'Est: 2:00 PM', targetTab: 'departures' },
-        { room: '315', type: 'Executive Panoramic Suite', guest: 'Liam O\'Connor', persons: 2, vip: 'Standard', status: 'Due Out', rate: '₹7,200', time: 'Est: 12:00 PM', targetTab: 'departures' },
-      ],
-      departuresActual: [
-        { room: '102', type: 'Classic King Room', guest: 'Arthur Campbell', persons: 1, vip: 'Standard', status: 'Checked Out', rate: '₹3,200', time: 'Departed 09:15 AM', targetTab: 'departures' },
-        { room: '214', type: 'Deluxe Ocean Suite', guest: 'Claire Bennett', persons: 2, vip: 'VIP 1', status: 'Checked Out', rate: '₹4,800', time: 'Departed 10:30 AM', targetTab: 'departures' },
-      ],
-      arrivalsExpected: [
-        { room: '205', type: 'Deluxe Ocean Suite', guest: 'Vikram Malhotra', persons: 2, vip: 'VIP 1', status: 'Expected', rate: '₹4,500', time: 'ETA: 02:00 PM', targetTab: 'arrivals' },
-        { room: '308', type: 'Executive Panoramic Suite', guest: 'Catherine DeWitt', persons: 2, vip: 'VIP 2', status: 'Expected', rate: '₹7,200', time: 'ETA: 04:30 PM', targetTab: 'arrivals' },
-        { room: '112', type: 'Classic King Room', guest: 'Thomas Mueller', persons: 1, vip: 'Standard', status: 'Expected', rate: '₹3,200', time: 'ETA: 06:00 PM', targetTab: 'arrivals' },
-      ],
-      arrivalsMadeToday: [
-        { room: '202', type: 'Deluxe Ocean Suite', guest: 'Ananya Singhania', persons: 2, vip: 'VIP 1', status: 'Checked In', rate: '₹4,500', time: 'Arrived 11:20 AM', targetTab: 'arrivals' },
-        { room: '104', type: 'Classic King Room', guest: 'David Miller', persons: 1, vip: 'Standard', status: 'Checked In', rate: '₹3,200', time: 'Arrived 12:45 PM', targetTab: 'arrivals' },
-      ],
-      arrivalsActual: [
-        { room: '310', type: 'Executive Panoramic Suite', guest: 'Lord Alistair Sterling', persons: 2, vip: 'VIP 2', status: 'Pending Arrival', rate: '₹7,500', time: 'ETA: 05:00 PM', targetTab: 'arrivals' },
-        { room: '118', type: 'Classic King Room', guest: 'Priya Narang', persons: 1, vip: 'Standard', status: 'Pending Arrival', rate: '₹3,200', time: 'ETA: 07:15 PM', targetTab: 'arrivals' },
-      ],
-      extendedStays: [
-        { room: '301', type: 'Executive Panoramic Suite', guest: 'Alexander Wright', persons: 2, vip: 'Standard', status: 'Extended (+2 Nights)', rate: '₹7,200', time: 'New Departure: 11 Sep', targetTab: 'inhouse' },
-      ],
-      earlyDepartures: [
-        { room: '116', type: 'Classic King Room', guest: 'Gregory Hayes', persons: 1, vip: 'Standard', status: 'Early Check-Out', rate: '₹3,200', time: 'Departed 08:30 AM', targetTab: 'departures' },
-      ],
-      dayUseRooms: [
-        { room: '109', type: 'Classic King Room', guest: 'Aviation Flight Crew (Cap. Rogers)', persons: 1, vip: 'Standard', status: 'Day-Use', rate: '₹2,500', time: '09:00 AM - 06:00 PM', targetTab: 'arrivals' },
-      ],
-      walkIns: [
-        { room: '208', type: 'Deluxe Ocean Suite', guest: 'Siddharth Roy', persons: 2, vip: 'Standard', status: 'Walk-In Registered', rate: '₹5,200', time: 'Registered 10:15 AM', targetTab: 'arrivals' },
-      ],
-      dayOfArrivalCancellations: [
-        { room: '306', type: 'Executive Panoramic Suite', guest: 'Franklin & Partners', persons: 2, vip: 'Standard', status: 'Cancelled Same-Day', rate: '₹7,200', time: 'Cancelled 08:45 AM (Fee Applied)', targetTab: 'reservations' },
-      ],
-      outOfOrder: [
-        { room: '106', type: 'Classic King Room', guest: 'N/A (Maintenance)', persons: 0, vip: '—', status: 'OOO: HVAC Leak', rate: '—', time: 'Release: 10 Sep 14:00', targetTab: 'room_status' },
-        { room: '212', type: 'Deluxe Ocean Suite', guest: 'N/A (Engineering)', persons: 0, vip: '—', status: 'OOO: Flooring Refurbish', rate: '—', time: 'Release: 11 Sep 18:00', targetTab: 'room_status' },
-        { room: '303', type: 'Executive Panoramic Suite', guest: 'N/A (Engineering)', persons: 0, vip: '—', status: 'OOO: Balcony Glass Seal', rate: '—', time: 'Release: 10 Sep 10:00', targetTab: 'room_status' },
-      ],
-      outOfService: [
-        { room: '114', type: 'Classic King Room', guest: 'N/A (Housekeeping)', persons: 0, vip: '—', status: 'OOS: Deep Carpet Shampoo', rate: '—', time: 'Release: Today 17:00', targetTab: 'room_status' },
-        { room: '220', type: 'Deluxe Ocean Suite', guest: 'N/A (Paint Touchup)', persons: 0, vip: '—', status: 'OOS: Minor Wall Scuffs', rate: '—', time: 'Release: Today 16:30', targetTab: 'room_status' },
-      ],
-      inspectedVacant: [
-        { room: '101', type: 'Classic King Room', guest: 'Vacant', persons: 0, vip: 'Ready for Arrival', status: 'Inspected Clean', rate: '₹3,200', time: 'Verified by Supervisor', targetTab: 'room_status' },
-        { room: '203', type: 'Deluxe Ocean Suite', guest: 'Vacant', persons: 0, vip: 'Ready for Arrival', status: 'Inspected Clean', rate: '₹4,500', time: 'Verified by Supervisor', targetTab: 'room_status' },
-      ],
-      dirtyVacant: [
-        { room: '107', type: 'Classic King Room', guest: 'Departed Today', persons: 0, vip: 'Priority Cleaning', status: 'Dirty (Vacant)', rate: '—', time: 'Turnaround pending: 45m', targetTab: 'room_status' },
-        { room: '215', type: 'Deluxe Ocean Suite', guest: 'Departed Today', persons: 0, vip: 'Priority Cleaning', status: 'Dirty (Vacant)', rate: '—', time: 'Turnaround pending: 65m', targetTab: 'room_status' },
-      ],
-      queue: [
-        { room: 'Unassigned', type: 'Executive Panoramic Suite', guest: 'Harrison Forbes', persons: 2, vip: 'VIP 1', status: 'In Queue (Wait: 28m)', rate: '₹7,200', time: 'Req: High Floor Ocean View', targetTab: 'queue_reservations' },
-        { room: 'Unassigned', type: 'Deluxe Ocean Suite', guest: 'Tanya Bhasin', persons: 1, vip: 'Standard', status: 'In Queue (Wait: 15m)', rate: '₹4,500', time: 'Req: Early Check-in', targetTab: 'queue_reservations' },
-        { room: 'Unassigned', type: 'Classic King Room', guest: 'Siddharth Rao', persons: 2, vip: 'Standard', status: 'In Queue (Wait: 10m)', rate: '₹3,200', time: 'Req: Non-Smoking', targetTab: 'queue_reservations' },
-      ],
-      compArrivals: [
-        { room: '401', type: 'Presidential Royal Penthouse', guest: 'Sir Reginald Vance (Board Member)', persons: 2, vip: 'VIP 1', status: 'Complimentary Arrival', rate: '₹0 (Comp)', time: 'ETA: 03:00 PM', targetTab: 'arrivals' },
-      ],
-      houseUseArrivals: [
-        { room: '115', type: 'Classic King Room', guest: 'Chef Antoine (Visiting Executive Chef)', persons: 1, vip: 'House Use', status: 'House Use Arrival', rate: '₹0 (House Use)', time: 'ETA: 01:30 PM', targetTab: 'arrivals' },
-      ],
-    };
+      // ── Floor 4: Deluxe (401 - 406) ──
+      { number: '401', category: 'Deluxe', floor: '4', status: 'Available', rate: 9500, bedding: '1 King Bed + Ocean View', size: '52 m²', wing: 'Seaside Wing', hkStatus: 'Ready / Inspected', services: [], diningOrders: [] },
+      {
+        number: '402', category: 'Deluxe', floor: '4', status: 'Checked In', rate: 9500, bedding: '1 King Bed + Ocean View', size: '52 m²', wing: 'Seaside Wing',
+        guest: 'Sarah Mitchell', reservationId: 'RES-402', phone: '+1 (555) 382-9901', email: 'sarah.m@vanguard.com',
+        vipTier: 'VIP Platinum', checkIn: '12 Sep 2026', checkOut: '15 Sep 2026', currentNight: 3, totalNights: 3,
+        folioTotal: 28500, paidAmount: 28500, keycard: 'RFID-402-A', services: [], diningOrders: []
+      },
+      { number: '403', category: 'Deluxe', floor: '4', status: 'Available', rate: 9500, bedding: '1 King Bed + Ocean View', size: '52 m²', wing: 'Seaside Wing', hkStatus: 'Ready / Inspected', services: [], diningOrders: [] },
+      {
+        number: '404', category: 'Deluxe', floor: '4', status: 'Reserved', rate: 9500, bedding: '1 King Bed + Ocean View', size: '52 m²', wing: 'Seaside Wing',
+        guest: 'Clara Dupont', reservationId: 'RES-404', phone: '+33 6 45 67 89 01', email: 'c.dupont@artisan.fr',
+        checkIn: '17 Sep 2026', checkOut: '21 Sep 2026', eta: '16:45 Arriving', totalNights: 4, folioTotal: 38000, paidAmount: 9500, services: [], diningOrders: []
+      },
+      {
+        number: '405', category: 'Deluxe', floor: '4', status: 'Paid', rate: 9500, bedding: '1 King Bed + Ocean View', size: '52 m²', wing: 'Seaside Wing',
+        guest: 'Dr. Aris Thorne', reservationId: 'RES-405', phone: '+41 22 767 1111', email: 'thorne@cern.ch',
+        vipTier: 'VIP Platinum', checkIn: '17 Sep 2026', checkOut: '22 Sep 2026', totalNights: 5, folioTotal: 47500, paidAmount: 47500, badgeNote: 'Guaranteed', services: [], diningOrders: []
+      },
+      { number: '406', category: 'Deluxe', floor: '4', status: 'Available', rate: 9500, bedding: '1 King Bed + Ocean View', size: '52 m²', wing: 'Seaside Wing', hkStatus: 'Ready / Inspected', services: [], diningOrders: [] },
 
-    let list = allRecords[categoryKey] || [
-      { room: '101', type: 'Classic King Room', guest: 'Verified Guest', persons: 1, vip: 'Standard', status: 'Active Status', rate: '₹3,200', time: 'Standard Schedule', targetTab: 'room_status' },
-      { room: '204', type: 'Deluxe Ocean Suite', guest: 'Corporate Account', persons: 2, vip: 'VIP 1', status: 'Active Status', rate: '₹4,500', time: 'Standard Schedule', targetTab: 'room_status' },
+      // ── Floor 5: Penthouse (501 - 504) ──
+      {
+        number: '501', category: 'Penthouse', floor: '5', status: 'Checked In', rate: 25000, bedding: 'Presidential Royal Penthouse', size: '180 m²', wing: 'Sky Level',
+        guest: 'H.R.H. Sheikh Al-Sabah', reservationId: 'RES-501', phone: '+965 2200 4400', email: 'royal.office@alsabah.kw',
+        vipTier: 'Royal Diamond', checkIn: '10 Sep 2026', checkOut: '24 Sep 2026', currentNight: 8, totalNights: 14,
+        folioTotal: 350000, paidAmount: 350000, keycard: 'RFID-501-VIP-GOLD', services: [], diningOrders: []
+      },
+      {
+        number: '502', category: 'Penthouse', floor: '5', status: 'Reserved', rate: 25000, bedding: 'Presidential Royal Penthouse', size: '180 m²', wing: 'Sky Level',
+        guest: 'Sir William Sterling', reservationId: 'RES-502', phone: '+44 20 7946 0001', email: 'sterling@knight.co.uk',
+        vipTier: 'VIP Platinum', checkIn: '18 Sep 2026', checkOut: '25 Sep 2026', eta: '14:00 Arriving', totalNights: 7, folioTotal: 175000, paidAmount: 50000, services: [], diningOrders: []
+      },
+      { number: '503', category: 'Penthouse', floor: '5', status: 'Available', rate: 25000, bedding: 'Presidential Royal Penthouse', size: '180 m²', wing: 'Sky Level', services: [], diningOrders: [] },
+      { number: '504', category: 'Penthouse', floor: '5', status: 'Available', rate: 25000, bedding: 'Presidential Royal Penthouse', size: '180 m²', wing: 'Sky Level', services: [], diningOrders: [] }
     ];
 
-    // Filter list according to class if specified
-    if (this.selectedRoomClass === 'SUITES') {
-      const suiteList = list.filter(r => r.type.includes('Suite') || r.type.includes('Penthouse'));
-      if (suiteList.length > 0) list = suiteList;
-    } else if (this.selectedRoomClass === 'DELUXE') {
-      const deluxeList = list.filter(r => r.type.includes('Deluxe'));
-      if (deluxeList.length > 0) list = deluxeList;
-    } else if (this.selectedRoomClass === 'CLASSIC') {
-      const classicList = list.filter(r => r.type.includes('Classic'));
-      if (classicList.length > 0) list = classicList;
-    }
-
-    return list;
+    store.state.houseStatusRooms = this.rooms;
+    this.selectedRoom = this.rooms.find(r => r.number === '102') || this.rooms[0];
   }
 
-  openDrilldownModal(categoryTitle, categoryKey, countSummary) {
-    this.closeModal();
-    const records = this.getDrilldownRecords(categoryKey);
-
-    const modal = document.createElement('div');
-    modal.id = 'house-status-drilldown-modal';
-    modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn';
-
-    modal.innerHTML = `
-      <div class="bg-surface-bright rounded-2xl border border-outline-variant shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden animate-scaleUp">
-        
-        <!-- Modal Header -->
-        <div class="px-6 py-4 border-b border-outline-variant/60 flex items-center justify-between bg-surface-container-low">
-          <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl bg-primary text-on-primary flex items-center justify-center shadow-xs">
-              <span class="material-symbols-outlined text-[20px]">list_alt</span>
-            </div>
-            <div>
-              <div class="flex items-center gap-2">
-                <h3 class="font-headline-sm text-base font-bold text-primary">${categoryTitle}</h3>
-                <span class="px-2 py-0.5 rounded text-[10px] font-bold font-data-mono bg-primary/10 text-primary border border-primary/20">
-                  ${countSummary || `${records.length} Records`}
-                </span>
-              </div>
-              <p class="text-xs text-on-surface-variant">Oracle HMS Operational Drill-Down · Instant front-desk room & guest roster</p>
-            </div>
-          </div>
-          <button 
-            id="btn-close-drilldown-modal"
-            class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors cursor-pointer"
-            title="Close modal (Esc)"
-          >
-            <span class="material-symbols-outlined text-[20px]">close</span>
-          </button>
-        </div>
-
-        <!-- Filter & Search Bar within Modal -->
-        <div class="px-6 py-3 bg-surface-container-lowest border-b border-outline-variant/40 flex items-center justify-between gap-4 text-xs">
-          <div class="flex items-center gap-2 flex-1 max-w-md">
-            <span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
-            <input 
-              type="text" 
-              id="drilldown-search-input"
-              placeholder="Search by Room #, Guest name, Room Type..." 
-              class="w-full bg-transparent text-primary text-xs outline-none placeholder:text-on-surface-variant/60"
-            />
-          </div>
-          <div class="text-[11px] text-on-surface-variant font-data-mono">
-            Showing ${records.length} matched keys
-          </div>
-        </div>
-
-        <!-- Table Content -->
-        <div class="flex-1 overflow-y-auto p-6 custom-scrollbar bg-surface-container-lowest">
-          <table class="w-full text-xs text-left" id="drilldown-table">
-            <thead>
-              <tr class="border-b border-outline-variant/60 text-[10px] font-label-caps font-bold text-on-surface-variant uppercase tracking-wider">
-                <th class="py-2.5 px-3">Room # & Type</th>
-                <th class="py-2.5 px-3">Guest / Reservation</th>
-                <th class="py-2.5 px-3 text-center">Persons</th>
-                <th class="py-2.5 px-3 text-center">VIP Tier</th>
-                <th class="py-2.5 px-3">Operational Status</th>
-                <th class="py-2.5 px-3">Timing / Details</th>
-                <th class="py-2.5 px-3 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-outline-variant/30" id="drilldown-tbody">
-              ${records.map((rec) => `
-                <tr class="hover:bg-surface-container-low/50 transition-colors">
-                  <td class="py-3 px-3">
-                    <div class="font-data-mono font-bold text-primary text-sm flex items-center gap-1.5">
-                      <span class="material-symbols-outlined text-[15px] text-secondary">meeting_room</span>
-                      <span>${rec.room}</span>
-                    </div>
-                    <div class="text-[11px] text-on-surface-variant mt-0.5">${rec.type}</div>
-                  </td>
-                  <td class="py-3 px-3">
-                    <div class="font-semibold text-primary">${rec.guest}</div>
-                    <div class="text-[11px] font-data-mono text-on-surface-variant">${rec.rate}</div>
-                  </td>
-                  <td class="py-3 px-3 text-center font-data-mono font-bold text-primary">
-                    ${rec.persons}
-                  </td>
-                  <td class="py-3 px-3 text-center">
-                    <span class="px-2 py-0.5 rounded text-[10px] font-bold font-data-mono ${
-                      rec.vip.includes('VIP') 
-                        ? 'bg-amber-100 text-amber-800 border border-amber-200' 
-                        : 'bg-surface-container text-on-surface-variant'
-                    }">
-                      ${rec.vip}
-                    </span>
-                  </td>
-                  <td class="py-3 px-3">
-                    <span class="font-medium text-primary text-xs">${rec.status}</span>
-                  </td>
-                  <td class="py-3 px-3 text-on-surface-variant text-xs">
-                    ${rec.time}
-                  </td>
-                  <td class="py-3 px-3 text-right">
-                    <button 
-                      class="btn-drilldown-action px-2.5 py-1 rounded-lg bg-primary/10 hover:bg-primary hover:text-white text-primary text-xs font-bold transition-all cursor-pointer shadow-2xs"
-                      data-target="${rec.targetTab}"
-                    >
-                      Open
-                    </button>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Modal Footer -->
-        <div class="px-6 py-3 border-t border-outline-variant/60 flex items-center justify-between bg-surface-container-low">
-          <span class="text-xs text-on-surface-variant">
-            OPERA Reference: House Status Detail Inquiry (Press Esc to exit)
-          </span>
-          <button 
-            id="btn-close-drilldown-footer"
-            class="px-4 py-1.5 rounded-lg bg-surface-container border border-outline-variant text-xs font-bold text-primary hover:bg-surface-container-high transition-colors cursor-pointer"
-          >
-            Close
-          </button>
-        </div>
-
-      </div>
-    `;
-
-    // Backdrop click dismiss
-    modal.onclick = (e) => {
-      if (e.target === modal) this.closeModal();
-    };
-
-    document.body.appendChild(modal);
-    this.activeModal = modal;
-
-    // Attach Close handlers
-    const closeBtn = modal.querySelector('#btn-close-drilldown-modal');
-    if (closeBtn) closeBtn.onclick = () => this.closeModal();
-
-    const closeFooterBtn = modal.querySelector('#btn-close-drilldown-footer');
-    if (closeFooterBtn) closeFooterBtn.onclick = () => this.closeModal();
-
-    // Attach Action handlers (Only routes within Front Desk)
-    modal.querySelectorAll('.btn-drilldown-action').forEach((btn) => {
-      btn.onclick = () => {
-        const target = btn.dataset.target;
-        this.closeModal();
-        if (target && target !== 'housekeeping' && target !== 'maintenance') {
-          store.setNavTab(target);
-        } else if (target) {
-          store.setNavTab('room_status');
-        }
-      };
-    });
-
-    // In-modal live search filter
-    const searchInput = modal.querySelector('#drilldown-search-input');
-    if (searchInput) {
-      searchInput.oninput = (e) => {
-        const query = e.target.value.toLowerCase().trim();
-        const rows = modal.querySelectorAll('#drilldown-tbody tr');
-        rows.forEach((row) => {
-          const text = row.textContent.toLowerCase();
-          row.style.display = text.includes(query) ? '' : 'none';
-        });
-      };
-    }
-
-    // Escape key listener
-    this.escListener = (e) => {
-      if (e.key === 'Escape') {
-        this.closeModal();
-      }
-    };
-    window.addEventListener('keydown', this.escListener);
+  saveRooms() {
+    store.state.houseStatusRooms = this.rooms;
+    try {
+      localStorage.setItem('volvitech_house_status_rooms', JSON.stringify(this.rooms));
+    } catch (_) {}
   }
 
-  closeModal() {
-    if (this.activeModal) {
-      this.activeModal.remove();
-      this.activeModal = null;
-    }
-    if (this.escListener) {
-      window.removeEventListener('keydown', this.escListener);
-      this.escListener = null;
-    }
+  async loadData() {
+    this.initRooms();
   }
 
-  // =========================================================================
-  // MAIN VIEW RENDERING
-  // =========================================================================
+  render() {
+    const root = document.createElement('div');
+    root.className = 'w-full pb-16 space-y-5 animate-fadeIn select-none';
+    this.container = root;
+
+    this.renderContent();
+    return root;
+  }
+
   renderContent() {
     if (!this.container) return;
 
-    // Get dynamically calculated operational data based on current filters
-    const currentData = this.getActiveData();
+    // Filter computation
+    let filteredRooms = [...this.rooms];
 
-    // Calculations with Day-Use Toggle
-    const baseOcc = currentData.maxOccupancyPct;
-    const baseOccRooms = currentData.maxOccupiedTonight.rooms;
-    const baseOccPersons = currentData.maxOccupiedTonight.persons;
-    const baseOccVip = currentData.maxOccupiedTonight.vip;
-    const baseAvail = currentData.minAvailableTonight;
-    const baseRev = currentData.projectedRoomRevenue;
+    if (this.selectedFloor !== 'ALL') {
+      filteredRooms = filteredRooms.filter(r => String(r.floor) === String(this.selectedFloor));
+    }
 
-    const displayOccPct = this.includeDayUse ? Math.min(100, Number((baseOcc + 1.2).toFixed(1))) : baseOcc;
-    const displayOccRooms = this.includeDayUse ? baseOccRooms + 1 : baseOccRooms;
-    const displayOccPersons = this.includeDayUse ? baseOccPersons + 1 : baseOccPersons;
-    const displayAvail = this.includeDayUse ? Math.max(0, baseAvail - 1) : baseAvail;
-    const displayRev = this.includeDayUse ? baseRev + 3800 : baseRev;
-    const displayAdr = Math.round(displayRev / displayOccRooms);
+    if (this.selectedCategory !== 'ALL') {
+      filteredRooms = filteredRooms.filter(r => r.category.toLowerCase() === this.selectedCategory.toLowerCase());
+    }
 
-    const turndownTotalRequired = currentData.turndown.required.occupied;
-    const turndownTotalCompleted = currentData.turndown.completed.occupied;
-    const turndownPct = turndownTotalRequired > 0 
-      ? Math.round((turndownTotalCompleted / turndownTotalRequired) * 100) 
-      : 100;
+    if (this.selectedStatus !== 'ALL') {
+      filteredRooms = filteredRooms.filter(r => r.status.toLowerCase() === this.selectedStatus.toLowerCase());
+    }
+
+    if (this.searchQuery.trim()) {
+      const q = this.searchQuery.toLowerCase().trim();
+      filteredRooms = filteredRooms.filter(r =>
+        r.number.toLowerCase().includes(q) ||
+        r.category.toLowerCase().includes(q) ||
+        (r.guest && r.guest.toLowerCase().includes(q)) ||
+        (r.reservationId && r.reservationId.toLowerCase().includes(q)) ||
+        (r.workOrder && r.workOrder.toLowerCase().includes(q))
+      );
+    }
+
+    // Dynamic metrics
+    const totalCount = this.rooms.length;
+    const availableCount = this.rooms.filter(r => r.status === 'Available').length;
+    const checkedInCount = this.rooms.filter(r => r.status === 'Checked In').length;
+    const reservedCount = this.rooms.filter(r => r.status === 'Reserved').length;
+    const paidCount = this.rooms.filter(r => r.status === 'Paid').length;
+    const checkedOutCount = this.rooms.filter(r => r.status === 'Checked Out').length;
+    const damagedCount = this.rooms.filter(r => r.status === 'Damaged').length;
+    const inUseCount = checkedInCount + paidCount;
+    const occupancyRate = Math.round(((inUseCount + reservedCount) / totalCount) * 100);
+
+
 
     this.container.innerHTML = `
       <!-- ================================================================= -->
-      <!-- 1. PAGE HEADER & TELEMETRY -->
+      <!-- TOP SCREEN HEADER — HOUSE STATUS (DUAL-TAB: MATRIX + OPERATIONS) -->
       <!-- ================================================================= -->
-      <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2 border-b border-outline-variant/60">
-        <div>
-          <div class="flex items-center gap-2.5">
-            <span class="font-label-caps text-[11px] font-bold uppercase tracking-wider text-secondary">
-              Front Desk Command Center
-            </span>
+      <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-surface-container-lowest border border-outline-variant/80 rounded-2xl p-4.5 shadow-xs">
+
+        <!-- Left: Title + Active Tab Label -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center shadow-sm">
+            <span class="material-symbols-outlined text-[22px]">${this.activePageTab === 'matrix' ? 'grid_view' : 'meeting_room'}</span>
           </div>
-          <h1 class="font-headline-lg text-2xl sm:text-3xl font-bold text-primary tracking-tight mt-1">
-            House Status
-          </h1>
-          <p class="font-body-md text-xs text-on-surface-variant mt-1">
-            Real-time overview of hotel rooms, occupancy and operational activity
-          </p>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-3">
-          <!-- LIVE Telemetry Pill -->
-          <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container-lowest border border-outline-variant/70 shadow-xs">
-            <span class="flex h-2.5 w-2.5 relative">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
-            </span>
-            <span class="font-label-caps text-xs font-bold text-primary uppercase tracking-wider">LIVE</span>
-            <span class="text-outline-variant">|</span>
-            <span id="house-status-live-clock" class="font-data-mono text-xs font-bold text-primary tracking-wider">
-              ${this.getCurrentTimeFormatted()}
-            </span>
-          </div>
-
-          <!-- Immediate Refresh Action -->
-          <button 
-            id="btn-refresh-house-status" 
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-all cursor-pointer shadow-xs active:scale-95"
-            title="Refresh operational telemetry"
-          >
-            <span class="material-symbols-outlined text-[16px]">refresh</span>
-            <span>Refresh</span>
-          </button>
-        </div>
-      </header>
-
-      <!-- ================================================================= -->
-      <!-- 2. TOP FILTER & CONTROL BAR (ORACLE HMS: DATE, CLASS, TYPE, SEARCH, CLOSE) -->
-      <!-- ================================================================= -->
-      <section id="hs-filter-bar" class="hs-filter-bar bg-surface-container-lowest rounded-2xl p-4 sm:p-4.5 border border-outline-variant/80 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div class="flex flex-wrap items-center gap-4 text-xs">
-          
-          <!-- Date Filter with Calendar Icon -->
-          <div class="flex items-center gap-2">
-            <span class="font-label-caps text-[11px] font-bold text-on-surface-variant uppercase">DATE:</span>
-            <div class="flex items-center rounded-lg border border-outline-variant bg-surface-bright overflow-hidden shadow-2xs">
-              <select id="hs-filter-date" class="px-3 py-1.5 bg-transparent text-primary font-bold text-xs cursor-pointer outline-none">
-                <option value="09 Sep 2026" ${this.currentDate === '09 Sep 2026' ? 'selected' : ''}>09 Sep 2026 (Today)</option>
-                <option value="10 Sep 2026" ${this.currentDate === '10 Sep 2026' ? 'selected' : ''}>10 Sep 2026 (+1 Day)</option>
-                <option value="11 Sep 2026" ${this.currentDate === '11 Sep 2026' ? 'selected' : ''}>11 Sep 2026 (+2 Days)</option>
-              </select>
-              <span class="px-2 py-1 text-on-surface-variant bg-surface-container-low border-l border-outline-variant flex items-center">
-                <span class="material-symbols-outlined text-[16px]">calendar_month</span>
+          <div>
+            <div class="flex items-center gap-2.5">
+              <h1 class="font-headline-lg text-xl sm:text-2xl font-bold text-primary tracking-tight">House Status</h1>
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20">
+                ${this.activePageTab === 'matrix' ? 'House Matrix' : 'Room Operations'}
               </span>
             </div>
-          </div>
-
-          <!-- Room Class Dropdown -->
-          <div class="flex items-center gap-2">
-            <span class="font-label-caps text-[11px] font-bold text-on-surface-variant uppercase">ROOM CLASS:</span>
-            <div class="relative">
-              <select id="hs-filter-class" class="px-3 py-1.5 rounded-lg border border-outline-variant bg-surface-bright text-primary font-bold text-xs cursor-pointer shadow-2xs pr-7">
-                <option value="ALL" ${this.selectedRoomClass === 'ALL' ? 'selected' : ''}>All Classes</option>
-                <option value="SUITES" ${this.selectedRoomClass === 'SUITES' ? 'selected' : ''}>Luxury Suites (24)</option>
-                <option value="DELUXE" ${this.selectedRoomClass === 'DELUXE' ? 'selected' : ''}>Deluxe Rooms (56)</option>
-                <option value="CLASSIC" ${this.selectedRoomClass === 'CLASSIC' ? 'selected' : ''}>Classic Rooms (40)</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Room Type Dropdown -->
-          <div class="flex items-center gap-2">
-            <span class="font-label-caps text-[11px] font-bold text-on-surface-variant uppercase">ROOM TYPE:</span>
-            <div class="relative">
-              <select id="hs-filter-type" class="px-3 py-1.5 rounded-lg border border-outline-variant bg-surface-bright text-primary font-bold text-xs cursor-pointer shadow-2xs pr-7">
-                <option value="ALL" ${this.selectedRoomType === 'ALL' ? 'selected' : ''}>All Types</option>
-                <option value="PRP" ${this.selectedRoomType === 'PRP' ? 'selected' : ''}>Presidential Royal Penthouse (4)</option>
-                <option value="EPS" ${this.selectedRoomType === 'EPS' ? 'selected' : ''}>Executive Panoramic Suite (8)</option>
-                <option value="DOS" ${this.selectedRoomType === 'DOS' ? 'selected' : ''}>Deluxe Ocean Suite (12)</option>
-                <option value="CKR" ${this.selectedRoomType === 'CKR' ? 'selected' : ''}>Classic King Room (8)</option>
-              </select>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Action Controls: Search & Close -->
-        <div class="flex items-center gap-3 shrink-0">
-          <button 
-            id="btn-hs-search"
-            class="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1.5"
-            title="Search House Status with selected filters"
-          >
-            <span class="material-symbols-outlined text-[16px]">search</span>
-            <span>Search</span>
-          </button>
-          
-          <button 
-            id="btn-hs-close"
-            class="px-4 py-2 rounded-xl border border-outline-variant text-on-surface-variant hover:text-primary text-xs font-bold hover:bg-surface-container transition-all cursor-pointer flex items-center gap-1.5"
-            title="Close House Status and return to Front Desk Dashboard"
-          >
-            <span class="material-symbols-outlined text-[16px]">close</span>
-            <span>Close</span>
-          </button>
-        </div>
-      </section>
-
-      <!-- ================================================================= -->
-      <!-- 3. ATTENTION REQUIRED (OPERATIONAL ALERTS) -->
-      <!-- ================================================================= -->
-      <section class="bg-surface-container-lowest rounded-2xl p-4 sm:p-5 border border-outline-variant/70 shadow-xs">
-        <div class="flex items-center justify-between pb-3 mb-3 border-b border-outline-variant/40">
-          <div class="flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
-            <h3 class="font-headline-sm text-sm font-bold text-primary uppercase tracking-wider">
-              Attention Required (${currentData.alerts.length} Actionable Situations)
-            </h3>
-          </div>
-          <span class="text-[11px] font-medium text-on-surface-variant hidden sm:inline">
-            Click any operational alert to jump to filtered resolution screen
-          </span>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          ${currentData.alerts.map((alt) => {
-            const isError = alt.type === 'error';
-            const isVip = alt.type === 'vip';
-            const bgClass = isError
-              ? 'bg-rose-50/50 border-rose-200/80 hover:bg-rose-50 hover:border-rose-400'
-              : isVip
-              ? 'bg-amber-50/50 border-amber-200/80 hover:bg-amber-50 hover:border-amber-400'
-              : 'bg-surface-container-low/70 border-outline-variant/60 hover:bg-surface-container hover:border-primary/50';
-            const iconColor = isError ? 'text-rose-600' : isVip ? 'text-amber-700' : 'text-primary';
-            const badgeClass = isError
-              ? 'bg-rose-100 text-rose-800'
-              : isVip
-              ? 'bg-amber-100 text-amber-800'
-              : 'bg-surface-container text-primary';
-
-            return `
-              <div 
-                class="btn-hs-alert p-3 rounded-xl border ${bgClass} transition-all cursor-pointer flex items-start gap-3 group relative shadow-xs"
-                data-target="${alt.targetTab}"
-              >
-                <div class="p-1.5 rounded-lg bg-surface-container-lowest shrink-0 mt-0.5 shadow-xs">
-                  <span class="material-symbols-outlined text-[18px] ${iconColor}">${alt.icon}</span>
-                </div>
-                <div class="flex-1 min-w-0 pr-4">
-                  <div class="flex items-center gap-2 mb-1">
-                    <span class="text-[10px] font-bold font-label-caps uppercase px-1.5 py-0.5 rounded ${badgeClass}">
-                      ${alt.badge}
-                    </span>
-                  </div>
-                  <p class="text-xs font-semibold text-primary leading-snug group-hover:text-blue-700 transition-colors line-clamp-2">
-                    ${alt.text}
-                  </p>
-                </div>
-                <span class="material-symbols-outlined text-[16px] text-on-surface-variant/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all absolute right-3 top-3">
-                  arrow_forward
-                </span>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      </section>
-
-      <!-- ================================================================= -->
-      <!-- 4. ROOM SUMMARY (ROOM INVENTORY WITH DRILL-DOWNS) -->
-      <!-- ================================================================= -->
-      <section>
-        <div class="flex items-center justify-between mb-3 px-1">
-          <h2 class="font-headline-sm text-sm font-bold text-primary uppercase tracking-wider flex items-center gap-2">
-            <span class="material-symbols-outlined text-[18px]">domain</span>
-            <span>Room Inventory Summary</span>
-          </h2>
-          <span class="text-xs text-on-surface-variant">The Grand Meridian · ${currentData.totalPhysicalRooms} Keys in View</span>
-        </div>
-
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <!-- Card 1: TOTAL PHYSICAL ROOMS -->
-          <div 
-            class="btn-hs-nav bg-surface-container-lowest rounded-2xl p-4 sm:p-5 border border-outline-variant/70 shadow-xs hover:border-primary/50 transition-all cursor-pointer group"
-            data-target="room_board"
-          >
-            <div class="flex items-center justify-between text-on-surface-variant mb-2">
-              <span class="font-label-caps text-[11px] font-bold uppercase tracking-wider">Total Physical Rooms</span>
-              <span class="material-symbols-outlined text-[20px] group-hover:text-primary transition-colors">apartment</span>
-            </div>
-            <div class="font-data-mono text-3xl sm:text-4xl font-extrabold text-primary tracking-tight mb-1">
-              ${currentData.totalPhysicalRooms}
-            </div>
-            <div class="flex items-center gap-1.5 text-xs text-on-surface-variant">
-              <span class="w-2 h-2 rounded-full bg-primary"></span>
-              <span>100% capacity in filter</span>
-            </div>
-          </div>
-
-          <!-- Card 2: ROOMS TO SELL -->
-          <div 
-            class="btn-hs-nav bg-surface-container-lowest rounded-2xl p-4 sm:p-5 border border-outline-variant/70 shadow-xs hover:border-emerald-500 transition-all cursor-pointer group"
-            data-target="room_status"
-          >
-            <div class="flex items-center justify-between text-on-surface-variant mb-2">
-              <span class="font-label-caps text-[11px] font-bold uppercase tracking-wider text-emerald-800">Rooms to Sell</span>
-              <span class="material-symbols-outlined text-[20px] text-emerald-600 group-hover:scale-110 transition-transform">check_circle</span>
-            </div>
-            <div class="font-data-mono text-3xl sm:text-4xl font-extrabold text-emerald-700 tracking-tight mb-1">
-              ${currentData.roomsToSell}
-            </div>
-            <div class="flex items-center gap-1.5 text-xs text-emerald-800 font-medium">
-              <span>Sellable inventory</span>
-            </div>
-          </div>
-
-          <!-- Card 3: OUT OF ORDER (with Drill-Down [↓]) -->
-          <div 
-            class="bg-surface-container-lowest rounded-2xl p-4 sm:p-5 border border-outline-variant/70 shadow-xs hover:border-rose-400 transition-all group flex flex-col justify-between"
-          >
-            <div>
-              <div class="flex items-center justify-between text-on-surface-variant mb-2">
-                <span class="font-label-caps text-[11px] font-bold uppercase tracking-wider text-rose-800">Out of Order</span>
-                <button 
-                  class="btn-drilldown p-1 rounded-md bg-rose-100 hover:bg-rose-200 text-rose-800 transition-colors cursor-pointer"
-                  data-category="outOfOrder"
-                  data-title="Out of Order Rooms"
-                  data-summary="${currentData.outOfOrder} Rooms"
-                  title="Drill-Down: Inspect Out of Order Rooms (Oracle [↓])"
-                >
-                  <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
-                </button>
-              </div>
-              <div class="font-data-mono text-3xl sm:text-4xl font-extrabold text-rose-700 tracking-tight mb-1 flex items-baseline justify-between">
-                <span>${currentData.outOfOrder}</span>
-              </div>
-            </div>
-            <div class="flex items-center justify-between pt-2 border-t border-outline-variant/40 mt-1">
-              <span class="text-xs text-rose-700 font-medium">Temporarily unavailable</span>
-              <button 
-                class="btn-drilldown text-[11px] font-bold text-rose-800 hover:underline cursor-pointer"
-                data-category="outOfOrder"
-                data-title="Out of Order Rooms"
-              >
-                Inspect [↓]
-              </button>
-            </div>
-          </div>
-
-          <!-- Card 4: OUT OF SERVICE (with Drill-Down [↓]) -->
-          <div 
-            class="bg-surface-container-lowest rounded-2xl p-4 sm:p-5 border border-outline-variant/70 shadow-xs hover:border-amber-400 transition-all group flex flex-col justify-between"
-          >
-            <div>
-              <div class="flex items-center justify-between text-on-surface-variant mb-2">
-                <span class="font-label-caps text-[11px] font-bold uppercase tracking-wider text-amber-800">Out of Service</span>
-                <button 
-                  class="btn-drilldown p-1 rounded-md bg-amber-100 hover:bg-amber-200 text-amber-800 transition-colors cursor-pointer"
-                  data-category="outOfService"
-                  data-title="Out of Service Rooms"
-                  data-summary="${currentData.outOfService} Rooms"
-                  title="Drill-Down: Inspect Out of Service Rooms (Oracle [↓])"
-                >
-                  <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
-                </button>
-              </div>
-              <div class="font-data-mono text-3xl sm:text-4xl font-extrabold text-amber-700 tracking-tight mb-1 flex items-baseline justify-between">
-                <span>${currentData.outOfService}</span>
-              </div>
-            </div>
-            <div class="flex items-center justify-between pt-2 border-t border-outline-variant/40 mt-1">
-              <span class="text-xs text-amber-700 font-medium">Operational hold</span>
-              <button 
-                class="btn-drilldown text-[11px] font-bold text-amber-800 hover:underline cursor-pointer"
-                data-category="outOfService"
-                data-title="Out of Service Rooms"
-              >
-                Inspect [↓]
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================================================================= -->
-      <!-- 5. TODAY'S HOTEL ACTIVITY (ORACLE 11 CATEGORIES WITH ROOM, PERSONS, VIP & [↓]) -->
-      <!-- ================================================================= -->
-      <section class="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/70 shadow-xs">
-        <div class="flex items-center justify-between pb-3 mb-4 border-b border-outline-variant/40">
-          <div>
-            <h2 class="font-headline-sm text-sm font-bold text-primary uppercase tracking-wider flex items-center gap-2">
-              <span class="material-symbols-outlined text-[18px]">sync_alt</span>
-              <span>Today's Hotel Activity</span>
-            </h2>
-            <p class="text-xs text-on-surface-variant mt-0.5">
-              Full Oracle OPERA Activity matrix: Rooms [↓], Persons, and VIP tracking
+            <p class="text-xs text-on-surface-variant font-medium mt-0.5">
+              ${this.activePageTab === 'matrix'
+                ? 'Guest occupancy matrix, reservation status &amp; in-drawer operational workflows'
+                : 'Physical room states — cleanliness, housekeeping turnover &amp; maintenance status'}
             </p>
           </div>
-          <span class="text-xs font-bold text-primary font-data-mono bg-surface-container px-2.5 py-1 rounded-lg">
-            Operational Flux
-          </span>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-          
-          <!-- 1. STAYOVERS -->
-          <div class="p-3.5 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 hover:bg-surface-container transition-all flex flex-col justify-between shadow-xs group">
-            <div class="flex items-center justify-between text-on-surface-variant mb-1">
-              <span class="font-label-caps text-[10px] font-bold uppercase tracking-wider truncate">Stayovers</span>
-              <button 
-                class="btn-drilldown p-0.5 rounded bg-surface-container hover:bg-primary hover:text-white text-primary transition-colors cursor-pointer"
-                data-category="stayovers"
-                data-title="In-House Stayovers"
-                data-summary="${currentData.stayovers.rooms} Rooms · ${currentData.stayovers.persons} Persons"
-                title="Drill-Down: Inspect Stayovers (Oracle [↓])"
-              >
-                <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
-              </button>
-            </div>
-            <div class="font-data-mono text-2xl font-extrabold text-primary mt-1 flex items-baseline justify-between">
-              <span>${currentData.stayovers.rooms}</span>
-              <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
-                ${currentData.stayovers.vip} VIP
-              </span>
-            </div>
-            <div class="flex items-center justify-between text-[11px] text-on-surface-variant font-medium mt-1 pt-1.5 border-t border-outline-variant/30">
-              <span>${currentData.stayovers.persons} persons</span>
-              <span class="text-primary font-bold cursor-pointer hover:underline btn-hs-nav" data-target="inhouse">Roster</span>
-            </div>
-          </div>
-
-          <!-- 2. DEPARTURES EXPECTED -->
-          <div class="p-3.5 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 hover:bg-surface-container transition-all flex flex-col justify-between shadow-xs group">
-            <div class="flex items-center justify-between text-on-surface-variant mb-1">
-              <span class="font-label-caps text-[10px] font-bold uppercase tracking-wider truncate">Departures Exp</span>
-              <button 
-                class="btn-drilldown p-0.5 rounded bg-surface-container hover:bg-primary hover:text-white text-primary transition-colors cursor-pointer"
-                data-category="departuresExpected"
-                data-title="Departures Expected"
-                data-summary="${currentData.departuresExpected.rooms} Rooms · ${currentData.departuresExpected.persons} Persons"
-                title="Drill-Down: Inspect Expected Departures (Oracle [↓])"
-              >
-                <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
-              </button>
-            </div>
-            <div class="font-data-mono text-2xl font-extrabold text-primary mt-1 flex items-baseline justify-between">
-              <span>${currentData.departuresExpected.rooms}</span>
-              <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
-                ${currentData.departuresExpected.vip} VIP
-              </span>
-            </div>
-            <div class="flex items-center justify-between text-[11px] text-on-surface-variant font-medium mt-1 pt-1.5 border-t border-outline-variant/30">
-              <span>${currentData.departuresExpected.persons} persons</span>
-              <span class="text-primary font-bold cursor-pointer hover:underline btn-hs-nav" data-target="departures">Roster</span>
-            </div>
-          </div>
-
-          <!-- 3. DEPARTURES ACTUAL -->
-          <div class="p-3.5 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 hover:bg-emerald-50/40 transition-all flex flex-col justify-between shadow-xs group">
-            <div class="flex items-center justify-between text-on-surface-variant mb-1">
-              <span class="font-label-caps text-[10px] font-bold uppercase tracking-wider text-emerald-800 truncate">Departures Act</span>
-              <button 
-                class="btn-drilldown p-0.5 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-800 transition-colors cursor-pointer"
-                data-category="departuresActual"
-                data-title="Departures Actual (Checked Out)"
-                data-summary="${currentData.departuresActual.rooms} Rooms · ${currentData.departuresActual.persons} Persons"
-                title="Drill-Down: Inspect Actual Departures (Oracle [↓])"
-              >
-                <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
-              </button>
-            </div>
-            <div class="font-data-mono text-2xl font-extrabold text-emerald-800 mt-1 flex items-baseline justify-between">
-              <span>${currentData.departuresActual.rooms}</span>
-              <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
-                ${currentData.departuresActual.vip} VIP
-              </span>
-            </div>
-            <div class="flex items-center justify-between text-[11px] text-emerald-800 font-medium mt-1 pt-1.5 border-t border-outline-variant/30">
-              <span>${currentData.departuresActual.persons} checked out</span>
-              <span class="text-emerald-800 font-bold cursor-pointer hover:underline btn-hs-nav" data-target="departures">Folios</span>
-            </div>
-          </div>
-
-          <!-- 4. ARRIVALS EXPECTED -->
-          <div class="p-3.5 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 hover:bg-surface-container transition-all flex flex-col justify-between shadow-xs group">
-            <div class="flex items-center justify-between text-on-surface-variant mb-1">
-              <span class="font-label-caps text-[10px] font-bold uppercase tracking-wider truncate">Arrivals Exp</span>
-              <button 
-                class="btn-drilldown p-0.5 rounded bg-surface-container hover:bg-primary hover:text-white text-primary transition-colors cursor-pointer"
-                data-category="arrivalsExpected"
-                data-title="Arrivals Expected"
-                data-summary="${currentData.arrivalsExpected.rooms} Rooms · ${currentData.arrivalsExpected.persons} Persons · ${currentData.arrivalsExpected.vip} VIP"
-                title="Drill-Down: Inspect Expected Arrivals (Oracle [↓])"
-              >
-                <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
-              </button>
-            </div>
-            <div class="font-data-mono text-2xl font-extrabold text-primary mt-1 flex items-baseline justify-between">
-              <span>${currentData.arrivalsExpected.rooms}</span>
-              <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
-                ${currentData.arrivalsExpected.vip} VIP
-              </span>
-            </div>
-            <div class="flex items-center justify-between text-[11px] text-on-surface-variant font-medium mt-1 pt-1.5 border-t border-outline-variant/30">
-              <span>${currentData.arrivalsExpected.persons} persons</span>
-              <span class="text-primary font-bold cursor-pointer hover:underline btn-hs-nav" data-target="arrivals">Roster</span>
-            </div>
-          </div>
-
-          <!-- 5. ARRIVALS EXPECTED MADE TODAY -->
-          <div class="p-3.5 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 hover:bg-surface-container transition-all flex flex-col justify-between shadow-xs group">
-            <div class="flex items-center justify-between text-on-surface-variant mb-1">
-              <span class="font-label-caps text-[10px] font-bold uppercase tracking-wider truncate">Arr. Exp. Made</span>
-              <button 
-                class="btn-drilldown p-0.5 rounded bg-surface-container hover:bg-primary hover:text-white text-primary transition-colors cursor-pointer"
-                data-category="arrivalsMadeToday"
-                data-title="Arrivals Expected Made Today"
-                data-summary="${currentData.arrivalsMadeToday.rooms} Rooms Checked In"
-                title="Drill-Down: Inspect Checked-in Arrivals (Oracle [↓])"
-              >
-                <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
-              </button>
-            </div>
-            <div class="font-data-mono text-2xl font-extrabold text-primary mt-1 flex items-baseline justify-between">
-              <span>${currentData.arrivalsMadeToday.rooms}</span>
-              <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
-                ${currentData.arrivalsMadeToday.vip} VIP
-              </span>
-            </div>
-            <div class="flex items-center justify-between text-[11px] text-on-surface-variant font-medium mt-1 pt-1.5 border-t border-outline-variant/30">
-              <span>${currentData.arrivalsMadeToday.persons} checked in</span>
-              <span class="text-primary font-bold cursor-pointer hover:underline btn-hs-nav" data-target="arrivals">View</span>
-            </div>
-          </div>
-
-          <!-- 6. ARRIVALS ACTUAL (PENDING) -->
-          <div class="p-3.5 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 hover:bg-amber-50/40 transition-all flex flex-col justify-between shadow-xs group">
-            <div class="flex items-center justify-between text-on-surface-variant mb-1">
-              <span class="font-label-caps text-[10px] font-bold uppercase tracking-wider text-amber-900 truncate">Arrivals Actual</span>
-              <button 
-                class="btn-drilldown p-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 transition-colors cursor-pointer"
-                data-category="arrivalsActual"
-                data-title="Arrivals Actual (Pending Check-In)"
-                data-summary="${currentData.arrivalsActual.rooms} Rooms Remaining"
-                title="Drill-Down: Inspect Pending Arrivals (Oracle [↓])"
-              >
-                <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
-              </button>
-            </div>
-            <div class="font-data-mono text-2xl font-extrabold text-amber-800 mt-1 flex items-baseline justify-between">
-              <span>${currentData.arrivalsActual.rooms}</span>
-              <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
-                ${currentData.arrivalsActual.vip} VIP
-              </span>
-            </div>
-            <div class="flex items-center justify-between text-[11px] text-amber-800 font-medium mt-1 pt-1.5 border-t border-outline-variant/30">
-              <span>${currentData.arrivalsActual.persons} remaining</span>
-              <span class="text-amber-800 font-bold cursor-pointer hover:underline btn-hs-nav" data-target="arrivals">ETA</span>
-            </div>
-          </div>
-
-          <!-- 7. EXTENDED STAYS -->
-          <div class="p-3.5 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 hover:bg-surface-container transition-all flex flex-col justify-between shadow-xs group">
-            <div class="flex items-center justify-between text-on-surface-variant mb-1">
-              <span class="font-label-caps text-[10px] font-bold uppercase tracking-wider truncate">Extended Stays</span>
-              <button 
-                class="btn-drilldown p-0.5 rounded bg-surface-container hover:bg-primary hover:text-white text-primary transition-colors cursor-pointer"
-                data-category="extendedStays"
-                data-title="Extended Stays"
-                data-summary="${currentData.extendedStays.rooms} Rooms"
-                title="Drill-Down: Inspect Extended Stays (Oracle [↓])"
-              >
-                <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
-              </button>
-            </div>
-            <div class="font-data-mono text-2xl font-extrabold text-primary mt-1">
-              ${currentData.extendedStays.rooms}
-            </div>
-            <div class="flex items-center justify-between text-[11px] text-on-surface-variant font-medium mt-1 pt-1.5 border-t border-outline-variant/30">
-              <span>${currentData.extendedStays.persons} persons</span>
-              <span class="text-primary font-bold cursor-pointer hover:underline btn-hs-nav" data-target="inhouse">Folios</span>
-            </div>
-          </div>
-
-          <!-- 8. EARLY DEPARTURES -->
-          <div class="p-3.5 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 hover:bg-surface-container transition-all flex flex-col justify-between shadow-xs group">
-            <div class="flex items-center justify-between text-on-surface-variant mb-1">
-              <span class="font-label-caps text-[10px] font-bold uppercase tracking-wider truncate">Early Departures</span>
-              <button 
-                class="btn-drilldown p-0.5 rounded bg-surface-container hover:bg-primary hover:text-white text-primary transition-colors cursor-pointer"
-                data-category="earlyDepartures"
-                data-title="Early Departures"
-                data-summary="${currentData.earlyDepartures.rooms} Rooms"
-                title="Drill-Down: Inspect Early Departures (Oracle [↓])"
-              >
-                <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
-              </button>
-            </div>
-            <div class="font-data-mono text-2xl font-extrabold text-primary mt-1">
-              ${currentData.earlyDepartures.rooms}
-            </div>
-            <div class="flex items-center justify-between text-[11px] text-on-surface-variant font-medium mt-1 pt-1.5 border-t border-outline-variant/30">
-              <span>${currentData.earlyDepartures.persons} persons</span>
-              <span class="text-primary font-bold cursor-pointer hover:underline btn-hs-nav" data-target="departures">Logs</span>
-            </div>
-          </div>
-
-          <!-- 9. DAY USE ROOMS -->
-          <div class="p-3.5 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 hover:bg-surface-container transition-all flex flex-col justify-between shadow-xs group">
-            <div class="flex items-center justify-between text-on-surface-variant mb-1">
-              <span class="font-label-caps text-[10px] font-bold uppercase tracking-wider truncate">Day Use Rooms</span>
-              <button 
-                class="btn-drilldown p-0.5 rounded bg-surface-container hover:bg-primary hover:text-white text-primary transition-colors cursor-pointer"
-                data-category="dayUseRooms"
-                data-title="Day Use Rooms"
-                data-summary="${currentData.dayUseRooms.rooms} Rooms"
-                title="Drill-Down: Inspect Day Use Rooms (Oracle [↓])"
-              >
-                <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
-              </button>
-            </div>
-            <div class="font-data-mono text-2xl font-extrabold text-primary mt-1">
-              ${currentData.dayUseRooms.rooms}
-            </div>
-            <div class="flex items-center justify-between text-[11px] text-on-surface-variant font-medium mt-1 pt-1.5 border-t border-outline-variant/30">
-              <span>${currentData.dayUseRooms.persons} persons</span>
-              <span class="text-primary font-bold cursor-pointer hover:underline btn-hs-nav" data-target="arrivals">Details</span>
-            </div>
-          </div>
-
-          <!-- 10. WALK INS -->
-          <div class="p-3.5 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 hover:bg-surface-container transition-all flex flex-col justify-between shadow-xs group">
-            <div class="flex items-center justify-between text-on-surface-variant mb-1">
-              <span class="font-label-caps text-[10px] font-bold uppercase tracking-wider truncate">Walk Ins</span>
-              <button 
-                class="btn-drilldown p-0.5 rounded bg-surface-container hover:bg-primary hover:text-white text-primary transition-colors cursor-pointer"
-                data-category="walkIns"
-                data-title="Walk-In Reservations"
-                data-summary="${currentData.walkIns.rooms} Rooms"
-                title="Drill-Down: Inspect Walk Ins (Oracle [↓])"
-              >
-                <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
-              </button>
-            </div>
-            <div class="font-data-mono text-2xl font-extrabold text-primary mt-1">
-              ${currentData.walkIns.rooms}
-            </div>
-            <div class="flex items-center justify-between text-[11px] text-on-surface-variant font-medium mt-1 pt-1.5 border-t border-outline-variant/30">
-              <span>${currentData.walkIns.persons} persons</span>
-              <span class="text-primary font-bold cursor-pointer hover:underline btn-hs-nav" data-target="arrivals">Folio</span>
-            </div>
-          </div>
-
-          <!-- 11. DAY OF ARRIVAL CANCELS -->
-          <div class="p-3.5 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 hover:bg-surface-container transition-all flex flex-col justify-between shadow-xs group">
-            <div class="flex items-center justify-between text-on-surface-variant mb-1">
-              <span class="font-label-caps text-[10px] font-bold uppercase tracking-wider truncate">Day of Arr Cancels</span>
-              <button 
-                class="btn-drilldown p-0.5 rounded bg-surface-container hover:bg-primary hover:text-white text-primary transition-colors cursor-pointer"
-                data-category="dayOfArrivalCancellations"
-                data-title="Day of Arrival Cancellations"
-                data-summary="${currentData.dayOfArrivalCancellations.rooms} Rooms"
-                title="Drill-Down: Inspect Same-Day Cancellations (Oracle [↓])"
-              >
-                <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
-              </button>
-            </div>
-            <div class="font-data-mono text-2xl font-extrabold text-primary mt-1">
-              ${currentData.dayOfArrivalCancellations.rooms}
-            </div>
-            <div class="flex items-center justify-between text-[11px] text-on-surface-variant font-medium mt-1 pt-1.5 border-t border-outline-variant/30">
-              <span>${currentData.dayOfArrivalCancellations.persons} persons</span>
-              <span class="text-primary font-bold cursor-pointer hover:underline btn-hs-nav" data-target="reservations">Log</span>
-            </div>
-          </div>
-
-          <!-- 12. QUEUE RESERVATIONS -->
-          <div class="p-3.5 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 hover:bg-amber-50/40 transition-all flex flex-col justify-between shadow-xs group">
-            <div class="flex items-center justify-between text-on-surface-variant mb-1">
-              <span class="font-label-caps text-[10px] font-bold uppercase tracking-wider text-amber-800 truncate">Queue Res</span>
-              <button 
-                class="btn-drilldown p-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 transition-colors cursor-pointer"
-                data-category="queue"
-                data-title="Arrivals Queue Reservations"
-                data-summary="${currentData.housekeeping.queue.vacant} in Queue"
-                title="Drill-Down: Inspect Queue Reservations (Oracle [↓])"
-              >
-                <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
-              </button>
-            </div>
-            <div class="font-data-mono text-2xl font-extrabold text-amber-800 mt-1">
-              ${currentData.housekeeping.queue.vacant}
-            </div>
-            <div class="flex items-center justify-between text-[11px] text-amber-800 font-medium mt-1 pt-1.5 border-t border-outline-variant/30">
-              <span>Awaiting room</span>
-              <span class="text-amber-800 font-bold cursor-pointer hover:underline btn-hs-nav" data-target="queue_reservations">Queue</span>
-            </div>
-          </div>
-
+        <!-- Center: Tab Switcher -->
+        <div class="flex items-center gap-1 p-1 bg-surface-container rounded-xl border border-outline-variant/60 shadow-2xs self-start lg:self-center">
+          <button id="btn-tab-matrix" class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            this.activePageTab === 'matrix' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-primary'
+          }">
+            <span class="material-symbols-outlined text-[16px]">grid_view</span>
+            House Matrix
+          </button>
+          <button id="btn-tab-operations" class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            this.activePageTab === 'operations' ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:text-primary'
+          }">
+            <span class="material-symbols-outlined text-[16px]">meeting_room</span>
+            Room Operations
+          </button>
         </div>
-      </section>
 
-      <!-- ================================================================= -->
-      <!-- 6. 2-COLUMN SECTION: END-OF-DAY PROJECTION & HOUSEKEEPING STATUS -->
-      <!-- ================================================================= -->
-      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        <!-- COLUMN A: END-OF-DAY PROJECTION (WITH PERSONS & VIP DIMENSIONS) -->
-        <div class="bg-surface-container-lowest rounded-2xl p-5 sm:p-6 border border-outline-variant/70 shadow-xs flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between pb-3 mb-4 border-b border-outline-variant/40">
-              <div>
-                <h3 class="font-headline-sm text-sm font-bold text-primary uppercase tracking-wider flex items-center gap-2">
-                  <span class="material-symbols-outlined text-[18px]">trending_up</span>
-                  <span>End-of-Day Projection</span>
-                </h3>
-                <p class="text-xs text-on-surface-variant mt-0.5">Forecasted midnight operational closing position</p>
-              </div>
-
-              <!-- Day-Use Toggle -->
-              <label class="inline-flex items-center gap-2 text-xs font-semibold text-primary cursor-pointer select-none bg-surface-container px-2.5 py-1 rounded-lg border border-outline-variant/60">
-                <input
-                  type="checkbox"
-                  id="chk-include-dayuse"
-                  class="rounded text-primary focus:ring-primary border-outline-variant"
-                  ${this.includeDayUse ? 'checked' : ''}
-                />
-                <span>Include Day Use</span>
-              </label>
-            </div>
-
-            <!-- Horizontal Occupancy Visualizer -->
-            <div class="mb-5 bg-surface-container-low p-4 rounded-xl border border-outline-variant/60">
-              <div class="flex items-baseline justify-between mb-2">
-                <div>
-                  <span class="font-label-caps text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-                    Projected Occupancy
-                  </span>
-                  <div class="text-xs text-on-surface-variant">
-                    Based on ${displayOccRooms} occupied of ${currentData.totalPhysicalRooms} rooms in filter
+        <!-- Right: context-aware stats + actions -->
+        ${
+          this.activePageTab === 'matrix'
+            ? `<div class="flex flex-wrap items-center gap-3">
+                <div class="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-primary text-on-primary shadow-xs border border-primary-container">
+                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <div class="text-left">
+                    <div class="text-xs font-bold leading-none tracking-tight">${occupancyRate}% Occupancy</div>
+                    <div class="text-[10px] text-primary-fixed-dim leading-none mt-1 font-data-mono">${inUseCount + reservedCount}/${totalCount} Units</div>
                   </div>
                 </div>
-                <div class="font-data-mono text-3xl font-extrabold text-primary">
-                  ${displayOccPct}%
+                <div class="flex items-center gap-2">
+                  <button id="btn-jump-room-master" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant text-xs font-semibold text-on-surface hover:bg-surface-container hover:text-primary transition-all cursor-pointer shadow-2xs" title="Manage physical rooms and room types in Room Master">
+                    <span class="material-symbols-outlined text-[16px] text-primary">meeting_room</span>
+                    <span class="hidden sm:inline">Room Master</span>
+                  </button>
+                  <button id="btn-print-roster" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant text-xs font-semibold text-on-surface hover:bg-surface-container hover:text-primary transition-all cursor-pointer shadow-2xs">
+                    <span class="material-symbols-outlined text-[16px]">print</span>
+                    <span class="hidden sm:inline">Print Roster</span>
+                  </button>
+                  <button id="btn-export-audit" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-on-primary text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer shadow-xs">
+                    <span class="material-symbols-outlined text-[16px]">file_download</span>
+                    <span>Export Audit</span>
+                  </button>
                 </div>
-              </div>
-
-              <!-- Progress Track -->
-              <div class="w-full bg-surface-container rounded-full h-3 flex overflow-hidden border border-outline-variant/50">
-                <div 
-                  class="bg-primary h-3 transition-all duration-500 rounded-l-full" 
-                  style="width: ${Math.min(100, displayOccPct)}%;" 
-                  title="Projected Occupancy: ${displayOccPct}%"
-                ></div>
-                <div 
-                  class="bg-emerald-500/30 h-3 flex-1" 
-                  title="Available Inventory"
-                ></div>
-              </div>
-
-              <div class="flex items-center justify-between text-[11px] text-on-surface-variant font-medium mt-2">
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2 h-2 rounded-full bg-primary"></span>
-                  <span>Occupied: ${displayOccRooms} rooms · ${displayOccPersons} persons</span>
-                </span>
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <span>Available: ${displayAvail} rooms</span>
-                </span>
-              </div>
-            </div>
-
-            <!-- Projection Metrics Grid with Full Oracle Dimensions (Rooms, Persons, VIP) -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              
-              <!-- 1. Min. Available Tonight -->
-              <div class="p-2.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/50">
-                <div class="text-[10px] font-label-caps font-bold text-on-surface-variant uppercase">Min Available Tonight</div>
-                <div class="font-data-mono text-lg font-bold text-emerald-700 mt-0.5">${displayAvail} rooms</div>
-                <div class="text-[10px] text-on-surface-variant mt-0.5 font-medium">Guaranteed available</div>
-              </div>
-
-              <!-- 2. Max. Occupied Tonight -->
-              <div class="p-2.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/50">
-                <div class="flex items-center justify-between text-[10px] font-label-caps font-bold text-on-surface-variant uppercase">
-                  <span>Max Occupied Tonight</span>
+              </div>`
+            : `<div class="flex items-center gap-2.5">
+                <button id="btn-jump-room-master-ops" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-container-lowest border border-outline-variant text-xs font-semibold text-on-surface hover:bg-surface-container hover:text-primary transition-all cursor-pointer shadow-2xs" title="Manage physical rooms and room types in Room Master">
+                  <span class="material-symbols-outlined text-[16px] text-primary">meeting_room</span>
+                  <span class="hidden sm:inline">Room Master</span>
+                </button>
+                <div class="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-surface-container border border-outline-variant shadow-2xs">
+                  <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                  <div class="text-left">
+                    <div class="text-xs font-bold text-on-surface leading-none">Live Operations Feed</div>
+                    <div class="text-[10px] text-on-surface-variant leading-none mt-1 font-data-mono">HK Turnover &amp; Maintenance</div>
+                  </div>
                 </div>
-                <div class="font-data-mono text-lg font-bold text-primary mt-0.5">${displayOccRooms} rooms</div>
-                <div class="text-[10px] text-on-surface-variant mt-0.5 font-data-mono font-medium">
-                  ${displayOccPersons} pers · ${baseOccVip} VIP
-                </div>
-              </div>
+              </div>`
+        }
+      </header>
 
-              <!-- 3. Max. % Occupied Tonight -->
-              <div class="p-2.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/50">
-                <div class="text-[10px] font-label-caps font-bold text-on-surface-variant uppercase">Max % Occupied Tonight</div>
-                <div class="font-data-mono text-lg font-bold text-primary mt-0.5">${displayOccPct}%</div>
-                <div class="text-[10px] text-on-surface-variant mt-0.5 font-medium">Peak midnight load</div>
-              </div>
+      ${this.activePageTab === 'operations' ? `
+        <!-- Room Operations Board (mounted from RoomStatusView) -->
+        <div id="room-ops-mount" class="w-full"></div>
+      ` : `
 
-              <!-- 4. Blocks not Picked Up -->
-              <div class="p-2.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/50">
-                <div class="text-[10px] font-label-caps font-bold text-amber-800 uppercase">Blocks not Picked Up</div>
-                <div class="font-data-mono text-lg font-bold text-amber-800 mt-0.5">${currentData.blocksNotPickedUp.blocks} block</div>
-                <div class="text-[10px] text-amber-800 mt-0.5 font-data-mono">
-                  ${currentData.blocksNotPickedUp.rooms} rooms (${currentData.blocksNotPickedUp.persons} pers)
-                </div>
-              </div>
-
-              <!-- 5. Individuals -->
-              <div class="p-2.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/50">
-                <div class="text-[10px] font-label-caps font-bold text-on-surface-variant uppercase">Individuals</div>
-                <div class="font-data-mono text-lg font-bold text-primary mt-0.5">${currentData.individuals.rooms} rooms</div>
-                <div class="text-[10px] text-on-surface-variant mt-0.5 font-data-mono">
-                  ${currentData.individuals.persons} pers · ${currentData.individuals.vip} VIP
-                </div>
-              </div>
-
-              <!-- 6. Groups & Blocks -->
-              <div class="p-2.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/50">
-                <div class="text-[10px] font-label-caps font-bold text-on-surface-variant uppercase">Groups & Blocks</div>
-                <div class="font-data-mono text-lg font-bold text-primary mt-0.5">${currentData.groupsAndBlocks.rooms} rooms</div>
-                <div class="text-[10px] text-on-surface-variant mt-0.5 font-data-mono">
-                  ${currentData.groupsAndBlocks.persons} pers · ${currentData.groupsAndBlocks.vip} VIP
-                </div>
-              </div>
-
-            </div>
+      <!-- ================================================================= -->
+      <!-- KPI TELEMETRY RIBBON (7-CARD HIGH-VISIBILITY STRIP) -->
+      <!-- ================================================================= -->
+      <section class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2.5 sm:gap-3">
+        
+        <!-- 1. Total Inventory -->
+        <div class="bg-surface-container-lowest p-3.5 rounded-xl border border-outline-variant/80 flex flex-col justify-between shadow-xs">
+          <div class="flex items-center justify-between">
+            <span class="font-label-caps text-[10px] font-bold text-on-surface-variant uppercase font-data-mono">Total Units</span>
+            <span class="material-symbols-outlined text-on-surface-variant text-[17px]">meeting_room</span>
           </div>
-
-          <!-- Revenue Projections Footer (Matching Oracle Room Revenue & Room Revenue Avg.) -->
-          <div class="mt-4 pt-4 border-t border-outline-variant/40 grid grid-cols-2 gap-4">
-            <div class="p-3 rounded-xl bg-primary/5 border border-primary/15">
-              <span class="text-[10px] font-label-caps font-bold text-on-surface-variant uppercase tracking-wider block">
-                Room Revenue
-              </span>
-              <span class="font-data-mono text-xl font-bold text-primary mt-0.5 block">
-                ₹${displayRev.toLocaleString('en-IN')}
-              </span>
-            </div>
-            <div class="p-3 rounded-xl bg-primary/5 border border-primary/15">
-              <span class="text-[10px] font-label-caps font-bold text-on-surface-variant uppercase tracking-wider block">
-                Room Revenue Avg. (ADR)
-              </span>
-              <span class="font-data-mono text-xl font-bold text-primary mt-0.5 block">
-                ₹${displayAdr.toLocaleString('en-IN')}
-              </span>
-            </div>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span class="text-2xl font-black text-primary font-display-kpi leading-none">${totalCount}</span>
+            <span class="text-[11px] font-semibold text-on-surface-variant">100% Cap</span>
+          </div>
+          <div class="mt-2.5 w-full bg-surface-container rounded-full h-1.5 overflow-hidden">
+            <div class="bg-primary h-1.5 rounded-full" style="width: 100%"></div>
           </div>
         </div>
 
-        <!-- COLUMN B: HOUSEKEEPING ROOM STATUS (ALL 7 ORACLE ROWS ACROSS VACANT & OCCUPIED) -->
-        <div class="bg-surface-container-lowest rounded-2xl p-5 sm:p-6 border border-outline-variant/70 shadow-xs flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between pb-3 mb-3 border-b border-outline-variant/40">
-              <div>
-                <h3 class="font-headline-sm text-sm font-bold text-primary uppercase tracking-wider flex items-center gap-2">
-                  <span class="material-symbols-outlined text-[18px]">cleaning_services</span>
-                  <span>Housekeeping Room Status</span>
-                </h3>
-                <p class="text-xs text-on-surface-variant mt-0.5">
-                  Physical turnover condition across Vacant & Occupied keys with drill-downs
-                </p>
-              </div>
-              <button 
-                class="btn-hs-nav text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
-                data-target="room_status"
-              >
-                <span>Full Room Map</span>
-                <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-              </button>
-            </div>
-
-            <!-- Scannable Matrix Table: Inspected, Clean, Dirty, Pickup, Out of Order, Out of Service, Queue -->
-            <div class="overflow-x-auto">
-              <table class="w-full text-xs text-left">
-                <thead>
-                  <tr class="border-b border-outline-variant/50 text-[10px] font-label-caps font-bold text-on-surface-variant uppercase tracking-wider">
-                    <th class="py-2.5 px-3">Condition</th>
-                    <th class="py-2.5 px-3 text-center">Vacant</th>
-                    <th class="py-2.5 px-3 text-center">Occupied</th>
-                    <th class="py-2.5 px-3 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-outline-variant/30">
-                  
-                  <!-- 1. INSPECTED (Green) -->
-                  <tr class="hover:bg-emerald-50/50 transition-colors">
-                    <td class="py-2.5 px-3 font-semibold text-primary flex items-center gap-2">
-                      <span class="material-symbols-outlined text-[16px] text-emerald-600">verified</span>
-                      <span>✓ Inspected</span>
-                    </td>
-                    <td class="py-2.5 px-3 text-center">
-                      <button 
-                        class="btn-drilldown inline-flex items-center gap-1 font-data-mono font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-2 py-0.5 rounded cursor-pointer transition-colors"
-                        data-category="inspectedVacant"
-                        data-title="Inspected Vacant Rooms"
-                        title="Drill-Down: Inspect Inspected Vacant Rooms [↓]"
-                      >
-                        <span>${currentData.housekeeping.inspected.vacant}</span>
-                        <span class="material-symbols-outlined text-[13px]">arrow_drop_down</span>
-                      </button>
-                    </td>
-                    <td class="py-2.5 px-3 text-center">
-                      <span class="font-data-mono font-bold text-primary">${currentData.housekeeping.inspected.occupied}</span>
-                    </td>
-                    <td class="py-2.5 px-3 text-right font-data-mono font-extrabold text-primary">
-                      ${currentData.housekeeping.inspected.vacant + currentData.housekeeping.inspected.occupied}
-                    </td>
-                  </tr>
-
-                  <!-- 2. CLEAN (Cyan / Blue) -->
-                  <tr class="hover:bg-blue-50/50 transition-colors">
-                    <td class="py-2.5 px-3 font-semibold text-primary flex items-center gap-2">
-                      <span class="material-symbols-outlined text-[16px] text-blue-600">check_circle</span>
-                      <span>✓ Clean</span>
-                    </td>
-                    <td class="py-2.5 px-3 text-center">
-                      <button 
-                        class="btn-drilldown inline-flex items-center gap-1 font-data-mono font-bold text-blue-700 bg-blue-100 hover:bg-blue-200 px-2 py-0.5 rounded cursor-pointer transition-colors"
-                        data-category="inspectedVacant"
-                        data-title="Clean Vacant Rooms"
-                        title="Drill-Down: Inspect Clean Vacant Rooms [↓]"
-                      >
-                        <span>${currentData.housekeeping.clean.vacant}</span>
-                        <span class="material-symbols-outlined text-[13px]">arrow_drop_down</span>
-                      </button>
-                    </td>
-                    <td class="py-2.5 px-3 text-center">
-                      <span class="font-data-mono font-bold text-primary">${currentData.housekeeping.clean.occupied}</span>
-                    </td>
-                    <td class="py-2.5 px-3 text-right font-data-mono font-extrabold text-primary">
-                      ${currentData.housekeeping.clean.vacant + currentData.housekeeping.clean.occupied}
-                    </td>
-                  </tr>
-
-                  <!-- 3. DIRTY (Red) -->
-                  <tr class="hover:bg-rose-50/50 transition-colors">
-                    <td class="py-2.5 px-3 font-semibold text-primary flex items-center gap-2">
-                      <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-                      <span>● Dirty</span>
-                    </td>
-                    <td class="py-2.5 px-3 text-center">
-                      <button 
-                        class="btn-drilldown inline-flex items-center gap-1 font-data-mono font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 px-2 py-0.5 rounded cursor-pointer transition-colors"
-                        data-category="dirtyVacant"
-                        data-title="Dirty Vacant Rooms (Turnaround Required)"
-                        title="Drill-Down: Inspect Dirty Vacant Rooms [↓]"
-                      >
-                        <span>${currentData.housekeeping.dirty.vacant}</span>
-                        <span class="material-symbols-outlined text-[13px]">arrow_drop_down</span>
-                      </button>
-                    </td>
-                    <td class="py-2.5 px-3 text-center">
-                      <span class="font-data-mono font-bold text-rose-700">${currentData.housekeeping.dirty.occupied}</span>
-                    </td>
-                    <td class="py-2.5 px-3 text-right font-data-mono font-extrabold text-rose-700">
-                      ${currentData.housekeeping.dirty.vacant + currentData.housekeeping.dirty.occupied}
-                    </td>
-                  </tr>
-
-                  <!-- 4. PICKUP (Yellow) -->
-                  <tr class="hover:bg-amber-50/50 transition-colors">
-                    <td class="py-2.5 px-3 font-semibold text-primary flex items-center gap-2">
-                      <span class="material-symbols-outlined text-[16px] text-amber-600">schedule</span>
-                      <span>◷ Pickup</span>
-                    </td>
-                    <td class="py-2.5 px-3 text-center">
-                      <button 
-                        class="btn-drilldown inline-flex items-center gap-1 font-data-mono font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded cursor-pointer transition-colors"
-                        data-category="dirtyVacant"
-                        data-title="Pickup Vacant Rooms"
-                        title="Drill-Down: Inspect Pickup Rooms [↓]"
-                      >
-                        <span>${currentData.housekeeping.pickup.vacant}</span>
-                        <span class="material-symbols-outlined text-[13px]">arrow_drop_down</span>
-                      </button>
-                    </td>
-                    <td class="py-2.5 px-3 text-center">
-                      <span class="font-data-mono font-bold text-primary">${currentData.housekeeping.pickup.occupied}</span>
-                    </td>
-                    <td class="py-2.5 px-3 text-right font-data-mono font-extrabold text-primary">
-                      ${currentData.housekeeping.pickup.vacant + currentData.housekeeping.pickup.occupied}
-                    </td>
-                  </tr>
-
-                  <!-- 5. OUT OF ORDER (Oracle Housekeeping Row) -->
-                  <tr class="hover:bg-rose-50/30 transition-colors bg-rose-50/15">
-                    <td class="py-2.5 px-3 font-semibold text-rose-800 flex items-center gap-2">
-                      <span class="material-symbols-outlined text-[16px] text-rose-600">warning</span>
-                      <span>Out of Order</span>
-                    </td>
-                    <td class="py-2.5 px-3 text-center">
-                      <button 
-                        class="btn-drilldown inline-flex items-center gap-1 font-data-mono font-bold text-rose-800 bg-rose-100 hover:bg-rose-200 px-2 py-0.5 rounded cursor-pointer transition-colors"
-                        data-category="outOfOrder"
-                        data-title="Out of Order Vacant Rooms"
-                        title="Drill-Down: Inspect Out of Order Rooms [↓]"
-                      >
-                        <span>${currentData.housekeeping.outOfOrder.vacant}</span>
-                        <span class="material-symbols-outlined text-[13px]">arrow_drop_down</span>
-                      </button>
-                    </td>
-                    <td class="py-2.5 px-3 text-center font-data-mono font-bold text-on-surface-variant">
-                      ${currentData.housekeeping.outOfOrder.occupied}
-                    </td>
-                    <td class="py-2.5 px-3 text-right font-data-mono font-extrabold text-rose-800">
-                      ${currentData.housekeeping.outOfOrder.vacant + currentData.housekeeping.outOfOrder.occupied}
-                    </td>
-                  </tr>
-
-                  <!-- 6. OUT OF SERVICE (Oracle Housekeeping Row) -->
-                  <tr class="hover:bg-amber-50/30 transition-colors bg-amber-50/15">
-                    <td class="py-2.5 px-3 font-semibold text-amber-800 flex items-center gap-2">
-                      <span class="material-symbols-outlined text-[16px] text-amber-600">build</span>
-                      <span>Out of Service</span>
-                    </td>
-                    <td class="py-2.5 px-3 text-center">
-                      <button 
-                        class="btn-drilldown inline-flex items-center gap-1 font-data-mono font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded cursor-pointer transition-colors"
-                        data-category="outOfService"
-                        data-title="Out of Service Vacant Rooms"
-                        title="Drill-Down: Inspect Out of Service Rooms [↓]"
-                      >
-                        <span>${currentData.housekeeping.outOfService.vacant}</span>
-                        <span class="material-symbols-outlined text-[13px]">arrow_drop_down</span>
-                      </button>
-                    </td>
-                    <td class="py-2.5 px-3 text-center font-data-mono font-bold text-on-surface-variant">
-                      ${currentData.housekeeping.outOfService.occupied}
-                    </td>
-                    <td class="py-2.5 px-3 text-right font-data-mono font-extrabold text-amber-800">
-                      ${currentData.housekeeping.outOfService.vacant + currentData.housekeeping.outOfService.occupied}
-                    </td>
-                  </tr>
-
-                  <!-- 7. QUEUE (Oracle Housekeeping Row) -->
-                  <tr class="hover:bg-primary/5 transition-colors">
-                    <td class="py-2.5 px-3 font-semibold text-primary flex items-center gap-2">
-                      <span class="material-symbols-outlined text-[16px] text-primary">hourglass_top</span>
-                      <span>Queue</span>
-                    </td>
-                    <td class="py-2.5 px-3 text-center">
-                      <button 
-                        class="btn-drilldown inline-flex items-center gap-1 font-data-mono font-bold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded cursor-pointer transition-colors"
-                        data-category="queue"
-                        data-title="Arrivals Queue Reservations"
-                        title="Drill-Down: Inspect Queue Reservations [↓]"
-                      >
-                        <span>${currentData.housekeeping.queue.vacant}</span>
-                        <span class="material-symbols-outlined text-[13px]">arrow_drop_down</span>
-                      </button>
-                    </td>
-                    <td class="py-2.5 px-3 text-center font-data-mono font-bold text-on-surface-variant">
-                      ${currentData.housekeeping.queue.occupied}
-                    </td>
-                    <td class="py-2.5 px-3 text-right font-data-mono font-extrabold text-primary">
-                      ${currentData.housekeeping.queue.vacant + currentData.housekeeping.queue.occupied}
-                    </td>
-                  </tr>
-
-                </tbody>
-              </table>
-            </div>
+        <!-- 2. Available / Ready -->
+        <div class="btn-quick-filter-metric bg-surface-container-lowest p-3.5 rounded-xl border border-emerald-300 flex flex-col justify-between shadow-xs hover:border-emerald-500 cursor-pointer transition-colors" data-filter-status="Available">
+          <div class="flex items-center justify-between">
+            <span class="font-label-caps text-[10px] font-bold text-emerald-800 uppercase font-data-mono">Available</span>
+            <span class="material-symbols-outlined text-emerald-600 text-[17px]">check_circle</span>
           </div>
-
-          <!-- Bottom Operational Indicators -->
-          <div class="mt-4 pt-3 border-t border-outline-variant/40 grid grid-cols-3 gap-3">
-            <button 
-              class="btn-hs-nav p-2.5 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-left transition-all cursor-pointer"
-              data-target="room_status"
-              data-filter="OUT_OF_ORDER"
-            >
-              <div class="text-[10px] font-label-caps font-bold text-rose-800 uppercase flex items-center gap-1">
-                <span class="material-symbols-outlined text-[13px]">warning</span>
-                <span>Out of Order</span>
-              </div>
-              <div class="font-data-mono text-lg font-bold text-rose-800 mt-0.5">${currentData.housekeeping.outOfOrder.vacant}</div>
-            </button>
-
-            <button 
-              class="btn-hs-nav p-2.5 rounded-xl border border-amber-200 bg-amber-50/60 hover:bg-amber-100 text-left transition-all cursor-pointer"
-              data-target="room_status"
-              data-filter="OUT_OF_SERVICE"
-            >
-              <div class="text-[10px] font-label-caps font-bold text-amber-800 uppercase flex items-center gap-1">
-                <span class="material-symbols-outlined text-[13px]">build</span>
-                <span>Out of Service</span>
-              </div>
-              <div class="font-data-mono text-lg font-bold text-amber-800 mt-0.5">${currentData.housekeeping.outOfService.vacant}</div>
-            </button>
-
-            <button 
-              class="btn-hs-nav p-2.5 rounded-xl border border-primary/20 bg-primary/5 hover:bg-primary/10 text-left transition-all cursor-pointer"
-              data-target="queue_reservations"
-            >
-              <div class="text-[10px] font-label-caps font-bold text-primary uppercase flex items-center gap-1">
-                <span class="material-symbols-outlined text-[13px]">hourglass_top</span>
-                <span>Arrivals Queue</span>
-              </div>
-              <div class="font-data-mono text-lg font-bold text-primary mt-0.5">${currentData.housekeeping.queue.vacant}</div>
-            </button>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span class="text-2xl font-black text-emerald-700 font-display-kpi leading-none">${availableCount}</span>
+            <span class="text-[11px] font-semibold text-emerald-600 font-data-mono">${Math.round((availableCount/totalCount)*100)}%</span>
+          </div>
+          <div class="mt-2.5 w-full bg-emerald-100 rounded-full h-1.5 overflow-hidden">
+            <div class="bg-emerald-500 h-1.5 rounded-full" style="width: ${(availableCount/totalCount)*100}%"></div>
           </div>
         </div>
+
+        <!-- 3. Checked In (In-House) -->
+        <div class="btn-quick-filter-metric bg-rose-50/70 p-3.5 rounded-xl border border-rose-300 flex flex-col justify-between shadow-xs hover:border-rose-500 cursor-pointer transition-colors" data-filter-status="Checked In">
+          <div class="flex items-center justify-between">
+            <span class="font-label-caps text-[10px] font-bold text-rose-800 uppercase font-data-mono">Checked In</span>
+            <span class="material-symbols-outlined text-rose-500 text-[17px]">key</span>
+          </div>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span class="text-2xl font-black text-rose-600 font-display-kpi leading-none">${checkedInCount}</span>
+            <span class="text-[11px] font-semibold text-rose-500 font-data-mono">${Math.round((checkedInCount/totalCount)*100)}%</span>
+          </div>
+          <div class="mt-2.5 w-full bg-rose-200 rounded-full h-1.5 overflow-hidden">
+            <div class="bg-rose-500 h-1.5 rounded-full" style="width: ${(checkedInCount/totalCount)*100}%"></div>
+          </div>
+        </div>
+
+        <!-- 4. Reserved -->
+        <div class="btn-quick-filter-metric bg-amber-50/70 p-3.5 rounded-xl border border-amber-300 flex flex-col justify-between shadow-xs hover:border-amber-500 cursor-pointer transition-colors" data-filter-status="Reserved">
+          <div class="flex items-center justify-between">
+            <span class="font-label-caps text-[10px] font-bold text-amber-800 uppercase font-data-mono">Reserved</span>
+            <span class="material-symbols-outlined text-amber-500 text-[17px]">pending_actions</span>
+          </div>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span class="text-2xl font-black text-amber-600 font-display-kpi leading-none">${reservedCount}</span>
+            <span class="text-[11px] font-semibold text-amber-600 font-data-mono">${Math.round((reservedCount/totalCount)*100)}%</span>
+          </div>
+          <div class="mt-2.5 w-full bg-amber-200 rounded-full h-1.5 overflow-hidden">
+            <div class="bg-amber-500 h-1.5 rounded-full" style="width: ${(reservedCount/totalCount)*100}%"></div>
+          </div>
+        </div>
+
+        <!-- 5. Paid / VIP -->
+        <div class="btn-quick-filter-metric bg-emerald-50/70 p-3.5 rounded-xl border border-emerald-400 flex flex-col justify-between shadow-xs hover:border-emerald-600 cursor-pointer transition-colors" data-filter-status="Paid">
+          <div class="flex items-center justify-between">
+            <span class="font-label-caps text-[10px] font-bold text-emerald-900 uppercase font-data-mono">Paid / VIP</span>
+            <span class="material-symbols-outlined text-emerald-600 text-[17px]">verified</span>
+          </div>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span class="text-2xl font-black text-emerald-700 font-display-kpi leading-none">${paidCount}</span>
+            <span class="text-[11px] font-semibold text-emerald-600 font-data-mono">${Math.round((paidCount/totalCount)*100)}%</span>
+          </div>
+          <div class="mt-2.5 w-full bg-emerald-200 rounded-full h-1.5 overflow-hidden">
+            <div class="bg-emerald-600 h-1.5 rounded-full" style="width: ${(paidCount/totalCount)*100}%"></div>
+          </div>
+        </div>
+
+        <!-- 6. Checked Out / Turnover -->
+        <div class="btn-quick-filter-metric bg-purple-50/70 p-3.5 rounded-xl border border-purple-300 flex flex-col justify-between shadow-xs hover:border-purple-500 cursor-pointer transition-colors" data-filter-status="Checked Out">
+          <div class="flex items-center justify-between">
+            <span class="font-label-caps text-[10px] font-bold text-purple-900 uppercase font-data-mono">Turnover</span>
+            <span class="material-symbols-outlined text-purple-600 text-[17px]">cleaning_services</span>
+          </div>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span class="text-2xl font-black text-purple-700 font-display-kpi leading-none">${checkedOutCount}</span>
+            <span class="text-[11px] font-semibold text-purple-600 font-data-mono">${Math.round((checkedOutCount/totalCount)*100)}%</span>
+          </div>
+          <div class="mt-2.5 w-full bg-purple-200 rounded-full h-1.5 overflow-hidden">
+            <div class="bg-purple-600 h-1.5 rounded-full" style="width: ${(checkedOutCount/totalCount)*100}%"></div>
+          </div>
+        </div>
+
+        <!-- 7. Damaged / OOO -->
+        <div class="btn-quick-filter-metric bg-slate-100 p-3.5 rounded-xl border border-slate-300 flex flex-col justify-between shadow-xs hover:border-slate-500 cursor-pointer transition-colors col-span-2 md:col-span-2 xl:col-span-1" data-filter-status="Damaged">
+          <div class="flex items-center justify-between">
+            <span class="font-label-caps text-[10px] font-bold text-slate-800 uppercase font-data-mono">Damaged / OOO</span>
+            <span class="material-symbols-outlined text-slate-700 text-[17px]">construction</span>
+          </div>
+          <div class="mt-2 flex items-baseline justify-between">
+            <span class="text-2xl font-black text-slate-900 font-display-kpi leading-none">${damagedCount}</span>
+            <span class="text-[11px] font-semibold text-slate-600 font-data-mono">${Math.round((damagedCount/totalCount)*100)}%</span>
+          </div>
+          <div class="mt-2.5 w-full bg-slate-300 rounded-full h-1.5 overflow-hidden">
+            <div class="bg-slate-700 h-1.5 rounded-full" style="width: ${(damagedCount/totalCount)*100}%"></div>
+          </div>
+        </div>
+
       </section>
 
       <!-- ================================================================= -->
-      <!-- 7. 2-COLUMN SECTION: COMPLIMENTARY/HOUSE USE & TURNDOWN STATUS -->
+      <!-- FILTER TOOLBAR & LIVE STATUS LEGEND (STITCH TOOLBAR SYSTEM) -->
       <!-- ================================================================= -->
-      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <section class="bg-surface-container-lowest p-3.5 rounded-2xl border border-outline-variant/80 space-y-3 shadow-xs">
+        
+        <!-- Row 1: Floor Tabs, Category Selector, Live Search & Density -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          
+          <!-- Floor Selector Tabs -->
+          <div class="flex items-center gap-1 bg-surface-container p-1 rounded-xl overflow-x-auto custom-scrollbar">
+            ${[
+              { id: 'ALL', label: `All Floors (${totalCount})` },
+              { id: '1', label: 'Floor 1 (Ground)' },
+              { id: '2', label: 'Floor 2' },
+              { id: '3', label: 'Floor 3 (Executive)' },
+              { id: '4', label: 'Floor 4 (Suites)' },
+              { id: '5', label: 'Floor 5 (Penthouse)' }
+            ].map(fl => `
+              <button class="btn-floor-tab px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                this.selectedFloor === fl.id
+                  ? 'bg-primary text-on-primary font-bold shadow-xs'
+                  : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-lowest'
+              }" data-floor="${fl.id}">
+                ${fl.label}
+              </button>
+            `).join('')}
+          </div>
 
-        <!-- COLUMN A: COMPLIMENTARY & HOUSE USE (WITH DRILL-DOWNS [↓]) -->
-        <div class="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/70 shadow-xs">
-          <div class="flex items-center justify-between pb-3 mb-3 border-b border-outline-variant/40">
-            <div>
-              <h3 class="font-headline-sm text-sm font-bold text-primary uppercase tracking-wider flex items-center gap-2">
-                <span class="material-symbols-outlined text-[18px]">badge</span>
-                <span>Complimentary & House Use</span>
-              </h3>
-              <p class="text-xs text-on-surface-variant mt-0.5">Non-revenue executive stays and operational quarters</p>
+          <!-- Controls: Category Dropdown & Search -->
+          <div class="flex flex-wrap items-center gap-2.5">
+            
+            <!-- Category Dropdown -->
+            <div class="relative">
+              <select id="house-filter-category" class="appearance-none pl-3 pr-8 py-1.5 bg-surface-container-lowest border border-outline-variant rounded-xl text-xs text-primary font-semibold hover:border-primary/50 cursor-pointer shadow-2xs focus:ring-2 focus:ring-primary/20 outline-none">
+                <option value="ALL" ${this.selectedCategory === 'ALL' ? 'selected' : ''}>All Room Categories</option>
+                <option value="Standard" ${this.selectedCategory === 'Standard' ? 'selected' : ''}>Standard</option>
+                <option value="Executive" ${this.selectedCategory === 'Executive' ? 'selected' : ''}>Executive</option>
+                <option value="Suite" ${this.selectedCategory === 'Suite' ? 'selected' : ''}>Suite</option>
+                <option value="Deluxe" ${this.selectedCategory === 'Deluxe' ? 'selected' : ''}>Deluxe</option>
+                <option value="Penthouse" ${this.selectedCategory === 'Penthouse' ? 'selected' : ''}>Penthouse</option>
+              </select>
+              <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant text-[16px]">expand_more</span>
             </div>
-            <span class="text-xs font-bold text-primary font-data-mono bg-surface-container px-2.5 py-1 rounded-lg">
-              Total: 9 Keys
+
+            <!-- Instant Search Input -->
+            <div class="relative w-48 sm:w-60">
+              <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px]">search</span>
+              <input 
+                type="text" 
+                id="house-search-input" 
+                value="${this.searchQuery}"
+                placeholder="Search room, guest, RES..." 
+                class="w-full pl-8 pr-3 py-1.5 text-xs bg-surface-container-lowest border border-outline-variant rounded-xl text-on-surface placeholder:text-on-surface-variant/70 shadow-2xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+              />
+            </div>
+
+            ${
+              this.selectedFloor !== 'ALL' || this.selectedCategory !== 'ALL' || this.selectedStatus !== 'ALL' || this.searchQuery
+                ? `<button id="btn-house-reset-filters" class="px-2.5 py-1.5 rounded-xl text-xs font-bold text-primary hover:bg-surface-container transition-colors flex items-center gap-1 cursor-pointer">
+                    <span class="material-symbols-outlined text-[15px]">restart_alt</span>
+                    <span>Reset</span>
+                   </button>`
+                : ''
+            }
+          </div>
+
+        </div>
+
+        <!-- Row 2: Status Indicator Legend with Interactive Counts -->
+        <div class="flex flex-wrap items-center gap-2 pt-2.5 border-t border-outline-variant/40">
+          <span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider font-data-mono mr-1">STATUS LEGEND:</span>
+          
+          <!-- ALL PILL -->
+          <button class="btn-house-legend-pill inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+            this.selectedStatus === 'ALL'
+              ? 'bg-primary text-on-primary font-bold shadow-xs'
+              : 'bg-surface-container-lowest border border-outline-variant text-on-surface hover:border-primary/50'
+          }" data-status="ALL">
+            <span class="w-2 h-2 rounded-full ${this.selectedStatus === 'ALL' ? 'bg-white' : 'bg-slate-400'}"></span>
+            <span>All Units</span>
+            <span class="font-data-mono font-bold text-[11px]">(${totalCount})</span>
+          </button>
+
+          <!-- AVAILABLE -->
+          <button class="btn-house-legend-pill inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+            this.selectedStatus === 'Available'
+              ? 'bg-white text-slate-900 border-2 border-slate-500 font-bold shadow-xs'
+              : 'bg-white text-slate-700 border border-slate-200 hover:border-slate-400 shadow-2xs'
+          }" data-status="Available">
+            <span class="w-2.5 h-2.5 rounded-full border border-slate-300 bg-white"></span>
+            <span>Available</span>
+            <span class="font-data-mono font-bold text-[11px] text-slate-500">(${availableCount})</span>
+          </button>
+
+          <!-- CHECKED IN -->
+          <button class="btn-house-legend-pill inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+            this.selectedStatus === 'Checked In'
+              ? 'bg-[#f87171] text-white border-2 border-red-600 font-bold shadow-xs'
+              : 'bg-[#f87171] text-white hover:brightness-105 shadow-2xs'
+          }" data-status="Checked In">
+            <span class="w-2 h-2 rounded-full bg-white"></span>
+            <span>Checked In</span>
+            <span class="font-data-mono font-bold text-[11px] text-white/90">(${checkedInCount})</span>
+          </button>
+
+          <!-- RESERVED -->
+          <button class="btn-house-legend-pill inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+            this.selectedStatus === 'Reserved'
+              ? 'bg-[#f59e0b] text-white border-2 border-amber-600 font-bold shadow-xs'
+              : 'bg-[#f59e0b] text-white hover:brightness-105 shadow-2xs'
+          }" data-status="Reserved">
+            <span class="w-2 h-2 rounded-full bg-white"></span>
+            <span>Reserved</span>
+            <span class="font-data-mono font-bold text-[11px] text-white/90">(${reservedCount})</span>
+          </button>
+
+          <!-- PAID -->
+          <button class="btn-house-legend-pill inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+            this.selectedStatus === 'Paid'
+              ? 'bg-[#10b981] text-white border-2 border-emerald-600 font-bold shadow-xs'
+              : 'bg-[#10b981] text-white hover:brightness-105 shadow-2xs'
+          }" data-status="Paid">
+            <span class="w-2 h-2 rounded-full bg-white"></span>
+            <span>Paid / VIP</span>
+            <span class="font-data-mono font-bold text-[11px] text-white/90">(${paidCount})</span>
+          </button>
+
+          <!-- CHECKED OUT -->
+          <button class="btn-house-legend-pill inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+            this.selectedStatus === 'Checked Out'
+              ? 'bg-[#8b5cf6] text-white border-2 border-purple-600 font-bold shadow-xs'
+              : 'bg-[#8b5cf6] text-white hover:brightness-105 shadow-2xs'
+          }" data-status="Checked Out">
+            <span class="w-2 h-2 rounded-full bg-white"></span>
+            <span>Turnover</span>
+            <span class="font-data-mono font-bold text-[11px] text-white/90">(${checkedOutCount})</span>
+          </button>
+
+          <!-- DAMAGED -->
+          <button class="btn-house-legend-pill inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+            this.selectedStatus === 'Damaged'
+              ? 'bg-[#1e293b] text-white border-2 border-slate-900 font-bold shadow-xs'
+              : 'bg-[#1e293b] text-white hover:brightness-105 shadow-2xs'
+          }" data-status="Damaged">
+            <span class="w-2 h-2 rounded-full bg-white"></span>
+            <span>Damaged / OOO</span>
+            <span class="font-data-mono font-bold text-[11px] text-white/90">(${damagedCount})</span>
+          </button>
+        </div>
+
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- 6-COLUMN HOUSE STATUS ROOM MATRIX -->
+      <!-- ================================================================= -->
+      <main class="w-full space-y-3">
+        
+        <div class="flex items-center justify-between px-1">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-primary uppercase tracking-wider bg-surface-container-high px-2.5 py-0.5 rounded-lg font-data-mono">
+              ${this.selectedFloor === 'ALL' ? 'Entire Property Matrix' : `Floor ${this.selectedFloor} Units`}
+            </span>
+            <span class="text-xs text-on-surface-variant font-medium">
+              Showing ${filteredRooms.length} of ${totalCount} Units
             </span>
           </div>
-
-          <div class="overflow-x-auto">
-            <table class="w-full text-xs text-left">
-              <thead>
-                <tr class="border-b border-outline-variant/40 text-[10px] font-label-caps font-bold text-on-surface-variant uppercase tracking-wider">
-                  <th class="py-2 px-2.5">Category</th>
-                  <th class="py-2 px-2.5 text-center">Room [↓]</th>
-                  <th class="py-2 px-2.5 text-center">Persons</th>
-                  <th class="py-2 px-2.5 text-right">VIP</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-outline-variant/30 font-medium">
-                
-                <!-- Comp Arrivals -->
-                <tr>
-                  <td class="py-2 px-2.5 text-primary font-semibold">Complimentary Arrivals</td>
-                  <td class="py-2 px-2.5 text-center">
-                    <button 
-                      class="btn-drilldown inline-flex items-center gap-1 font-data-mono font-bold text-primary bg-surface-container hover:bg-primary hover:text-white px-2 py-0.5 rounded cursor-pointer transition-colors"
-                      data-category="compArrivals"
-                      data-title="Complimentary Arrivals"
-                      data-summary="${currentData.compHouseUse.compArrivals.rooms} Rooms · ${currentData.compHouseUse.compArrivals.persons} Persons"
-                      title="Inspect Complimentary Arrivals [↓]"
-                    >
-                      <span>${currentData.compHouseUse.compArrivals.rooms}</span>
-                      <span class="material-symbols-outlined text-[13px]">arrow_drop_down</span>
-                    </button>
-                  </td>
-                  <td class="py-2 px-2.5 text-center font-data-mono text-on-surface-variant">${currentData.compHouseUse.compArrivals.persons}</td>
-                  <td class="py-2 px-2.5 text-right font-data-mono text-amber-800 font-bold">${currentData.compHouseUse.compArrivals.vip}</td>
-                </tr>
-
-                <!-- Comp Stayovers -->
-                <tr>
-                  <td class="py-2 px-2.5 text-primary font-semibold">Complimentary Stayovers</td>
-                  <td class="py-2 px-2.5 text-center">
-                    <button 
-                      class="btn-drilldown inline-flex items-center gap-1 font-data-mono font-bold text-primary bg-surface-container hover:bg-primary hover:text-white px-2 py-0.5 rounded cursor-pointer transition-colors"
-                      data-category="compArrivals"
-                      data-title="Complimentary Stayovers"
-                      title="Inspect Complimentary Stayovers [↓]"
-                    >
-                      <span>${currentData.compHouseUse.compStayovers.rooms}</span>
-                      <span class="material-symbols-outlined text-[13px]">arrow_drop_down</span>
-                    </button>
-                  </td>
-                  <td class="py-2 px-2.5 text-center font-data-mono text-on-surface-variant">${currentData.compHouseUse.compStayovers.persons}</td>
-                  <td class="py-2 px-2.5 text-right font-data-mono text-on-surface-variant">${currentData.compHouseUse.compStayovers.vip}</td>
-                </tr>
-
-                <!-- Comp Departures -->
-                <tr>
-                  <td class="py-2 px-2.5 text-primary font-semibold">Complimentary Departures</td>
-                  <td class="py-2 px-2.5 text-center">
-                    <button 
-                      class="btn-drilldown inline-flex items-center gap-1 font-data-mono font-bold text-primary bg-surface-container hover:bg-primary hover:text-white px-2 py-0.5 rounded cursor-pointer transition-colors"
-                      data-category="departuresActual"
-                      data-title="Complimentary Departures"
-                      title="Inspect Complimentary Departures [↓]"
-                    >
-                      <span>${currentData.compHouseUse.compDepartures.rooms}</span>
-                      <span class="material-symbols-outlined text-[13px]">arrow_drop_down</span>
-                    </button>
-                  </td>
-                  <td class="py-2 px-2.5 text-center font-data-mono text-on-surface-variant">${currentData.compHouseUse.compDepartures.persons}</td>
-                  <td class="py-2 px-2.5 text-right font-data-mono text-on-surface-variant">${currentData.compHouseUse.compDepartures.vip}</td>
-                </tr>
-
-                <!-- House Use Arrivals -->
-                <tr class="bg-surface-container-low/30">
-                  <td class="py-2 px-2.5 text-primary font-semibold">House Use Arrivals</td>
-                  <td class="py-2 px-2.5 text-center">
-                    <button 
-                      class="btn-drilldown inline-flex items-center gap-1 font-data-mono font-bold text-primary bg-surface-container hover:bg-primary hover:text-white px-2 py-0.5 rounded cursor-pointer transition-colors"
-                      data-category="houseUseArrivals"
-                      data-title="House Use Arrivals"
-                      title="Inspect House Use Arrivals [↓]"
-                    >
-                      <span>${currentData.compHouseUse.houseUseArrivals.rooms}</span>
-                      <span class="material-symbols-outlined text-[13px]">arrow_drop_down</span>
-                    </button>
-                  </td>
-                  <td class="py-2 px-2.5 text-center font-data-mono text-on-surface-variant">${currentData.compHouseUse.houseUseArrivals.persons}</td>
-                  <td class="py-2 px-2.5 text-right font-data-mono text-on-surface-variant">${currentData.compHouseUse.houseUseArrivals.vip}</td>
-                </tr>
-
-                <!-- House Use Stayovers -->
-                <tr class="bg-surface-container-low/30">
-                  <td class="py-2 px-2.5 text-primary font-semibold">House Use Stayovers</td>
-                  <td class="py-2 px-2.5 text-center">
-                    <button 
-                      class="btn-drilldown inline-flex items-center gap-1 font-data-mono font-bold text-primary bg-surface-container hover:bg-primary hover:text-white px-2 py-0.5 rounded cursor-pointer transition-colors"
-                      data-category="houseUseArrivals"
-                      data-title="House Use Stayovers"
-                      title="Inspect House Use Stayovers [↓]"
-                    >
-                      <span>${currentData.compHouseUse.houseUseStayovers.rooms}</span>
-                      <span class="material-symbols-outlined text-[13px]">arrow_drop_down</span>
-                    </button>
-                  </td>
-                  <td class="py-2 px-2.5 text-center font-data-mono text-on-surface-variant">${currentData.compHouseUse.houseUseStayovers.persons}</td>
-                  <td class="py-2 px-2.5 text-right font-data-mono text-on-surface-variant">${currentData.compHouseUse.houseUseStayovers.vip}</td>
-                </tr>
-
-                <!-- House Use Departures -->
-                <tr class="bg-surface-container-low/30">
-                  <td class="py-2 px-2.5 text-primary font-semibold">House Use Departures</td>
-                  <td class="py-2 px-2.5 text-center font-data-mono font-bold text-on-surface-variant">
-                    ${currentData.compHouseUse.houseUseDepartures.rooms}
-                  </td>
-                  <td class="py-2 px-2.5 text-center font-data-mono text-on-surface-variant">${currentData.compHouseUse.houseUseDepartures.persons}</td>
-                  <td class="py-2 px-2.5 text-right font-data-mono text-on-surface-variant">${currentData.compHouseUse.houseUseDepartures.vip}</td>
-                </tr>
-
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- COLUMN B: TURNDOWN STATUS (NO HOUSEKEEPING BOARD LINK; IN-PAGE INSPECT) -->
-        <div class="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/70 shadow-xs flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between pb-3 mb-4 border-b border-outline-variant/40">
-              <div>
-                <h3 class="font-headline-sm text-sm font-bold text-primary uppercase tracking-wider flex items-center gap-2">
-                  <span class="material-symbols-outlined text-[18px]">bedtime</span>
-                  <span>Turndown Status</span>
-                </h3>
-                <p class="text-xs text-on-surface-variant mt-0.5">Evening hospitality preparation for VIP & suite guests</p>
-              </div>
-              <button 
-                class="btn-drilldown text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
-                data-category="stayovers"
-                data-title="Turndown Service Roster"
-                data-summary="${turndownTotalRequired} Required Rooms"
-                title="Inspect Turndown Rooms in front desk drill-down"
-              >
-                <span>Inspect Turndown [↓]</span>
-                <span class="material-symbols-outlined text-[14px]">arrow_drop_down</span>
-              </button>
-            </div>
-
-            <!-- Progress Bar -->
-            <div class="p-4 rounded-xl bg-surface-container-low/60 border border-outline-variant/50 mb-4">
-              <div class="flex items-center justify-between text-xs font-bold text-primary mb-2">
-                <span>Progress: ${turndownTotalCompleted} of ${turndownTotalRequired} rooms completed</span>
-                <span class="font-data-mono text-emerald-700">${turndownPct}%</span>
-              </div>
-              <div class="w-full bg-surface-container rounded-full h-2.5 overflow-hidden">
-                <div 
-                  class="bg-emerald-600 h-2.5 rounded-full transition-all duration-500" 
-                  style="width: ${turndownPct}%;"
-                ></div>
-              </div>
-            </div>
-
-            <!-- Oracle Turndown Matrix Table: Required / Not Required & Completed (Vacant vs Occupied) -->
-            <div class="overflow-x-auto mb-3">
-              <table class="w-full text-xs text-left">
-                <thead>
-                  <tr class="border-b border-outline-variant/40 text-[10px] font-label-caps font-bold text-on-surface-variant uppercase tracking-wider">
-                    <th class="py-1.5 px-2.5">Turndown Category</th>
-                    <th class="py-1.5 px-2.5 text-center">Vacant [↓]</th>
-                    <th class="py-1.5 px-2.5 text-center">Occupied [↓]</th>
-                    <th class="py-1.5 px-2.5 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-outline-variant/30 font-medium">
-                  <tr>
-                    <td class="py-2 px-2.5 text-primary font-semibold">Required</td>
-                    <td class="py-2 px-2.5 text-center font-data-mono text-on-surface-variant">0</td>
-                    <td class="py-2 px-2.5 text-center">
-                      <button 
-                        class="btn-drilldown inline-flex items-center gap-1 font-data-mono font-bold text-primary bg-surface-container hover:bg-primary hover:text-white px-2 py-0.5 rounded cursor-pointer transition-colors"
-                        data-category="stayovers"
-                        data-title="Turndown Required Rooms (Occupied)"
-                        title="Inspect Required Turndown Rooms [↓]"
-                      >
-                        <span>${currentData.turndown.required.occupied}</span>
-                        <span class="material-symbols-outlined text-[13px]">arrow_drop_down</span>
-                      </button>
-                    </td>
-                    <td class="py-2 px-2.5 text-right font-data-mono font-bold text-primary">
-                      ${currentData.turndown.required.occupied}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="py-2 px-2.5 text-primary font-semibold">Not Required</td>
-                    <td class="py-2 px-2.5 text-center font-data-mono text-on-surface-variant">0</td>
-                    <td class="py-2 px-2.5 text-center font-data-mono text-on-surface-variant">
-                      ${currentData.turndown.notRequired.occupied}
-                    </td>
-                    <td class="py-2 px-2.5 text-right font-data-mono text-on-surface-variant">
-                      ${currentData.turndown.notRequired.occupied}
-                    </td>
-                  </tr>
-                  <tr class="bg-emerald-50/20">
-                    <td class="py-2 px-2.5 text-emerald-800 font-bold">Completed</td>
-                    <td class="py-2 px-2.5 text-center font-data-mono text-on-surface-variant">0</td>
-                    <td class="py-2 px-2.5 text-center">
-                      <button 
-                        class="btn-drilldown inline-flex items-center gap-1 font-data-mono font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 px-2 py-0.5 rounded cursor-pointer transition-colors"
-                        data-category="stayovers"
-                        data-title="Turndown Completed Rooms"
-                        title="Inspect Completed Turndown Rooms [↓]"
-                      >
-                        <span>${currentData.turndown.completed.occupied}</span>
-                        <span class="material-symbols-outlined text-[13px]">arrow_drop_down</span>
-                      </button>
-                    </td>
-                    <td class="py-2 px-2.5 text-right font-data-mono font-extrabold text-emerald-800">
-                      ${currentData.turndown.completed.occupied}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="mt-3 pt-3 border-t border-outline-variant/40 flex items-center justify-between text-xs text-on-surface-variant">
-            <span>Evening shift assigned attendants: 4</span>
-            <span class="font-semibold text-primary">Shift target: 8:30 PM</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================================================================= -->
-      <!-- 8. FRONT DESK OPERATIONAL SHORTCUTS (ONLY FRONT DESK PERMITTED MODULES) -->
-      <!-- ================================================================= -->
-      <section class="bg-surface-container-lowest rounded-2xl p-4 sm:p-5 border border-outline-variant/70 shadow-xs">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-          <span class="font-label-caps text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
-            <span class="material-symbols-outlined text-[16px]">touch_app</span>
-            <span>Front Desk Operational Shortcuts</span>
+          <span class="text-[11px] font-data-mono text-on-surface-variant flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            Telemetry Synced
           </span>
-          <span class="text-xs text-on-surface-variant">Front desk authorized workspaces</span>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
-          <button 
-            class="btn-hs-nav p-2.5 rounded-xl border border-outline-variant hover:border-primary bg-surface-container-low/60 hover:bg-primary/10 text-primary text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 shadow-xs"
-            data-target="arrivals"
-          >
-            <span class="material-symbols-outlined text-[16px]">flight_land</span>
-            <span>View Arrivals</span>
-          </button>
+        ${
+          filteredRooms.length === 0
+            ? `
+              <div class="py-16 text-center bg-surface-container-lowest rounded-2xl border border-outline-variant p-8 space-y-3 shadow-xs">
+                <span class="material-symbols-outlined text-4xl text-on-surface-variant">search_off</span>
+                <h4 class="text-base font-bold text-primary">No Units Match Filter</h4>
+                <p class="text-xs text-on-surface-variant max-w-md mx-auto">No rooms were found for the selected criteria. Reset filters to view all property inventory.</p>
+                <button id="btn-empty-house-reset" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold cursor-pointer">
+                  Reset All Filters
+                </button>
+              </div>
+            `
+            : `
+              <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-3.5">
+                ${filteredRooms.map(room => this.renderRoomCard(room)).join('')}
+              </div>
+            `
+        }
+      </main>
 
-          <button 
-            class="btn-hs-nav p-2.5 rounded-xl border border-outline-variant hover:border-primary bg-surface-container-low/60 hover:bg-primary/10 text-primary text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 shadow-xs"
-            data-target="departures"
-          >
-            <span class="material-symbols-outlined text-[16px]">flight_takeoff</span>
-            <span>View Departures</span>
-          </button>
-
-          <button 
-            class="btn-hs-nav p-2.5 rounded-xl border border-outline-variant hover:border-primary bg-surface-container-low/60 hover:bg-primary/10 text-primary text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 shadow-xs"
-            data-target="room_status"
-          >
-            <span class="material-symbols-outlined text-[16px]">meeting_room</span>
-            <span>Room Status</span>
-          </button>
-
-          <button 
-            class="btn-hs-nav p-2.5 rounded-xl border border-outline-variant hover:border-primary bg-surface-container-low/60 hover:bg-primary/10 text-primary text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 shadow-xs"
-            data-target="room_board"
-          >
-            <span class="material-symbols-outlined text-[16px]">grid_view</span>
-            <span>Room Board</span>
-          </button>
-
-          <button 
-            class="btn-hs-nav p-2.5 rounded-xl border border-outline-variant hover:border-primary bg-surface-container-low/60 hover:bg-primary/10 text-primary text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 shadow-xs"
-            data-target="room_assignment"
-          >
-            <span class="material-symbols-outlined text-[16px]">assignment_ind</span>
-            <span>Room Assignment</span>
-          </button>
-
-          <button 
-            class="btn-hs-nav p-2.5 rounded-xl border border-outline-variant hover:border-primary bg-surface-container-low/60 hover:bg-primary/10 text-primary text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 shadow-xs"
-            data-target="inhouse"
-          >
-            <span class="material-symbols-outlined text-[16px]">hotel</span>
-            <span>In-House Guests</span>
-          </button>
-        </div>
-      </section>
+      <!-- ================================================================= -->
+      <!-- SLIDE-OVER TELEMETRY & ROOM INSPECTION DRAWER -->
+      <!-- ================================================================= -->
+      <div id="house-drawer-backdrop" class="fixed inset-0 bg-black/45 backdrop-blur-xs z-50 transition-opacity duration-300 ${
+        this.selectedRoom ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+      }"></div>
+      
+      <aside id="house-detail-drawer" class="fixed top-0 right-0 h-full w-full max-w-xl bg-surface-container-lowest shadow-2xl z-50 border-l border-outline-variant flex flex-col transform transition-transform duration-300 ease-out select-none ${
+        this.selectedRoom ? 'translate-x-0' : 'translate-x-full'
+      }">
+        ${this.renderDrawerContent()}
+      </aside>
+      `}
     `;
 
     this.bindEvents();
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // ROOM CARD RENDERING (HIGH-END STITCH UI ELEVATION)
+  // ──────────────────────────────────────────────────────────────────────────
+  renderRoomCard(r) {
+    const isSelected = this.selectedRoom && this.selectedRoom.number === r.number;
+
+    let cardBg = '';
+    let categoryText = '';
+    let numberText = '';
+    let bottomBadge = '';
+    let topIcon = '';
+
+    switch (r.status) {
+      case 'Checked In':
+        cardBg = 'bg-[#F87171] text-white shadow-xs hover:brightness-105 border border-red-300/40';
+        categoryText = 'text-white/90';
+        numberText = 'text-white';
+        topIcon = `<span class="material-symbols-outlined text-[16px] text-white/80">vpn_key</span>`;
+        bottomBadge = `
+          <div class="pt-2 border-t border-white/25 flex items-center justify-between">
+            <div class="flex items-center gap-1 truncate mr-1">
+              <span class="material-symbols-outlined text-[14px]">nfc</span>
+              <span class="text-xs font-bold text-white truncate">${r.guest ? r.guest.split(' ')[0] + ' ' + (r.guest.split(' ')[1] ? r.guest.split(' ')[1][0] + '.' : '') : 'In-House'}</span>
+            </div>
+            <span class="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-bold font-data-mono">Night ${r.currentNight || 2}/${r.totalNights || 4}</span>
+          </div>
+        `;
+        break;
+
+      case 'Reserved':
+        cardBg = 'bg-[#F59E0B] text-white shadow-xs hover:brightness-105 border border-amber-400/40';
+        categoryText = 'text-white/90';
+        numberText = 'text-white';
+        topIcon = `<span class="material-symbols-outlined text-[16px] text-white/80">schedule</span>`;
+        bottomBadge = `
+          <div class="pt-2 border-t border-white/25 flex items-center justify-between">
+            <span class="text-xs font-bold text-white flex items-center gap-1">
+              <span class="material-symbols-outlined text-[13px]">flight_land</span>
+              <span>${r.eta ? r.eta.replace(' Arriving', '') : 'Reserved'}</span>
+            </span>
+            <span class="text-[10px] bg-black/15 px-1.5 py-0.5 rounded text-white font-data-mono font-bold">${r.reservationId || 'RES'}</span>
+          </div>
+        `;
+        break;
+
+      case 'Paid':
+        cardBg = 'bg-[#10B981] text-white shadow-xs hover:brightness-105 border border-emerald-400/40';
+        categoryText = 'text-white/90';
+        numberText = 'text-white';
+        topIcon = `<span class="material-symbols-outlined text-[16px] text-white/90">stars</span>`;
+        bottomBadge = `
+          <div class="pt-2 border-t border-white/25 flex items-center justify-between">
+            <span class="text-xs font-bold text-white flex items-center gap-1">
+              <span class="material-symbols-outlined text-[13px]">verified_user</span>
+              <span>${r.badgeNote || 'Guaranteed'}</span>
+            </span>
+            <span class="text-[10px] bg-black/15 px-1.5 py-0.5 rounded text-white font-data-mono font-bold">Pre-Paid</span>
+          </div>
+        `;
+        break;
+
+      case 'Checked Out':
+        cardBg = 'bg-[#8B5CF6] text-white shadow-xs hover:brightness-105 border border-purple-400/40';
+        categoryText = 'text-white/90';
+        numberText = 'text-white';
+        topIcon = `<span class="material-symbols-outlined text-[16px] text-white/80">dry_cleaning</span>`;
+        bottomBadge = `
+          <div class="pt-2 border-t border-white/25 flex items-center justify-between">
+            <span class="text-xs font-bold text-white flex items-center gap-1">
+              <span class="material-symbols-outlined text-[13px]">priority_high</span>
+              <span>Rush Clean</span>
+            </span>
+            <span class="text-[10px] bg-black/15 px-1.5 py-0.5 rounded text-white font-data-mono font-bold">Turnover</span>
+          </div>
+        `;
+        break;
+
+      case 'Damaged':
+        cardBg = 'bg-[#1E293B] text-white shadow-xs hover:brightness-105 border border-slate-700/60';
+        categoryText = 'text-slate-400';
+        numberText = 'text-white';
+        topIcon = `<span class="material-symbols-outlined text-[16px] text-rose-400">warning</span>`;
+        bottomBadge = `
+          <div class="pt-2 border-t border-white/20 flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-300 flex items-center gap-1 truncate">
+              <span class="material-symbols-outlined text-[13px] text-amber-400">build</span>
+              <span>HVAC Repair</span>
+            </span>
+            <span class="text-[10px] bg-rose-500/20 text-rose-300 px-1 py-0.5 rounded font-mono font-bold">${r.workOrder || '#WO-1038'}</span>
+          </div>
+        `;
+        break;
+
+      case 'Available':
+      default:
+        cardBg = 'bg-white text-slate-800 shadow-2xs border-2 border-outline-variant hover:border-primary group';
+        categoryText = 'text-slate-500 font-semibold';
+        numberText = 'text-slate-900';
+        topIcon = `<span class="material-symbols-outlined text-[16px] text-slate-400 group-hover:text-primary">bed</span>`;
+        bottomBadge = `
+          <div class="pt-2 border-t border-outline-variant/50 flex items-center justify-between">
+            <span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              <span class="material-symbols-outlined text-[13px]">check</span>
+              <span>Ready</span>
+            </span>
+            <span class="text-[10px] text-slate-500 font-mono font-bold">${r.hkStaff ? 'HK: #12' : 'Inspected'}</span>
+          </div>
+        `;
+        break;
+    }
+
+    const selectionRing = isSelected ? 'ring-4 ring-primary/40 ring-offset-2 shadow-lg scale-[1.02]' : '';
+
+    return `
+      <div 
+        class="house-room-card rounded-2xl p-3.5 flex flex-col justify-between h-36 cursor-pointer transition-all duration-200 select-none ${cardBg} ${selectionRing}" 
+        data-room-number="${r.number}"
+        title="Room ${r.number} (${r.category}) — ${r.status}"
+      >
+        <!-- Top Row: Category & Icon -->
+        <div class="flex items-start justify-between">
+          <div>
+            <p class="text-[11px] font-bold uppercase tracking-wider leading-tight ${categoryText}">${r.category}</p>
+            <p class="text-2xl sm:text-3xl font-black tracking-tight font-display-kpi mt-0.5 ${numberText}">${r.number}</p>
+          </div>
+          <div class="p-1 rounded-full bg-black/10 flex items-center justify-center">
+            ${topIcon}
+          </div>
+        </div>
+
+        <!-- Bottom Row: Telemetry Badge -->
+        ${bottomBadge}
+      </div>
+    `;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // COMPREHENSIVE DRAWER: SUMMARY, CHECK-OUT, SERVICES, HOUSEKEEPING & F&B
+  // ──────────────────────────────────────────────────────────────────────────
+  renderDrawerContent() {
+    if (!this.selectedRoom) {
+      return `<div class="p-6 text-center text-on-surface-variant">No room selected.</div>`;
+    }
+
+    const r = this.selectedRoom;
+
+    let badgeClass = 'bg-slate-100 text-slate-800 border border-slate-300';
+    if (r.status === 'Checked In') badgeClass = 'bg-[#f87171] text-white';
+    if (r.status === 'Reserved') badgeClass = 'bg-[#f59e0b] text-white';
+    if (r.status === 'Paid') badgeClass = 'bg-[#10b981] text-white';
+    if (r.status === 'Checked Out') badgeClass = 'bg-[#8b5cf6] text-white';
+    if (r.status === 'Damaged') badgeClass = 'bg-[#1e293b] text-white';
+
+    const servicesCount = (r.services || []).length;
+    const diningCount = (r.diningOrders || []).length;
+
+    return `
+      <!-- Drawer Top Bar -->
+      <div class="px-6 py-4 border-b border-outline-variant flex items-center justify-between bg-surface-bright shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl shadow-xs ${badgeClass}">
+            ${r.number}
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="font-headline-sm text-base font-bold text-primary">Room ${r.number} · ${r.category}</h3>
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${badgeClass}">
+                ${r.status}
+              </span>
+            </div>
+            <p class="text-xs text-on-surface-variant font-medium mt-0.5">${r.wing || 'Main Wing'} · Floor ${r.floor} · ₹${r.rate.toLocaleString()} / night</p>
+          </div>
+        </div>
+        <button id="btn-close-house-drawer" class="p-2 rounded-xl text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors cursor-pointer">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <!-- Segmented Drawer Navigation Switcher -->
+      <div class="px-6 pt-3 pb-2 bg-surface-bright border-b border-outline-variant/60 shrink-0">
+        <div class="flex items-center gap-1 p-1 bg-surface-container rounded-xl border border-outline-variant/60">
+          <button class="btn-drawer-nav-tab flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold text-center transition-all cursor-pointer ${
+            this.activeDrawerTab === 'overview' ? 'bg-primary text-on-primary font-bold shadow-xs' : 'text-on-surface-variant hover:text-primary'
+          }" data-drawer-tab="overview">Overview</button>
+          
+          <button class="btn-drawer-nav-tab flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold text-center transition-all cursor-pointer ${
+            this.activeDrawerTab === 'checkout' ? 'bg-primary text-on-primary font-bold shadow-xs' : 'text-on-surface-variant hover:text-primary'
+          }" data-drawer-tab="checkout">Check-Out</button>
+          
+          <button class="btn-drawer-nav-tab flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold text-center transition-all cursor-pointer ${
+            this.activeDrawerTab === 'services' ? 'bg-primary text-on-primary font-bold shadow-xs' : 'text-on-surface-variant hover:text-primary'
+          }" data-drawer-tab="services">Services (${servicesCount})</button>
+          
+          <button class="btn-drawer-nav-tab flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold text-center transition-all cursor-pointer ${
+            this.activeDrawerTab === 'housekeeping' ? 'bg-primary text-on-primary font-bold shadow-xs' : 'text-on-surface-variant hover:text-primary'
+          }" data-drawer-tab="housekeeping">Housekeeping</button>
+          
+          <button class="btn-drawer-nav-tab flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold text-center transition-all cursor-pointer ${
+            this.activeDrawerTab === 'restaurant' ? 'bg-primary text-on-primary font-bold shadow-xs' : 'text-on-surface-variant hover:text-primary'
+          }" data-drawer-tab="restaurant">Dining (${diningCount})</button>
+        </div>
+      </div>
+
+      <!-- Drawer Tab Panels (Scrollable) -->
+      <div class="p-6 overflow-y-auto flex-1 space-y-5 text-xs custom-scrollbar">
+        ${
+          this.activeDrawerTab === 'overview'
+            ? this.renderTabOverview(r)
+            : this.activeDrawerTab === 'checkout'
+            ? this.renderTabCheckOut(r)
+            : this.activeDrawerTab === 'services'
+            ? this.renderTabServices(r)
+            : this.activeDrawerTab === 'housekeeping'
+            ? this.renderTabHousekeeping(r)
+            : this.renderTabRestaurant(r)
+        }
+      </div>
+    `;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // TAB 1: DETAILED SUMMARY & OPERATIONAL TELEMETRY OVERVIEW
+  // ──────────────────────────────────────────────────────────────────────────
+  renderTabOverview(r) {
+    const isCheckedIn = r.status === 'Checked In';
+
+    return `
+      <!-- Guest Record & VIP Telemetry -->
+      ${
+        r.guest || r.reservationId
+          ? `
+            <div class="bg-surface-container-lowest rounded-2xl p-4.5 border border-outline-variant shadow-xs space-y-3.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-10 h-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-sm shadow-2xs">
+                    ${r.guest ? r.guest.charAt(0) : 'G'}
+                  </div>
+                  <div>
+                    <h4 class="font-bold text-sm text-primary flex items-center gap-1.5">
+                      ${r.guest}
+                      ${r.vipTier ? `<span class="px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-bold font-data-mono">${r.vipTier}</span>` : ''}
+                      ${r.idVerified ? `<span class="material-symbols-outlined text-[15px] text-emerald-600" title="Government ID Verified">verified</span>` : ''}
+                    </h4>
+                    <p class="text-[11px] text-on-surface-variant font-data-mono">Folio #${r.reservationId} · ${r.corporateAccount || 'Direct Booking'}</p>
+                  </div>
+                </div>
+                <span class="px-2.5 py-1 rounded-lg bg-surface-container font-data-mono text-[11px] font-bold text-primary">
+                  Night ${r.currentNight || 1} of ${r.totalNights || 3}
+                </span>
+              </div>
+
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2.5 border-t border-outline-variant/50 text-[11px]">
+                <div>
+                  <span class="text-on-surface-variant block text-[10px]">Stay Period:</span>
+                  <p class="font-semibold text-on-surface font-data-mono">${r.checkIn || '15 Sep'} → ${r.checkOut || '18 Sep'}</p>
+                </div>
+                <div>
+                  <span class="text-on-surface-variant block text-[10px]">Nationality / ID:</span>
+                  <p class="font-semibold text-on-surface">${r.nationality || 'Verified Citizen'}</p>
+                </div>
+                <div>
+                  <span class="text-on-surface-variant block text-[10px]">Phone Contact:</span>
+                  <p class="font-semibold text-on-surface truncate">${r.phone || '+1 (555) 0192'}</p>
+                </div>
+              </div>
+
+              <!-- VIP Curated Preferences -->
+              ${
+                r.preferences
+                  ? `
+                    <div class="p-3 bg-surface-container rounded-xl text-[11px] space-y-1.5 border border-outline-variant/40">
+                      <span class="text-[10px] font-bold uppercase tracking-wider text-primary font-data-mono flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px]">tune</span>
+                        <span>Resident Preferences & SOP Flags:</span>
+                      </span>
+                      <p class="text-on-surface"><strong class="text-on-surface-variant font-medium">Pillows:</strong> ${r.preferences.pillow}</p>
+                      <p class="text-on-surface"><strong class="text-on-surface-variant font-medium">Dietary:</strong> <span class="text-rose-700 font-semibold">${r.preferences.dietary}</span></p>
+                      <p class="text-on-surface"><strong class="text-on-surface-variant font-medium">Beverage:</strong> ${r.preferences.beverage}</p>
+                    </div>
+                  `
+                  : ''
+              }
+            </div>
+          `
+          : ''
+      }
+
+      <!-- Room Hardware & IoT Telemetry -->
+      <div class="bg-surface-container-lowest rounded-2xl p-4.5 border border-outline-variant shadow-xs space-y-3">
+        <h4 class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-data-mono">Room Hardware & IoT Telemetry</h4>
+        <div class="grid grid-cols-2 gap-3 text-xs">
+          <div class="flex items-center gap-2.5 p-2 bg-surface-container rounded-xl">
+            <span class="material-symbols-outlined text-slate-500 text-[18px]">bed</span>
+            <div>
+              <span class="text-[10px] text-on-surface-variant block">Bedding Setup</span>
+              <span class="font-semibold text-on-surface">${r.bedding || '1 King Bed'}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2.5 p-2 bg-surface-container rounded-xl">
+            <span class="material-symbols-outlined text-emerald-600 text-[18px]">thermostat</span>
+            <div>
+              <span class="text-[10px] text-on-surface-variant block">Thermostat</span>
+              <span class="font-semibold text-emerald-700 font-data-mono">${r.tempSetting || '21.5°C (Eco)'}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2.5 p-2 bg-surface-container rounded-xl">
+            <span class="material-symbols-outlined text-primary text-[18px]">badge</span>
+            <div>
+              <span class="text-[10px] text-on-surface-variant block">Active RFID Keycard</span>
+              <span class="font-semibold text-primary font-data-mono">${r.keycard || 'Unassigned'}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2.5 p-2 bg-surface-container rounded-xl">
+            <span class="material-symbols-outlined text-emerald-600 text-[18px]">lock</span>
+            <div>
+              <span class="text-[10px] text-on-surface-variant block">Door Deadbolt</span>
+              <span class="font-semibold text-emerald-700">Secured & Latched</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Financial Telemetry & Master Folio -->
+      ${
+        isCheckedIn
+          ? `
+            <div class="bg-surface-container-lowest rounded-2xl p-4.5 border border-outline-variant space-y-3 shadow-xs">
+              <div class="flex items-center justify-between">
+                <h4 class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-data-mono">Folio Financial Telemetry</h4>
+                <span class="text-[11px] font-bold text-emerald-700 font-data-mono">Pre-Auth Guarantee: ₹35,000</span>
+              </div>
+              <div class="space-y-1.5 text-[11px]">
+                <div class="flex justify-between text-on-surface-variant">
+                  <span>Room Tariff (${r.totalNights || 4} Nights × ₹${r.rate.toLocaleString()})</span>
+                  <span class="font-data-mono font-semibold text-on-surface">₹${(r.roomCharges || 13500).toLocaleString()}</span>
+                </div>
+                <div class="flex justify-between text-on-surface-variant">
+                  <span>F&B Restaurant & In-Room Dining</span>
+                  <span class="font-data-mono font-semibold text-on-surface">₹${(r.serviceCharges || 2450).toLocaleString()}</span>
+                </div>
+                <div class="flex justify-between text-on-surface-variant">
+                  <span>Taxes & Luxury Hospitality Surcharges (10%)</span>
+                  <span class="font-data-mono font-semibold text-on-surface">₹${(r.taxTotal || 1595).toLocaleString()}</span>
+                </div>
+                <div class="flex justify-between pt-2 border-t border-outline-variant font-bold text-xs">
+                  <span class="text-primary">Master Folio Total</span>
+                  <span class="font-data-mono text-primary text-sm">₹${(r.totalBalance || 17545).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          `
+          : ''
+      }
+
+      <!-- Quick Operations Launcher -->
+      <div class="space-y-2">
+        <h4 class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-data-mono">Quick Workflow Launchers</h4>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="btn-switch-tab-action py-2.5 px-3 rounded-xl bg-primary text-on-primary font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-primary/90 transition-all cursor-pointer shadow-xs" data-target-tab="checkout">
+            <span class="material-symbols-outlined text-[16px]">door_open</span>
+            <span>Perform Check-Out</span>
+          </button>
+          <button class="btn-switch-tab-action py-2.5 px-3 rounded-xl border border-outline-variant bg-surface-container-lowest font-semibold text-xs text-primary flex items-center justify-center gap-1.5 hover:bg-surface-container transition-all cursor-pointer shadow-2xs" data-target-tab="services">
+            <span class="material-symbols-outlined text-[16px]">room_service</span>
+            <span>Assign Services (${(r.services || []).length})</span>
+          </button>
+          <button class="btn-switch-tab-action py-2.5 px-3 rounded-xl border border-outline-variant bg-surface-container-lowest font-semibold text-xs text-primary flex items-center justify-center gap-1.5 hover:bg-surface-container transition-all cursor-pointer shadow-2xs" data-target-tab="housekeeping">
+            <span class="material-symbols-outlined text-[16px]">cleaning_services</span>
+            <span>Housekeeping Status</span>
+          </button>
+          <button class="btn-switch-tab-action py-2.5 px-3 rounded-xl border border-outline-variant bg-surface-container-lowest font-semibold text-xs text-primary flex items-center justify-center gap-1.5 hover:bg-surface-container transition-all cursor-pointer shadow-2xs" data-target-tab="restaurant">
+            <span class="material-symbols-outlined text-[16px]">restaurant</span>
+            <span>Restaurant Orders</span>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // TAB 2: IN-DRAWER CHECK-OUT PROCEDURE (SOP GATEWAY)
+  // ──────────────────────────────────────────────────────────────────────────
+  renderTabCheckOut(r) {
+    if (r.status === 'Checked Out') {
+      return `
+        <div class="bg-purple-50 rounded-2xl p-6 border border-purple-200 text-purple-900 space-y-4 text-center">
+          <div class="w-14 h-14 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center mx-auto shadow-2xs">
+            <span class="material-symbols-outlined text-3xl">verified</span>
+          </div>
+          <div>
+            <h4 class="text-base font-bold text-purple-950">Departure Completed for Room ${r.number}</h4>
+            <p class="text-xs text-purple-800 mt-1">Guest departure successfully executed. Room is now in Turnover status awaiting housekeeping inspection.</p>
+          </div>
+          <div class="p-3 bg-white/80 rounded-xl border border-purple-200 text-left space-y-1 font-data-mono text-xs">
+            <div class="flex justify-between"><span>Departure Time:</span><span class="font-bold">${r.depTime || 'Just Now'}</span></div>
+            <div class="flex justify-between"><span>Last Resident:</span><span class="font-bold">${r.lastOccupant || r.guest || 'Resident Guest'}</span></div>
+            <div class="flex justify-between"><span>Turnover Priority:</span><span class="font-bold text-purple-700">Vacant Dirty (Rush Clean)</span></div>
+          </div>
+          <button id="btn-re-clean-turnover" class="px-4 py-2 rounded-xl bg-purple-700 text-white font-bold text-xs hover:bg-purple-800 transition-all cursor-pointer shadow-xs">
+            Mark Cleaned & Ready (Return to Available)
+          </button>
+        </div>
+      `;
+    }
+
+    if (r.status !== 'Checked In') {
+      return `
+        <div class="bg-surface-container-lowest rounded-2xl p-6 border border-outline-variant text-center space-y-3">
+          <span class="material-symbols-outlined text-4xl text-on-surface-variant">info</span>
+          <h4 class="text-base font-bold text-primary">Room Not In-House</h4>
+          <p class="text-xs text-on-surface-variant max-w-sm mx-auto">This unit is currently in "${r.status}" status. Only active in-house resident rooms can undergo departure checkout.</p>
+        </div>
+      `;
+    }
+
+    const cl = r.checkoutChecklist || { folioSettled: true, minibarAudited: true, keycardReturned: true, safeCleared: true, transportAssisted: true };
+
+    return `
+      <div class="space-y-4">
+        
+        <!-- Header Banner -->
+        <div class="p-3.5 bg-primary/5 rounded-2xl border border-primary/20 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[20px]">door_open</span>
+            <div>
+              <h4 class="font-bold text-xs text-primary">Resident Departure Protocol (Room ${r.number})</h4>
+              <p class="text-[11px] text-on-surface-variant">Perform full 5-point front desk clearance directly here</p>
+            </div>
+          </div>
+          <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 font-bold text-[10px] font-data-mono">Ready to Check Out</span>
+        </div>
+
+        <!-- 5-Point SOP Departure Checklist -->
+        <div class="bg-surface-container-lowest rounded-2xl p-4 border border-outline-variant shadow-xs space-y-2.5">
+          <h4 class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-data-mono">5-Point Departure Checklist</h4>
+          
+          <div class="space-y-2">
+            <label class="flex items-start gap-2.5 p-2 rounded-xl bg-surface-container cursor-pointer hover:bg-surface-container-high transition-colors">
+              <input type="checkbox" id="chk-folio-settled" class="mt-0.5 rounded text-primary focus:ring-primary" ${cl.folioSettled ? 'checked' : ''}/>
+              <div>
+                <span class="font-bold text-on-surface block text-xs">1. Master Folio & Incidentals Settle Balance</span>
+                <span class="text-[11px] text-on-surface-variant">Room charges, dining, and spa confirmed</span>
+              </div>
+            </label>
+
+            <label class="flex items-start gap-2.5 p-2 rounded-xl bg-surface-container cursor-pointer hover:bg-surface-container-high transition-colors">
+              <input type="checkbox" id="chk-minibar" class="mt-0.5 rounded text-primary focus:ring-primary" ${cl.minibarAudited ? 'checked' : ''}/>
+              <div>
+                <span class="font-bold text-on-surface block text-xs">2. In-Room Minibar Consumption Audited</span>
+                <span class="text-[11px] text-on-surface-variant">Automated sensor audit cleared with no pending charges</span>
+              </div>
+            </label>
+
+            <label class="flex items-start gap-2.5 p-2 rounded-xl bg-surface-container cursor-pointer hover:bg-surface-container-high transition-colors">
+              <input type="checkbox" id="chk-keycard" class="mt-0.5 rounded text-primary focus:ring-primary" ${cl.keycardReturned ? 'checked' : ''}/>
+              <div>
+                <span class="font-bold text-on-surface block text-xs">3. RFID Keycard Recovered & De-encoded</span>
+                <span class="text-[11px] text-on-surface-variant">Card ID: <strong>${r.keycard || 'RFID-102-A'}</strong> surrendered</span>
+              </div>
+            </label>
+
+            <label class="flex items-start gap-2.5 p-2 rounded-xl bg-surface-container cursor-pointer hover:bg-surface-container-high transition-colors">
+              <input type="checkbox" id="chk-safe" class="mt-0.5 rounded text-primary focus:ring-primary" ${cl.safeCleared ? 'checked' : ''}/>
+              <div>
+                <span class="font-bold text-on-surface block text-xs">4. In-Room Electronic Safe Inspected & Left Open</span>
+                <span class="text-[11px] text-on-surface-variant">Verified empty by housekeeping or resident</span>
+              </div>
+            </label>
+
+            <label class="flex items-start gap-2.5 p-2 rounded-xl bg-surface-container cursor-pointer hover:bg-surface-container-high transition-colors">
+              <input type="checkbox" id="chk-transport" class="mt-0.5 rounded text-primary focus:ring-primary" ${cl.transportAssisted ? 'checked' : ''}/>
+              <div>
+                <span class="font-bold text-on-surface block text-xs">5. Luggage Assistance & Departure Transfer Confirmed</span>
+                <span class="text-[11px] text-on-surface-variant">Airport limousine or bell desk service arranged</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Settlement & Payment Method -->
+        <div class="bg-surface-container-lowest rounded-2xl p-4 border border-outline-variant shadow-xs space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-data-mono">Final Folio Settlement</h4>
+            <span class="text-sm font-black text-primary font-data-mono">Total: ₹${(r.totalBalance || 17545).toLocaleString()}</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 text-[11px]">
+            <div>
+              <label class="block font-bold text-on-surface-variant mb-1 font-data-mono">Settlement Method</label>
+              <select id="sel-checkout-payment-method" class="w-full py-1.5 px-2.5 rounded-xl border border-outline-variant bg-surface-container text-xs text-on-surface outline-none">
+                <option selected>Credit Card (Front Desk POS)</option>
+                <option>Cash / Currency Settlement</option>
+                <option>Corporate Direct Billing</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-bold text-on-surface-variant mb-1 font-data-mono">Email Tax Invoice</label>
+              <input type="text" value="${r.email || 'elena.rostova@traveler.com'}" class="w-full py-1.5 px-2.5 rounded-xl border border-outline-variant bg-surface-container text-xs text-on-surface outline-none font-data-mono"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Execute Check-Out Here Button -->
+        <div class="space-y-2 pt-2">
+          <button id="btn-execute-checkout-direct" class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md transform hover:-translate-y-0.5">
+            <span class="material-symbols-outlined text-[18px]">verified</span>
+            <span>Confirm & Complete Departure Check-Out Here</span>
+          </button>
+          
+          <button id="btn-open-full-checkout-modal" class="w-full py-2 px-3 rounded-xl border border-outline-variant text-primary font-semibold text-xs flex items-center justify-center gap-1.5 hover:bg-surface-container transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-[16px]">receipt_long</span>
+            <span>Open Full Checkout Invoice Window</span>
+          </button>
+        </div>
+
+      </div>
+    `;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // TAB 3: SERVICES & SPECIAL REQUESTS ASSIGNMENT HUB
+  // ──────────────────────────────────────────────────────────────────────────
+  renderTabServices(r) {
+    const services = r.services || [];
+
+    return `
+      <div class="space-y-4">
+        
+        <!-- Active Requests for Room -->
+        <div class="bg-surface-container-lowest rounded-2xl p-4 border border-outline-variant shadow-xs space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-data-mono">Active Room Services & Requests</h4>
+            <span class="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-bold text-[10px] font-data-mono">${services.length} Requests</span>
+          </div>
+
+          ${
+            services.length === 0
+              ? `<div class="p-4 text-center text-on-surface-variant">No active service requests for this room yet. Use the form below to assign a service.</div>`
+              : `
+                <div class="space-y-2">
+                  ${services.map((s, idx) => `
+                    <div class="p-3 bg-surface-container rounded-xl flex items-center justify-between gap-3 border border-outline-variant/50">
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                          <span class="font-bold text-xs text-primary truncate">${s.name}</span>
+                          <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                            s.priority === 'VIP Urgent' ? 'bg-red-100 text-red-800' : (s.priority === 'High' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700')
+                          }">${s.priority}</span>
+                        </div>
+                        <p class="text-[11px] text-on-surface-variant mt-0.5 font-data-mono">
+                          Dept: <strong>${s.department}</strong> · Cost: ₹${(s.price || 0).toLocaleString()} · ${s.time || 'Today'}
+                        </p>
+                      </div>
+
+                      <div class="flex items-center gap-1.5 shrink-0">
+                        <span class="px-2 py-1 rounded-lg text-[10px] font-bold font-data-mono ${
+                          s.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' : (s.status === 'In Progress' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800')
+                        }">${s.status}</span>
+                        
+                        ${
+                          s.status !== 'Completed'
+                            ? `<button class="btn-toggle-service-done p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors cursor-pointer" data-service-idx="${idx}" title="Mark Service Completed">
+                                <span class="material-symbols-outlined text-[15px]">check</span>
+                               </button>`
+                            : ''
+                        }
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              `
+          }
+        </div>
+
+        <!-- Inline Assign New Service Form -->
+        <div class="bg-surface-container-lowest rounded-2xl p-4 border border-outline-variant shadow-xs space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[18px]">add_task</span>
+            <h4 class="text-[11px] font-bold uppercase tracking-wider text-primary font-data-mono">Assign New Guest Service / Request</h4>
+          </div>
+
+          <div class="space-y-2.5">
+            <div>
+              <label class="block text-[11px] font-bold text-on-surface-variant mb-1 font-data-mono">Select Service / Amenity</label>
+              <select id="sel-new-service-type" class="w-full py-1.5 px-2.5 rounded-xl border border-outline-variant bg-surface-container text-xs text-on-surface outline-none">
+                <option value="Airport Luxury Sedan Transfer" data-price="2500" data-dept="Concierge">Airport Luxury Sedan Transfer (₹2,500)</option>
+                <option value="Extra Goose Down Pillows & Silk Bedding" data-price="0" data-dept="Housekeeping">Extra Goose Down Pillows & Silk Bedding (Complimentary)</option>
+                <option value="Evening Turndown & Aromatherapy" data-price="0" data-dept="Housekeeping">Evening Turndown & Aromatherapy (Complimentary)</option>
+                <option value="In-Suite Deep Tissue Spa Massage (60m)" data-price="3500" data-dept="Spa & Wellness">In-Suite Deep Tissue Spa Massage (₹3,500)</option>
+                <option value="Express Laundry & Garment Pressing" data-price="650" data-dept="Housekeeping">Express Laundry & Garment Pressing (₹650)</option>
+                <option value="Executive Wake-Up Call with Espresso" data-price="0" data-dept="Front Desk">Executive Wake-Up Call with Espresso (Complimentary)</option>
+                <option value="Baby Crib & Childproofing Setup" data-price="0" data-dept="Housekeeping">Baby Crib & Childproofing Setup (Complimentary)</option>
+                <option value="Special Resident Concierge Request" data-price="0" data-dept="Front Desk">Custom Front Desk Special Request</option>
+              </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-bold text-on-surface-variant mb-1 font-data-mono">Department</label>
+                <select id="sel-new-service-dept" class="w-full py-1.5 px-2.5 rounded-xl border border-outline-variant bg-surface-container text-xs text-on-surface outline-none">
+                  <option>Housekeeping</option>
+                  <option>Front Desk</option>
+                  <option>Concierge</option>
+                  <option>Spa & Wellness</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-on-surface-variant mb-1 font-data-mono">Priority</label>
+                <select id="sel-new-service-priority" class="w-full py-1.5 px-2.5 rounded-xl border border-outline-variant bg-surface-container text-xs text-on-surface outline-none">
+                  <option>Normal</option>
+                  <option>High</option>
+                  <option selected>VIP Urgent</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-on-surface-variant mb-1 font-data-mono">Notes & Special Delivery Instructions</label>
+              <input type="text" id="input-new-service-notes" placeholder="e.g., Deliver promptly by 14:00, ring bell once" class="w-full py-1.5 px-2.5 rounded-xl border border-outline-variant bg-surface-container text-xs text-on-surface outline-none"/>
+            </div>
+
+            <label class="flex items-center gap-2 pt-1 text-[11px] font-medium text-on-surface-variant cursor-pointer">
+              <input type="checkbox" id="chk-charge-folio" checked class="rounded text-primary focus:ring-primary"/>
+              <span>Charge service fee to Room Folio if applicable</span>
+            </label>
+
+            <button id="btn-submit-assign-service" class="w-full py-2.5 px-4 rounded-xl bg-primary text-on-primary font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-primary/90 transition-all cursor-pointer shadow-xs">
+              <span class="material-symbols-outlined text-[17px]">send</span>
+              <span>Assign & Dispatch Service to Room ${r.number}</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    `;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // TAB 4: HOUSEKEEPING & TURNOVER STATUS MANAGEMENT
+  // ──────────────────────────────────────────────────────────────────────────
+  renderTabHousekeeping(r) {
+    const currentHk = r.hkStatus || (r.status === 'Checked Out' ? 'Dirty' : 'Clean');
+
+    return `
+      <div class="space-y-4">
+        
+        <!-- Housekeeping Condition Card -->
+        <div class="bg-surface-container-lowest rounded-2xl p-4.5 border border-outline-variant shadow-xs space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-data-mono">Cleanliness & Readiness Status</h4>
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold ${
+              currentHk.includes('Inspected') ? 'bg-emerald-100 text-emerald-800' : (currentHk.includes('Clean') ? 'bg-blue-100 text-blue-800' : (currentHk.includes('Progress') ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'))
+            }">${currentHk}</span>
+          </div>
+
+          <!-- Quick One-Click Status Switcher -->
+          <div class="grid grid-cols-2 gap-2 pt-2">
+            <button class="btn-set-hk-status py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              currentHk.includes('Inspected') ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' : 'border-outline-variant bg-surface-container hover:bg-surface-container-high'
+            }" data-hk-status="Ready / Inspected">
+              <span class="material-symbols-outlined text-[16px]">verified</span>
+              <span>Mark Inspected</span>
+            </button>
+
+            <button class="btn-set-hk-status py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              currentHk === 'Clean' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'border-outline-variant bg-surface-container hover:bg-surface-container-high'
+            }" data-hk-status="Clean">
+              <span class="material-symbols-outlined text-[16px]">check_circle</span>
+              <span>Mark Clean</span>
+            </button>
+
+            <button class="btn-set-hk-status py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              currentHk.includes('Progress') ? 'bg-amber-500 text-white border-amber-500 shadow-xs' : 'border-outline-variant bg-surface-container hover:bg-surface-container-high'
+            }" data-hk-status="Cleaning In Progress">
+              <span class="material-symbols-outlined text-[16px]">soap</span>
+              <span>In Progress</span>
+            </button>
+
+            <button class="btn-set-hk-status py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              currentHk.includes('Dirty') ? 'bg-rose-600 text-white border-rose-600 shadow-xs' : 'border-outline-variant bg-surface-container hover:bg-surface-container-high'
+            }" data-hk-status="Vacant Dirty (Rush Turnover)">
+              <span class="material-symbols-outlined text-[16px]">cleaning_services</span>
+              <span>Dispatch Dirty</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Attendant Assignment Card -->
+        <div class="bg-surface-container-lowest rounded-2xl p-4.5 border border-outline-variant shadow-xs space-y-3">
+          <h4 class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-data-mono">Assigned Housekeeping Attendant</h4>
+          
+          <div class="flex items-center gap-3 p-3 bg-surface-container rounded-xl">
+            <div class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center font-bold text-sm">
+              <span class="material-symbols-outlined text-[20px]">person</span>
+            </div>
+            <div class="flex-1">
+              <span class="text-[10px] text-on-surface-variant block uppercase font-data-mono font-bold">Primary Attendant</span>
+              <p class="font-bold text-xs text-primary">${r.housekeeper || 'Elena Gomez - Team Alpha'}</p>
+            </div>
+          </div>
+
+          <div class="pt-2">
+            <label class="block text-[11px] font-bold text-on-surface-variant mb-1 font-data-mono">Reassign Attendant</label>
+            <div class="flex items-center gap-2">
+              <select id="sel-reassign-attendant" class="flex-1 py-1.5 px-2.5 rounded-xl border border-outline-variant bg-surface-container text-xs text-on-surface outline-none">
+                <option>Elena Gomez (Floor 1)</option>
+                <option>Maria Santos (Floor 1 & 2)</option>
+                <option>Fatima Zahra (Floor 2)</option>
+                <option>Carlos Ruiz (Floor 3)</option>
+                <option>David Kim (Suites Team)</option>
+              </select>
+              <button id="btn-save-attendant" class="px-3 py-1.5 rounded-xl bg-primary text-on-primary font-bold text-xs hover:bg-primary/90 transition-all cursor-pointer">
+                Reassign
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Housekeeping Specifications & Logs -->
+        <div class="bg-surface-container rounded-2xl p-4 border border-outline-variant/60 space-y-2 text-xs">
+          <div class="flex justify-between text-on-surface-variant font-data-mono">
+            <span>Last Deep Cleaned:</span>
+            <span class="font-bold text-on-surface">${r.lastCleaned || 'Today 08:30 AM'}</span>
+          </div>
+          <div class="flex justify-between text-on-surface-variant font-data-mono">
+            <span>Turndown Service:</span>
+            <span class="font-bold text-on-surface">${r.turnDownTime || '19:30 Scheduled'}</span>
+          </div>
+          <div class="flex justify-between text-on-surface-variant font-data-mono">
+            <span>Inspection Audit Score:</span>
+            <span class="font-bold text-emerald-700">98.5% (Executive Standard)</span>
+          </div>
+        </div>
+
+      </div>
+    `;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // TAB 5: IN-ROOM DINING & RESTAURANT ORDERS HUB
+  // ──────────────────────────────────────────────────────────────────────────
+  renderTabRestaurant(r) {
+    const orders = r.diningOrders || [];
+
+    return `
+      <div class="space-y-4">
+        
+        <!-- Billed Restaurant Orders -->
+        <div class="bg-surface-container-lowest rounded-2xl p-4 border border-outline-variant shadow-xs space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-data-mono">Billed In-Room Dining & Restaurant Orders</h4>
+            <span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 font-bold text-[10px] font-data-mono">${orders.length} Orders</span>
+          </div>
+
+          ${
+            orders.length === 0
+              ? `<div class="p-4 text-center text-on-surface-variant">No restaurant orders recorded for Room ${r.number} yet. Place an order below to charge to room.</div>`
+              : `
+                <div class="space-y-2">
+                  ${orders.map(ord => `
+                    <div class="p-3 bg-surface-container rounded-xl border border-outline-variant/50 space-y-1">
+                      <div class="flex items-center justify-between">
+                        <span class="font-bold text-xs text-primary font-data-mono">Order #${ord.id}</span>
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800">${ord.status || 'Delivered'}</span>
+                      </div>
+                      <p class="text-xs text-on-surface font-medium">${ord.items}</p>
+                      <div class="flex items-center justify-between pt-1 border-t border-outline-variant/40 text-[11px] font-data-mono text-on-surface-variant">
+                        <span>${ord.time || 'Today'}</span>
+                        <span class="font-bold text-primary">₹${ord.total.toLocaleString()} Billed</span>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              `
+          }
+        </div>
+
+        <!-- Quick Restaurant Ordering Menu -->
+        <div class="bg-surface-container-lowest rounded-2xl p-4 border border-outline-variant shadow-xs space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[18px]">restaurant_menu</span>
+            <h4 class="text-[11px] font-bold uppercase tracking-wider text-primary font-data-mono">New Restaurant Order (Charge to Room)</h4>
+          </div>
+
+          <div class="space-y-2.5">
+            <div>
+              <label class="block text-[11px] font-bold text-on-surface-variant mb-1 font-data-mono">Select Culinary Item</label>
+              <select id="sel-dining-menu-item" class="w-full py-1.5 px-2.5 rounded-xl border border-outline-variant bg-surface-container text-xs text-on-surface outline-none">
+                <option value="Volvitech Signature Wagyu Burger & Truffle Fries" data-price="1400">Volvitech Signature Wagyu Burger & Truffle Fries (₹1,400)</option>
+                <option value="Artisan Club Sandwich with Triple-Cooked Chips" data-price="850">Artisan Club Sandwich with Triple-Cooked Chips (₹850)</option>
+                <option value="Wood-Fired Neapolitan Margherita Pizza" data-price="1100">Wood-Fired Neapolitan Margherita Pizza (₹1,100)</option>
+                <option value="Pan-Seared Atlantic Salmon with Grilled Asparagus" data-price="1850">Pan-Seared Atlantic Salmon with Grilled Asparagus (₹1,850)</option>
+                <option value="Executive Continental Breakfast Tray & Fresh Juice" data-price="950">Executive Continental Breakfast Tray & Fresh Juice (₹950)</option>
+                <option value="Belgian Waffle with Fresh Berry Compote" data-price="750">Belgian Waffle with Fresh Berry Compote (₹750)</option>
+                <option value="Nespresso Double Espresso & French Butter Croissant" data-price="450">Nespresso Double Espresso & French Butter Croissant (₹450)</option>
+                <option value="Champagne Laurent-Perrier Brut 750ml" data-price="7500">Champagne Laurent-Perrier Brut 750ml (₹7,500)</option>
+              </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-bold text-on-surface-variant mb-1 font-data-mono">Quantity</label>
+                <input type="number" id="input-dining-qty" value="1" min="1" max="10" class="w-full py-1.5 px-2.5 rounded-xl border border-outline-variant bg-surface-container text-xs text-on-surface outline-none font-data-mono"/>
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-on-surface-variant mb-1 font-data-mono">Delivery Time</label>
+                <select id="sel-dining-delivery-time" class="w-full py-1.5 px-2.5 rounded-xl border border-outline-variant bg-surface-container text-xs text-on-surface outline-none">
+                  <option>Rush Priority (Within 25 mins)</option>
+                  <option>Standard (Within 45 mins)</option>
+                  <option>Breakfast Tomorrow 08:00 AM</option>
+                  <option>Dinner Tonight 20:00 PM</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-on-surface-variant mb-1 font-data-mono">Dietary & Chef Preparation Notes</label>
+              <input type="text" id="input-dining-notes" placeholder="e.g., No nuts, extra dressing, warm plates" class="w-full py-1.5 px-2.5 rounded-xl border border-outline-variant bg-surface-container text-xs text-on-surface outline-none"/>
+            </div>
+
+            <button id="btn-place-dining-order" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs">
+              <span class="material-symbols-outlined text-[17px]">dinner_dining</span>
+              <span>Send Order to Kitchen & Charge Room Folio</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    `;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // EVENT BINDINGS
+  // ──────────────────────────────────────────────────────────────────────────
   bindEvents() {
     if (!this.container) return;
 
-    // Refresh Button
-    const refreshBtn = this.container.querySelector('#btn-refresh-house-status');
-    if (refreshBtn) {
-      refreshBtn.onclick = () => {
-        Toast.show({
-          title: 'House Status Refreshed',
-          message: `Live telemetry synced for ${this.currentDate} at ${this.getCurrentTimeFormatted()}.`,
-          type: 'info',
-        });
+    // ── PAGE TAB SWITCHER ────────────────────────────────────────────────────
+    const btnTabMatrix = this.container.querySelector('#btn-tab-matrix');
+    const btnTabOperations = this.container.querySelector('#btn-tab-operations');
+
+    if (btnTabMatrix) {
+      btnTabMatrix.addEventListener('click', () => {
+        this.activePageTab = 'matrix';
+        this.selectedRoom = null;
         this.renderContent();
+      });
+    }
+
+    if (btnTabOperations) {
+      btnTabOperations.addEventListener('click', () => {
+        this.activePageTab = 'operations';
+        this.selectedRoom = null;
+        this.renderContent();
+        this._mountRoomOps();
+      });
+    }
+
+    // Room Master Jump Buttons
+    const btnJumpRM = this.container.querySelector('#btn-jump-room-master') || this.container.querySelector('#btn-jump-room-master-ops');
+    if (btnJumpRM) {
+      btnJumpRM.onclick = () => {
+        store.setNavTab('room_master');
       };
     }
 
-    // Include Day Use Toggle
-    const dayUseChk = this.container.querySelector('#chk-include-dayuse');
-    if (dayUseChk) {
-      dayUseChk.onchange = (e) => {
-        this.includeDayUse = e.target.checked;
-        this.renderContent();
-      };
+    // If already in operations tab (e.g. routed via ?tab=room_status), mount now
+    if (this.activePageTab === 'operations') {
+      this._mountRoomOps();
+      return; // skip matrix-specific bindings
     }
 
-    // Drill-Down Buttons [↓]
-    this.container.querySelectorAll('.btn-drilldown').forEach((btn) => {
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        const categoryKey = btn.dataset.category;
-        const title = btn.dataset.title || 'Operational Details';
-        const summary = btn.dataset.summary || '';
-        if (categoryKey) {
-          this.openDrilldownModal(title, categoryKey, summary);
+    // Room Card Clicks -> Open Drawer
+    this.container.querySelectorAll('.house-room-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const roomNum = card.getAttribute('data-room-number');
+        const room = this.rooms.find(r => r.number === roomNum);
+        if (room) {
+          this.selectedRoom = room;
+          this.renderContent();
         }
-      };
+      });
     });
 
-    // Navigation Buttons (Strictly Front Desk paths)
-    this.container.querySelectorAll('.btn-hs-nav').forEach((btn) => {
-      btn.onclick = () => {
-        const target = btn.dataset.target;
-        if (target && target !== 'housekeeping' && target !== 'maintenance') {
-          store.setNavTab(target);
-        }
-      };
+    // Close Drawer
+    const btnCloseDrawer = this.container.querySelector('#btn-close-house-drawer');
+    const drawerBackdrop = this.container.querySelector('#house-drawer-backdrop');
+
+    if (btnCloseDrawer) {
+      btnCloseDrawer.addEventListener('click', () => {
+        this.selectedRoom = null;
+        this.renderContent();
+      });
+    }
+
+    if (drawerBackdrop) {
+      drawerBackdrop.addEventListener('click', () => {
+        this.selectedRoom = null;
+        this.renderContent();
+      });
+    }
+
+    // Segmented Drawer Navigation Tabs
+    this.container.querySelectorAll('.btn-drawer-nav-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        this.activeDrawerTab = tab.getAttribute('data-drawer-tab');
+        this.renderContent();
+      });
     });
 
-    // Alert click handlers (Strictly Front Desk paths)
-    this.container.querySelectorAll('.btn-hs-alert').forEach((card) => {
-      card.onclick = () => {
-        const target = card.dataset.target;
-        if (target && target !== 'housekeeping' && target !== 'maintenance') {
-          store.setNavTab(target);
-        }
-      };
+    // Switch Tab Action Shortcuts from Overview
+    this.container.querySelectorAll('.btn-switch-tab-action').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.activeDrawerTab = btn.getAttribute('data-target-tab');
+        this.renderContent();
+      });
     });
 
-    // Live change handlers on the dropdowns
-    const dateSel = this.container.querySelector('#hs-filter-date');
-    const classSel = this.container.querySelector('#hs-filter-class');
-    const typeSel = this.container.querySelector('#hs-filter-type');
+    // Floor Tabs Filter
+    this.container.querySelectorAll('.btn-floor-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.selectedFloor = btn.getAttribute('data-floor');
+        this.renderContent();
+      });
+    });
 
-    const handleFilterChange = (triggeredByButton = false) => {
-      this.currentDate = dateSel ? dateSel.value : this.currentDate;
-      this.selectedRoomClass = classSel ? classSel.value : 'ALL';
-      this.selectedRoomType = typeSel ? typeSel.value : 'ALL';
+    // Category Selector
+    const selCat = this.container.querySelector('#house-filter-category');
+    if (selCat) {
+      selCat.addEventListener('change', (e) => {
+        this.selectedCategory = e.target.value;
+        this.renderContent();
+      });
+    }
 
-      if (triggeredByButton) {
-        Toast.show({
-          title: 'House Status Filtered',
-          message: `Inquiry updated for ${this.currentDate} · Class: ${this.selectedRoomClass} · Type: ${this.selectedRoomType}`,
-          type: 'success',
-        });
-      }
+    // Legend Pill Filter
+    this.container.querySelectorAll('.btn-house-legend-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.selectedStatus = btn.getAttribute('data-status');
+        this.renderContent();
+      });
+    });
+
+    // Top Metric Card Quick Filters
+    this.container.querySelectorAll('.btn-quick-filter-metric').forEach(card => {
+      card.addEventListener('click', () => {
+        this.selectedStatus = card.getAttribute('data-filter-status');
+        this.renderContent();
+      });
+    });
+
+    // Search Input
+    const searchInput = this.container.querySelector('#house-search-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        this.searchQuery = e.target.value;
+        const currentCursor = e.target.selectionStart;
+        this.renderContent();
+        const nextInput = this.container.querySelector('#house-search-input');
+        if (nextInput) {
+          nextInput.focus();
+          nextInput.setSelectionRange(currentCursor, currentCursor);
+        }
+      });
+    }
+
+    // Reset Filters
+    const btnReset = this.container.querySelector('#btn-house-reset-filters');
+    const btnEmptyReset = this.container.querySelector('#btn-empty-house-reset');
+    const resetAction = () => {
+      this.selectedFloor = 'ALL';
+      this.selectedCategory = 'ALL';
+      this.selectedStatus = 'ALL';
+      this.searchQuery = '';
       this.renderContent();
     };
+    if (btnReset) btnReset.addEventListener('click', resetAction);
+    if (btnEmptyReset) btnEmptyReset.addEventListener('click', resetAction);
 
-    // Oracle Search Button
-    const searchBtn = this.container.querySelector('#btn-hs-search');
-    if (searchBtn) {
-      searchBtn.onclick = () => {
-        handleFilterChange(true);
-      };
+    // ────────────────────────────────────────────────────────────────────────
+    // DIRECT IN-DRAWER CHECK-OUT EXECUTION
+    // ────────────────────────────────────────────────────────────────────────
+    const btnExecuteCheckout = this.container.querySelector('#btn-execute-checkout-direct');
+    if (btnExecuteCheckout && this.selectedRoom) {
+      btnExecuteCheckout.addEventListener('click', () => {
+        const r = this.selectedRoom;
+        r.status = 'Checked Out';
+        r.housekeepingStatus = 'Vacant Dirty (Rush Turnover)';
+        r.hkStatus = 'Vacant Dirty (Rush Turnover)';
+        r.lastOccupant = r.guest || 'Resident Guest';
+        r.depTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' Departed';
+        r.guest = null;
+
+        this.saveRooms();
+        store.showToast(`Departure completed for Room #${r.number}! Folio settled and housekeeping rush turnover dispatched.`, 'success');
+        this.renderContent();
+      });
     }
 
-    // Auto-update when selecting from dropdowns for immediate responsiveness
-    if (dateSel) dateSel.onchange = () => handleFilterChange(false);
-    if (classSel) classSel.onchange = () => handleFilterChange(false);
-    if (typeSel) typeSel.onchange = () => handleFilterChange(false);
+    // Modal Fallback Checkout Window
+    const btnOpenFullCheckout = this.container.querySelector('#btn-open-full-checkout-modal');
+    if (btnOpenFullCheckout && this.selectedRoom) {
+      btnOpenFullCheckout.addEventListener('click', () => {
+        const r = this.selectedRoom;
+        const mockRes = {
+          id: r.reservationId || `res-${r.number}`,
+          confirmationCode: r.reservationId || `RES-${r.number}`,
+          guestName: r.guest || 'Resident Guest',
+          assignedRoom: r.number,
+          roomNumber: r.number,
+          roomType: r.category,
+          status: 'Checked In',
+          ratePerNight: r.rate,
+          nights: r.totalNights || 3,
+          totalAmount: r.totalBalance || 17545,
+          paidAmount: r.totalBalance || 17545,
+          phone: r.phone || '+1 (555) 0192',
+          email: r.email || 'guest@volvitech.com',
+        };
 
-    // Oracle Close Button (Exits House Status back to Front Desk Dashboard)
-    const closeBtn = this.container.querySelector('#btn-hs-close');
-    if (closeBtn) {
-      closeBtn.onclick = () => {
-        store.setNavTab('dashboard');
-      };
+        const modal = new CheckOutModal({
+          reservation: mockRes,
+          onCheckedOut: () => {
+            r.status = 'Checked Out';
+            r.housekeepingStatus = 'Vacant Dirty (Rush Turnover)';
+            r.lastOccupant = mockRes.guestName;
+            r.depTime = 'Just Now';
+            r.guest = null;
+            this.saveRooms();
+            this.renderContent();
+            store.showToast(`Room #${r.number} departure completed!`, 'success');
+          },
+          onClose: () => {
+            const overlay = document.getElementById('checkout-modal-overlay');
+            if (overlay) overlay.remove();
+          }
+        });
+        document.body.appendChild(modal.render());
+      });
+    }
+
+    // Re-clean / Return to Available button on checked out room
+    const btnReClean = this.container.querySelector('#btn-re-clean-turnover');
+    if (btnReClean && this.selectedRoom) {
+      btnReClean.addEventListener('click', () => {
+        this.selectedRoom.status = 'Available';
+        this.selectedRoom.hkStatus = 'Ready / Inspected';
+        this.selectedRoom.housekeepingStatus = null;
+        this.saveRooms();
+        store.showToast(`Room #${this.selectedRoom.number} inspected and marked Available!`, 'success');
+        this.renderContent();
+      });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // ASSIGN NEW SERVICE EXECUTION
+    // ────────────────────────────────────────────────────────────────────────
+    const btnSubmitService = this.container.querySelector('#btn-submit-assign-service');
+    if (btnSubmitService && this.selectedRoom) {
+      btnSubmitService.addEventListener('click', () => {
+        const selService = this.container.querySelector('#sel-new-service-type');
+        const selDept = this.container.querySelector('#sel-new-service-dept');
+        const selPriority = this.container.querySelector('#sel-new-service-priority');
+        const inputNotes = this.container.querySelector('#input-new-service-notes');
+        const chkCharge = this.container.querySelector('#chk-charge-folio');
+
+        const serviceName = selService ? selService.value : 'Guest Service';
+        const selectedOption = selService ? selService.selectedOptions[0] : null;
+        const price = selectedOption ? Number(selectedOption.getAttribute('data-price') || 0) : 0;
+        const dept = selDept ? selDept.value : 'Front Desk';
+        const priority = selPriority ? selPriority.value : 'Normal';
+        const notes = inputNotes ? inputNotes.value : '';
+
+        if (!this.selectedRoom.services) this.selectedRoom.services = [];
+
+        const newService = {
+          id: `srv-${Date.now().toString().slice(-4)}`,
+          name: serviceName + (notes ? ` (${notes})` : ''),
+          department: dept,
+          priority,
+          price,
+          status: 'Pending',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        this.selectedRoom.services.unshift(newService);
+
+        // If charged to folio
+        if (chkCharge && chkCharge.checked && price > 0) {
+          this.selectedRoom.serviceCharges = (this.selectedRoom.serviceCharges || 0) + price;
+          this.selectedRoom.totalBalance = (this.selectedRoom.totalBalance || 0) + price;
+        }
+
+        // Also log into global store
+        store.createServiceRequest({
+          guestName: this.selectedRoom.guest || 'Resident Guest',
+          roomNumber: this.selectedRoom.number,
+          serviceType: serviceName,
+          department: dept,
+          priority,
+          price,
+          details: notes
+        }, false);
+
+        this.saveRooms();
+        store.showToast(`Service "${serviceName}" assigned to Room #${this.selectedRoom.number} (${dept})!`, 'success');
+        this.renderContent();
+      });
+    }
+
+    // Toggle Service Request Done
+    this.container.querySelectorAll('.btn-toggle-service-done').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = Number(btn.getAttribute('data-service-idx'));
+        if (this.selectedRoom && this.selectedRoom.services && this.selectedRoom.services[idx]) {
+          this.selectedRoom.services[idx].status = 'Completed';
+          this.saveRooms();
+          store.showToast(`Service marked Completed!`, 'success');
+          this.renderContent();
+        }
+      });
+    });
+
+    // ────────────────────────────────────────────────────────────────────────
+    // HOUSEKEEPING STATUS CHANGERS & REASSIGNMENT
+    // ────────────────────────────────────────────────────────────────────────
+    this.container.querySelectorAll('.btn-set-hk-status').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const newHk = btn.getAttribute('data-hk-status');
+        if (!this.selectedRoom) return;
+
+        this.selectedRoom.hkStatus = newHk;
+        this.selectedRoom.housekeepingStatus = newHk;
+        if (newHk.includes('Inspected') && this.selectedRoom.status === 'Checked Out') {
+          this.selectedRoom.status = 'Available';
+        }
+        this.saveRooms();
+        store.showToast(`Housekeeping condition set to "${newHk}" for Room #${this.selectedRoom.number}`, 'success');
+        this.renderContent();
+      });
+    });
+
+    const btnSaveAttendant = this.container.querySelector('#btn-save-attendant');
+    if (btnSaveAttendant && this.selectedRoom) {
+      btnSaveAttendant.addEventListener('click', () => {
+        const selStaff = this.container.querySelector('#sel-reassign-attendant');
+        if (selStaff) {
+          this.selectedRoom.housekeeper = selStaff.value;
+          this.saveRooms();
+          store.showToast(`Housekeeper reassigned to ${selStaff.value}`, 'success');
+          this.renderContent();
+        }
+      });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // RESTAURANT / IN-ROOM DINING ORDER PLACEMENT
+    // ────────────────────────────────────────────────────────────────────────
+    const btnPlaceOrder = this.container.querySelector('#btn-place-dining-order');
+    if (btnPlaceOrder && this.selectedRoom) {
+      btnPlaceOrder.addEventListener('click', () => {
+        const selItem = this.container.querySelector('#sel-dining-menu-item');
+        const inputQty = this.container.querySelector('#input-dining-qty');
+        const selDelivery = this.container.querySelector('#sel-dining-delivery-time');
+        const inputNotes = this.container.querySelector('#input-dining-notes');
+
+        const itemName = selItem ? selItem.value : 'Culinary Item';
+        const selectedOption = selItem ? selItem.selectedOptions[0] : null;
+        const unitPrice = selectedOption ? Number(selectedOption.getAttribute('data-price') || 1200) : 1200;
+        const qty = inputQty ? Math.max(1, Number(inputQty.value) || 1) : 1;
+        const total = unitPrice * qty;
+        const delivery = selDelivery ? selDelivery.value : 'Standard';
+        const notes = inputNotes ? inputNotes.value : '';
+
+        if (!this.selectedRoom.diningOrders) this.selectedRoom.diningOrders = [];
+
+        const newOrder = {
+          id: `ORD-${Math.floor(100 + Math.random() * 900)}`,
+          items: `${qty}x ${itemName}${notes ? ` [${notes}]` : ''} (${delivery})`,
+          total,
+          status: 'Kitchen Preparing & Billed',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        this.selectedRoom.diningOrders.unshift(newOrder);
+
+        // Charge directly to folio
+        this.selectedRoom.serviceCharges = (this.selectedRoom.serviceCharges || 0) + total;
+        this.selectedRoom.totalBalance = (this.selectedRoom.totalBalance || 0) + total;
+
+        this.saveRooms();
+        store.showToast(`Dining order placed! ₹${total.toLocaleString()} billed to Room #${this.selectedRoom.number} folio. Kitchen notified.`, 'success');
+        this.renderContent();
+      });
+    }
+
+    // Header Quick Action Buttons (Print, Batch, Export)
+    const btnPrint = this.container.querySelector('#btn-print-roster');
+    if (btnPrint) {
+      btnPrint.addEventListener('click', () => window.print());
+    }
+
+    const btnBatch = this.container.querySelector('#btn-batch-update');
+    if (btnBatch) {
+      btnBatch.addEventListener('click', () => store.showToast('Batch Status Update: Multi-select enabled for room turnovers.', 'info'));
+    }
+
+    const btnExport = this.container.querySelector('#btn-export-audit');
+    if (btnExport) {
+      btnExport.addEventListener('click', () => store.showToast('Night Audit report exported successfully (CSV / PDF).', 'success'));
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // ROOM OPERATIONS MOUNT HELPER
+  // ──────────────────────────────────────────────────────────────────────────
+  _mountRoomOps() {
+    const mount = this.container && this.container.querySelector('#room-ops-mount');
+    if (!mount || !this.roomOpsView) return;
+    if (mount.children.length > 0) return; // already mounted
+    // Reset the child view's container so it re-renders fresh
+    this.roomOpsView.container = null;
+    const el = this.roomOpsView.render();
+    mount.appendChild(el);
+    // Load data then render the operations board content
+    if (typeof this.roomOpsView.loadData === 'function') {
+      this.roomOpsView.loadData().then(() => {
+        if (typeof this.roomOpsView.renderContent === 'function') {
+          this.roomOpsView.renderContent();
+        }
+      });
+    } else if (typeof this.roomOpsView.renderContent === 'function') {
+      this.roomOpsView.renderContent();
     }
   }
 }

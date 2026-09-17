@@ -14,19 +14,20 @@ import { WorkspaceSelectorView } from './views/workspace/WorkspaceSelectorView.j
 import { renderActiveWorkspace } from './views/workspace/ActiveWorkspaceShell.js';
 
 // Front Office Stitch Views
+import { BookingsView } from './views/frontoffice/BookingsView.js';
+import { ServicesRequestsView } from './views/frontoffice/ServicesRequestsView.js';
 import { ReservationDashboardView } from './views/frontoffice/ReservationDashboardView.js';
 import { ReservationsListView } from './views/frontoffice/ReservationsListView.js';
 import { ArrivalsCheckInView } from './views/frontoffice/ArrivalsCheckInView.js';
-import { InHouseGuestsView } from './views/frontoffice/InHouseGuestsView.js';
 import { DeparturesCheckOutView } from './views/frontoffice/DeparturesCheckOutView.js';
 import { GuestFolioView } from './views/frontoffice/GuestFolioView.js';
 import { GroupBlockView } from './views/frontoffice/GroupBlockView.js';
 import { GuestProfileCRMView } from './views/frontoffice/GuestProfileCRMView.js';
 import { RoomInventoryView } from './views/frontoffice/RoomInventoryView.js';
-import { RoomStatusView } from './views/frontoffice/RoomStatusView.js';
+import { RoomGridView } from './views/frontoffice/RoomGridView.js';
 import { RoomBoardView } from './views/frontoffice/RoomBoardView.js';
-import { RoomAssignmentView } from './views/frontoffice/RoomAssignmentView.js';
 import { HouseStatusView } from './views/frontoffice/HouseStatusView.js';
+import { RoomMasterView } from './views/frontoffice/RoomMasterView.js';
 import { AccountsView } from './views/frontoffice/AccountsView.js';
 import { QueueReservationsView } from './views/frontoffice/QueueReservationsView.js';
 import { KeyAccessView } from './views/frontoffice/KeyAccessView.js';
@@ -79,13 +80,14 @@ function renderApp() {
     } catch (_) {}
 
     const validTabs = [
-      'dashboard', 'arrivals', 'queue_reservations', 'inhouse', 'departures',
-      'room_status', 'room_board', 'room_assignment', 'house_status',
-      'crm', 'billing', 'messages', 'traces', 'wakeup_calls',
+      'dashboard', 'bookings', 'profiles', 'arrivals', 'inhouse', 'room_grid', 'room_matrix', 'room_status',
+      'crm', 'services', 'queue_reservations', 'departures',
+      'room_board', 'house_status', 'room_master', 'room_configuration', 'billing', 'messages', 'traces', 'wakeup_calls',
       'housekeeping', 'maintenance', 'inventory'
     ];
     const resolvedTab = (urlTab && validTabs.includes(urlTab)) ? urlTab : null;
     const activeTab = resolvedTab || state.activeNavTab || (isMaintenance ? 'maintenance' : (isHousekeeping ? 'housekeeping' : 'reservations'));
+    state.activeNavTab = activeTab;
 
     appContainer.innerHTML = `
       <div class="min-h-screen bg-surface-bright text-on-surface font-body-sm">
@@ -129,16 +131,33 @@ function renderApp() {
         });
         break;
 
+      case 'bookings':
+      case 'reservations_list':
+      case 'online_booking':
+      case 'walkin_booking':
       case 'arrivals':
-        activeViewInstance = new ArrivalsCheckInView();
+      case 'profiles':
+      case 'inhouse':
+        activeViewInstance = new BookingsView();
+        activeViewInstance.activeMode = 'profiles';
+        if (activeTab === 'walkin_booking') {
+          activeViewInstance.profilesFilterStatus = 'WALK_IN';
+        } else if (activeTab === 'online_booking') {
+          activeViewInstance.profilesFilterStatus = 'ONLINE';
+        } else if (activeTab === 'inhouse') {
+          activeViewInstance.profilesFilterStatus = 'CHECKED_IN';
+        } else {
+          activeViewInstance.profilesFilterStatus = 'ALL';
+        }
         mountPoint.appendChild(activeViewInstance.render());
-        activeViewInstance.loadData().then(() => activeViewInstance.renderContent());
+        activeViewInstance.bindEvents();
         break;
 
-      case 'inhouse':
-        activeViewInstance = new InHouseGuestsView();
+      case 'services':
+      case 'requests':
+        activeViewInstance = new ServicesRequestsView();
         mountPoint.appendChild(activeViewInstance.render());
-        activeViewInstance.loadData().then(() => activeViewInstance.renderContent());
+        activeViewInstance.bindEvents();
         break;
 
       case 'billing':
@@ -167,10 +186,22 @@ function renderApp() {
         activeViewInstance.loadData().then(() => activeViewInstance.renderContent());
         break;
 
-      case 'room_status':
-        activeViewInstance = new RoomStatusView();
+      case 'house_status':
+      case 'room_grid':
+      case 'room_matrix':
+        activeViewInstance = new HouseStatusView();
         mountPoint.appendChild(activeViewInstance.render());
         activeViewInstance.loadData().then(() => activeViewInstance.renderContent());
+        break;
+
+      case 'room_status':
+        activeViewInstance = new HouseStatusView();
+        activeViewInstance.activePageTab = 'operations';
+        mountPoint.appendChild(activeViewInstance.render());
+        activeViewInstance.loadData().then(() => {
+          activeViewInstance.renderContent();
+          activeViewInstance._mountRoomOps();
+        });
         break;
 
       case 'room_board':
@@ -180,9 +211,11 @@ function renderApp() {
         activeViewInstance.loadData().then(() => activeViewInstance.renderContent());
         break;
 
-      case 'house_status':
-        activeViewInstance = new HouseStatusView();
+      case 'room_master':
+      case 'room_configuration':
+        activeViewInstance = new RoomMasterView();
         mountPoint.appendChild(activeViewInstance.render());
+        activeViewInstance.loadData().then(() => activeViewInstance.renderContent());
         break;
 
       case 'accounts':
@@ -207,10 +240,6 @@ function renderApp() {
         activeViewInstance.loadData().then(() => activeViewInstance.renderContent());
         break;
 
-      case 'room_assignment':
-        activeViewInstance = new RoomAssignmentView();
-        mountPoint.appendChild(activeViewInstance.render());
-        break;
 
       case 'queue_reservations':
         activeViewInstance = new QueueReservationsView();
@@ -328,9 +357,9 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('hashchange', () => {
   const hash = (window.location.hash || '').replace(/^#\/?/, '').replace(/-/g, '_').toLowerCase();
   const validTabs = [
-    'dashboard', 'arrivals', 'queue_reservations', 'inhouse', 'departures',
-    'room_status', 'room_board', 'room_assignment', 'house_status',
-    'crm', 'billing', 'messages', 'traces', 'wakeup_calls',
+    'dashboard', 'bookings', 'arrivals', 'inhouse', 'room_status',
+    'room_assignment', 'crm', 'services', 'queue_reservations', 'departures',
+    'room_board', 'house_status', 'billing', 'messages', 'traces', 'wakeup_calls',
     'housekeeping', 'maintenance', 'inventory'
   ];
   if (validTabs.includes(hash)) {

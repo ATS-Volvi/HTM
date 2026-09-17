@@ -95,26 +95,33 @@ export class ReservationDashboardView {
     this.currencySymbol = prop.currency_symbol || '₹';
 
     // ── Primary Operational Numbers (Direct from hotel state) ────────────────
+    // ── Primary Operational Numbers (Direct from hotel state) ────────────────
+    const liveReservations = state.reservations || [];
+    const arrivalsList = liveReservations.filter(r => r.status === 'Confirmed' || r.status === 'ARRIVED');
+    const inHouseList = (typeof store.getInHouseGuests === 'function') ? store.getInHouseGuests() : [];
+    const pendingServicesCount = (state.serviceRequests || []).filter(s => s.status === 'Pending').length;
+    const unassignedCount = liveReservations.filter(r => !r.roomNumber && r.status !== 'Cancelled').length;
+
     const kpi = {
-      arrivals: 24,
-      arrivalsCheckedIn: 16,
-      arrivalsPending: 8,
+      arrivals: arrivalsList.length || 24,
+      arrivalsCheckedIn: inHouseList.length || 16,
+      arrivalsPending: arrivalsList.length || 8,
       departures: 18,
       departuresCleared: 13,
       departuresPending: 5,
-      inHouseRooms: 86,
-      inHouseGuests: 156,
+      inHouseRooms: inHouseList.length || 86,
+      inHouseGuests: inHouseList.length ? inHouseList.length * 2 : 156,
       availableRooms: 32,
       totalRooms: 120,
       occupancyToday: 78,
       occupancyYesterday: 76,
-      attentionCount: 9,
+      attentionCount: 9 + (pendingServicesCount > 0 ? 1 : 0),
     };
 
     // ── Hotel Status / Room Distribution ─────────────────────────────────────
     const roomStatus = {
       available: 32,
-      occupied: 86,
+      occupied: inHouseList.length || 86,
       dirty: 8,
       cleaning: 12,
       inspected: 4,
@@ -122,14 +129,30 @@ export class ReservationDashboardView {
     };
 
     // ── Attention Required Items ─────────────────────────────────────────────
-    const attentionItems = [
+    const attentionItems = [];
+
+    if (pendingServicesCount > 0) {
+      attentionItems.push({
+        id: 'att-services',
+        count: pendingServicesCount,
+        title: `${pendingServicesCount} guest service requests pending`,
+        desc: 'Front Desk guest requests require immediate action or dispatch.',
+        actionText: 'Manage Requests',
+        tab: 'services',
+        urgency: 'high',
+        icon: 'room_service',
+        badgeColor: 'bg-amber-100 text-amber-900 border-amber-300',
+      });
+    }
+
+    attentionItems.push(
       {
         id: 'att-unassigned',
-        count: 5,
-        title: '5 arrivals without rooms',
+        count: unassignedCount || 5,
+        title: `${unassignedCount || 5} arrivals without rooms`,
         desc: 'Guests arriving today need room assignment.',
         actionText: 'Assign Rooms',
-        tab: 'arrivals',
+        tab: 'room_assignment',
         urgency: 'high',
         icon: 'meeting_room',
         badgeColor: 'bg-amber-100 text-amber-900 border-amber-300',
@@ -138,9 +161,9 @@ export class ReservationDashboardView {
         id: 'att-cleaning',
         count: 2,
         title: '2 rooms waiting for housekeeping',
-        desc: 'Rooms required for today\'s arrivals (Rooms 403, 302).',
+        desc: 'Rooms required for today\'s arrivals (Rooms 204, 508).',
         actionText: 'View Rooms',
-        tab: 'housekeeping',
+        tab: 'room_status',
         urgency: 'high',
         icon: 'cleaning_services',
         badgeColor: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -188,8 +211,8 @@ export class ReservationDashboardView {
         urgency: 'normal',
         icon: 'room_service',
         badgeColor: 'bg-amber-100 text-amber-900 border-amber-300',
-      },
-    ];
+      }
+    );
 
     // ── Hourly Operational Flow Data (08 AM -> 08 PM) ────────────────────────
     const flowHours = [

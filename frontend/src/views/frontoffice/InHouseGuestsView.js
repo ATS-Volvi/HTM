@@ -483,28 +483,37 @@ export class InHouseGuestsView {
       if (res && res.data && res.data.length > 0) {
         console.log('[InHouseGuestsView] Synced with API reservations:', res.data.length);
         const checkedInFromApi = res.data.filter(r => r.status === 'CHECKED_IN');
+        let newGuestAdded = false;
         for (const r of checkedInFromApi) {
           if (r.allocated_room_number) {
-            store.checkInGuestLifecycle({
-              id: r.id,
-              resNumber: r.reservation_number,
-              guestName: `${r.first_name} ${r.last_name}`,
-              roomNumber: r.allocated_room_number,
-              roomType: r.room_type_name || 'Executive Suite',
-              ratePerNight: Number(r.nightly_rate) || 480,
-              checkInDate: r.check_in_date,
-              checkOutDate: r.check_out_date,
-              phone: r.guest_phone || '',
-              email: r.guest_email || '',
-              vip: r.vip_status === 'PLATINUM' || r.vip_status === 'VIP',
-              vipTier: r.vip_status || 'Standard',
-              totalAmount: Number(r.total_amount) || 1200,
-              paidAmount: Number(r.total_amount) || 1200,
-              balanceDue: 0,
-              bookingSource: r.booking_source_name || 'Direct',
-              specialRequests: r.special_requests || ''
-            });
+            const alreadyCheckedIn = store.isGuestOrRoomCheckedIn(r.id, r.reservation_number, r.allocated_room_number);
+            if (!alreadyCheckedIn) {
+              store.checkInGuestLifecycle({
+                id: r.id,
+                resNumber: r.reservation_number,
+                guestName: `${r.first_name} ${r.last_name}`,
+                roomNumber: r.allocated_room_number,
+                roomType: r.room_type_name || 'Executive Suite',
+                ratePerNight: Number(r.nightly_rate) || 480,
+                checkInDate: r.check_in_date,
+                checkOutDate: r.check_out_date,
+                phone: r.guest_phone || '',
+                email: r.guest_email || '',
+                vip: r.vip_status === 'PLATINUM' || r.vip_status === 'VIP',
+                vipTier: r.vip_status || 'Standard',
+                totalAmount: Number(r.total_amount) || 1200,
+                paidAmount: Number(r.total_amount) || 1200,
+                balanceDue: 0,
+                bookingSource: r.booking_source_name || 'Direct',
+                specialRequests: r.special_requests || '',
+                silent: true
+              }, { silent: true, emitNotify: false });
+              newGuestAdded = true;
+            }
           }
+        }
+        if (newGuestAdded) {
+          this.renderContent();
         }
       }
     } catch (err) {

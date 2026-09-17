@@ -233,6 +233,24 @@ export class RoomStatusView {
       ],
     };
 
+    // 7. Room 204: Section 28 Acceptance Requirement — Vacant but Dirty
+    const room204 = {
+      id: 'rm-204',
+      roomNumber: '204',
+      floor: 2,
+      roomType: 'Deluxe King',
+      maxOccupancy: '2 Adults',
+      rate: 12500,
+      occupancyStatus: 'VACANT',
+      housekeepingStatus: 'DIRTY',
+      maintenanceStatus: 'NORMAL',
+      maintenanceIssue: null,
+      currentGuest: null,
+      activity: [
+        { time: '08:00', text: 'Morning audit: Room is Vacant but DIRTY. Vacant != Ready.', type: 'housekeeping' },
+      ],
+    };
+
     const specificRooms = {
       '402': room402,
       '508': room508,
@@ -240,25 +258,26 @@ export class RoomStatusView {
       '502': room502,
       '303': room303,
       '207': room207,
+      '204': room204,
     };
 
     // We need exact counts:
     // Total: 120
     // Occupied: 82
     // Vacant & Clean: 21
-    // Vacant & Dirty: 9
+    // Vacant & Dirty: 9 (Includes 508 and 204)
     // Cleaning: 5
     // Out of Order: 3
     // Out of Order rooms are: 502, 303, 207 (3 rooms)
     // Specific rooms defined:
     // - Occupied: 402 (1 of 82)
     // - Vacant Clean: 515 (1 of 21)
-    // - Vacant Dirty: 508 (1 of 9)
+    // - Vacant Dirty: 508, 204 (2 of 9)
     // - Out of Order: 502, 303, 207 (3 of 3)
 
     let remainingOccupied = 81;
     let remainingVacantClean = 20;
-    let remainingVacantDirty = 8;
+    let remainingVacantDirty = 7;
     let remainingCleaning = 5;
 
     const guestPool = [

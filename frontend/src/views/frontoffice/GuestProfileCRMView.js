@@ -607,6 +607,46 @@ export class GuestProfileCRMView {
   // ──────────────────────────────────────────────────────────────────────────
   getFilteredGuests() {
     let list = [...this.guests];
+    const storeGuests = (store && store.state && store.state.guests) || [];
+    for (const sg of storeGuests) {
+      if (!list.some(g => g.name.toLowerCase() === sg.name.toLowerCase() || g.id === sg.id)) {
+        const initials = (sg.name || 'Guest').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+        list.unshift({
+          id: sg.id,
+          guestId: `GST-${sg.id.replace(/\D/g, '') || '901'}`,
+          name: sg.name,
+          firstName: sg.name.split(' ')[0],
+          lastName: sg.name.split(' ').slice(1).join(' ') || '',
+          avatar: initials || 'G',
+          phone: sg.phone || '+1 555-0199',
+          email: sg.email || 'guest@example.com',
+          nationality: sg.nationality || 'United States',
+          preferredLanguage: 'English',
+          address: sg.address || 'Verified Residence',
+          guestSince: '2026',
+          guestType: sg.vip ? 'VIP' : 'UPCOMING',
+          vip: Boolean(sg.vip),
+          vipTier: sg.vipTier || (sg.vip ? 'Gold' : null),
+          loyaltyLevel: sg.vip ? 'Gold' : 'Member',
+          loyaltyPoints: 1000,
+          completeness: sg.idVerified ? 100 : 75,
+          missingFields: sg.idVerified ? [] : ['ID Verification Pending'],
+          isReturning: Boolean(sg.isReturning),
+          totalStays: 1,
+          lifetimeSpend: 15000,
+          lastStay: 'Sep 2026',
+          preferences: { room: ['King Bed', 'High Floor'], dining: [], service: [], communication: ['Email'] },
+          stayHistory: [],
+          reservationHistory: [],
+          communicationHistory: [],
+          guestRequests: [],
+          serviceHistory: [],
+          documents: sg.idNumber ? [{ type: sg.idType || 'Passport', status: 'Verified', number: sg.idNumber, expiry: sg.idExpiry || '2030-01-01' }] : [],
+          activityTimeline: [{ time: 'Today', text: 'Active profile linked with Front Desk operations' }],
+          auditLog: { lastChanged: 'Front Desk system', changedDate: 'Today', changedBy: 'Reception' }
+        });
+      }
+    }
 
     // Search query: Guest name, Guest ID, Phone, Email, Room number, Reservation number
     if (this.searchQuery.trim()) {
