@@ -3,25 +3,42 @@
 // Primary UI/UX Source: Google Stitch Screen 'Lost & Found Management Terminal' (aaa404cd81c6476ca713a16c56229ee4)
 // ==========================================================================
 import { Toast } from '../../components/Toast.js';
+import { store } from '../../state/store.js';
 
 export class LostAndFoundView {
   constructor() {
     this.container = null;
     this.filterCategory = 'ALL';
     this.filterStatus = 'ALL';
+    this.unsubscribe = null;
 
-    this.items = [
+    this.items = store.getLostAndFoundItems ? store.getLostAndFoundItems() : (store.state.lostAndFound || [
       { id: 'LF-9821', name: 'Apple AirPods Pro (2nd Gen)', category: 'ELECTRONICS', room: '402', guest: 'Julian Vane', date: 'Today, 11:30 AM', staff: 'Elena R. (Housekeeping)', status: 'MATCHED', storage: 'Locker B-12' },
       { id: 'LF-9820', name: 'Montblanc Meisterstück Rollerball Pen', category: 'VALUABLES', room: '404', guest: 'Sophia Loren', date: 'Yesterday, 04:15 PM', staff: 'Carlos M. (Concierge)', status: 'MATCHED', storage: 'Safe Vault 1' },
       { id: 'LF-9819', name: 'Navy Cashmere Scarf', category: 'APPAREL', room: 'Lobby Lounge', guest: 'Unassigned', date: 'Sep 01, 09:00 PM', staff: 'Front Desk Night Audit', status: 'UNCLAIMED', storage: 'Bin 4' },
       { id: 'LF-9818', name: 'Passport & Leather Travel Wallet', category: 'DOCUMENTS', room: '201', guest: 'Jane Doe', date: 'Sep 01, 02:20 PM', staff: 'Elena R. (Housekeeping)', status: 'RETURNED', storage: 'Returned at Desk' },
       { id: 'LF-9817', name: 'Ray-Ban Aviator Sunglasses (Gold)', category: 'ACCESSORIES', room: 'Pool Deck Cabana 4', guest: 'Unassigned', date: 'Aug 30, 05:00 PM', staff: 'Pool Attendant', status: 'UNCLAIMED', storage: 'Bin 2' },
-    ];
+    ]);
   }
 
   mount(container) {
     this.container = container;
+    if (store && typeof store.subscribe === 'function' && !this.unsubscribe) {
+      this.unsubscribe = store.subscribe(() => {
+        this.items = store.getLostAndFoundItems ? store.getLostAndFoundItems() : (store.state.lostAndFound || this.items);
+        if (this.container) {
+          this.render();
+        }
+      });
+    }
     this.render();
+  }
+
+  destroy() {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = null;
+    }
   }
 
   render() {
@@ -229,6 +246,9 @@ export class LostAndFoundView {
     this.container.querySelectorAll('.btn-claim-item').forEach((btn) => {
       btn.onclick = () => {
         const id = btn.dataset.itemId;
+        if (store.resolveLostAndFoundItem) {
+          store.resolveLostAndFoundItem(id, 'RETURNED');
+        }
         const item = this.items.find((i) => i.id === id);
         if (item) {
           item.status = 'RETURNED';
@@ -253,7 +273,7 @@ export class LostAndFoundView {
         if (!room) return;
 
         const newId = `LF-${Math.floor(1000 + Math.random() * 9000)}`;
-        this.items.unshift({
+        const newItem = {
           id: newId,
           name,
           category: 'VALUABLES',
@@ -263,7 +283,13 @@ export class LostAndFoundView {
           staff: 'Front Desk Agent',
           status: room === '404' ? 'MATCHED' : 'UNCLAIMED',
           storage: 'Vault Locker A-1',
-        });
+        };
+
+        if (store.logLostAndFoundItem) {
+          store.logLostAndFoundItem(newItem);
+        } else {
+          this.items.unshift(newItem);
+        }
 
         Toast.show({
           title: 'Found Item Logged',

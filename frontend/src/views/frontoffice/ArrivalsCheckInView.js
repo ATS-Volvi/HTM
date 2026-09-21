@@ -259,8 +259,8 @@ export class ArrivalsCheckInView {
                   <!-- Contextual Action Buttons -->
                   <div class="flex items-center gap-2">
                     <button class="btn-verify-guest-id px-3 py-2 rounded-xl border border-outline-variant hover:border-primary text-xs font-bold text-primary hover:bg-surface-container flex items-center gap-1.5 transition-all cursor-pointer" data-res-id="${res.id}">
-                      <span class="material-symbols-outlined text-[16px]">badge</span>
-                      <span>${isDocVerified ? 'Review ID' : 'Verify ID'}</span>
+                      <span class="material-symbols-outlined text-[16px]">document_scanner</span>
+                      <span>${isDocVerified ? 'Review Extracted ID' : 'Extract / Verify ID'}</span>
                     </button>
 
                     <button class="btn-check-room-readiness px-3 py-2 rounded-xl border border-outline-variant hover:border-primary text-xs font-bold text-primary hover:bg-surface-container flex items-center gap-1.5 transition-all cursor-pointer" data-res-id="${res.id}" data-room="${roomNum || ''}">

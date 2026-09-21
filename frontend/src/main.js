@@ -33,6 +33,10 @@ import { QueueReservationsView } from './views/frontoffice/QueueReservationsView
 import { KeyAccessView } from './views/frontoffice/KeyAccessView.js';
 import { LostAndFoundView } from './views/frontoffice/LostAndFoundView.js';
 import { HousekeepingDashboardView } from './views/HousekeepingView.js';
+import { LiveDispatchView } from './views/housekeeping/LiveDispatchView.js';
+import { StaffMembersView } from './views/housekeeping/StaffMembersView.js';
+import { HousekeepingHouseStatusView } from './views/housekeeping/HousekeepingHouseStatusView.js';
+import { LinenAmenitiesView } from './views/housekeeping/LinenAmenitiesView.js';
 import { MaintenanceDashboardView } from './views/MaintenanceView.js';
 
 let activeViewInstance = null;
@@ -83,7 +87,7 @@ function renderApp() {
       'dashboard', 'bookings', 'profiles', 'arrivals', 'inhouse', 'room_grid', 'room_matrix', 'room_status',
       'crm', 'services', 'queue_reservations', 'departures',
       'room_board', 'house_status', 'room_master', 'room_configuration', 'billing', 'messages', 'traces', 'wakeup_calls',
-      'housekeeping', 'maintenance', 'inventory'
+      'housekeeping', 'hk_dispatch', 'dispatch', 'hk_staff', 'staff', 'hk_house_status', 'maintenance', 'inventory'
     ];
     const resolvedTab = (urlTab && validTabs.includes(urlTab)) ? urlTab : null;
     const activeTab = resolvedTab || state.activeNavTab || (isMaintenance ? 'maintenance' : (isHousekeeping ? 'housekeeping' : 'reservations'));
@@ -129,6 +133,34 @@ function renderApp() {
             if (lfSec) lfSec.scrollIntoView({ behavior: 'smooth' });
           }
         });
+        break;
+
+      case 'hk_dispatch':
+      case 'dispatch':
+        activeViewInstance = new LiveDispatchView();
+        mountPoint.appendChild(activeViewInstance.render());
+        break;
+
+      case 'hk_staff':
+      case 'staff':
+        activeViewInstance = new StaffMembersView();
+        mountPoint.appendChild(activeViewInstance.render());
+        break;
+
+      case 'hk_house_status':
+      case 'hk_house':
+      case 'hk_room_status':
+        activeViewInstance = new HousekeepingHouseStatusView();
+        mountPoint.appendChild(activeViewInstance.render());
+        break;
+
+      case 'hk_linen':
+      case 'hk_linen_inventory':
+      case 'hk_laundry':
+      case 'linen':
+      case 'laundry':
+        activeViewInstance = new LinenAmenitiesView();
+        mountPoint.appendChild(activeViewInstance.render());
         break;
 
       case 'bookings':
@@ -230,57 +262,28 @@ function renderApp() {
         break;
 
       case 'lostfound':
+      case 'lost_and_found':
+      case 'hk_lostfound':
         activeViewInstance = new LostAndFoundView();
         activeViewInstance.mount(mountPoint);
         break;
 
-      case 'reservations_list':
-        activeViewInstance = new ReservationsListView();
+      case 'housekeeping':
+      case 'hk_tasks':
+      case 'hk_inspections':
+      case 'hk_requests':
+      case 'hk_assignments':
+        activeViewInstance = new HousekeepingDashboardView();
+        if (activeTab === 'hk_assignments') {
+          activeViewInstance.activeSection = 'assignments';
+        } else if (activeTab === 'hk_inspections') {
+          activeViewInstance.activeQuickFilter = 'INSPECTION';
+        } else if (activeTab === 'hk_requests') {
+          activeViewInstance.activeQuickFilter = 'REQUESTS';
+        }
         mountPoint.appendChild(activeViewInstance.render());
-        activeViewInstance.loadData().then(() => activeViewInstance.renderContent());
+        activeViewInstance.loadData().then(() => activeViewInstance.bindEvents());
         break;
-
-
-      case 'queue_reservations':
-        activeViewInstance = new QueueReservationsView();
-        mountPoint.appendChild(activeViewInstance.render());
-        break;
-
-      case 'messages':
-      case 'traces':
-      case 'wakeup_calls': {
-        const routeMeta = {
-          messages: { title: 'Messages', desc: 'Guest incoming communications and department message logs.', icon: 'chat' },
-          traces: { title: 'Traces & Follow-ups', desc: 'Time-sensitive guest traces, follow-ups, and operational action items.', icon: 'flag' },
-          wakeup_calls: { title: 'Wake-up Calls', desc: 'Automated morning schedules and priority guest wake-up requests.', icon: 'alarm' }
-        }[activeTab];
-
-        mountPoint.innerHTML = `
-          <div class="w-full flex flex-col gap-6 animate-fadeIn pb-12">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <span class="font-label-caps text-[11px] font-bold uppercase text-secondary">Front Desk Operations</span>
-                <h1 class="font-headline-lg text-2xl sm:text-3xl font-bold text-primary tracking-tight mt-0.5">${routeMeta.title}</h1>
-                <p class="font-body-md text-xs text-on-surface-variant mt-1">${routeMeta.desc}</p>
-              </div>
-            </div>
-            <div class="bg-surface-container-lowest rounded-2xl p-12 border border-outline-variant/70 shadow-xs flex flex-col items-center justify-center text-center my-6">
-              <div class="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-4 shadow-xs">
-                <span class="material-symbols-outlined text-[28px]">${routeMeta.icon}</span>
-              </div>
-              <h3 class="font-headline-sm text-base font-bold text-primary mb-1">${routeMeta.title} Workspace</h3>
-              <p class="text-xs text-on-surface-variant max-w-md mb-5 leading-relaxed">
-                This destination is maintained as an operational placeholder route in the Front Desk navigation hierarchy.
-              </p>
-              <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container border border-outline-variant/60 text-on-surface-variant text-[11px] font-data-mono font-bold">
-                <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                <span>Operational Module Placeholder Route</span>
-              </div>
-            </div>
-          </div>
-        `;
-        break;
-      }
 
       case 'maintenance':
       case 'maint_workorders':

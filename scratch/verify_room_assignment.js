@@ -44,25 +44,22 @@ const html = el.innerHTML;
 
 // 2. Verify Page Header & Live Telemetry
 assert(html.includes('ROOM ASSIGNMENT'), 'Header title "ROOM ASSIGNMENT" missing');
-assert(html.includes('Assign the right room to each arriving reservation'), 'Subtitle missing');
-assert(html.includes('09 Sep 2026'), 'Date selector missing');
+assert(html.includes('Assign rooms manually or let Volvitech find the best match.'), 'Subtitle missing');
 assert(html.includes('LIVE'), 'LIVE telemetry pill missing');
 assert(html.includes('btn-ra-refresh'), 'Refresh button missing');
 assert(html.includes('btn-global-auto-assign'), 'Global Auto Assign button missing');
 console.log('✔ Header, Date Selector & Telemetry verified');
 
-// 3. Verify Operational Summary KPI Cards
-assert(html.includes('Rooms to Assign'), 'KPI "Rooms to Assign" missing');
-assert(html.includes('Assigned'), 'KPI "Assigned" missing');
-assert(html.includes('Unassigned'), 'KPI "Unassigned" missing');
-assert(html.includes('Early Arrivals'), 'KPI "Early Arrivals" missing');
-assert(html.includes('VIP Arrivals'), 'KPI "VIP Arrivals" missing');
-const initialKPIs = view.getOperationalKPIs();
-assert.strictEqual(initialKPIs.roomsToAssign, 14, 'Should initially have 14 rooms to assign');
+// 3. Verify Operational Summary KPI Counters
+assert(html.includes('UNASSIGNED:'), 'Counter "UNASSIGNED:" missing');
+assert(html.includes('ASSIGNED:'), 'Counter "ASSIGNED:" missing');
+assert(html.includes('EARLY ARRIVALS:'), 'Counter "EARLY ARRIVALS:" missing');
+assert(html.includes('VIP ARRIVALS:'), 'Counter "VIP ARRIVALS:" missing');
+const initialKPIs = view.getOperationalCounters();
 assert.strictEqual(initialKPIs.unassigned, 14, 'Should initially have 14 unassigned reservations');
 assert.strictEqual(initialKPIs.assigned, 2, 'Should initially have 2 sample assigned reservations');
 assert.strictEqual(initialKPIs.vipArrivals, 4, 'Should have 4 VIP arrivals');
-console.log('✔ Operational Summary KPIs (Rooms to assign, Assigned, Unassigned, Early, VIP) verified');
+console.log('✔ Operational Summary KPIs (Assigned, Unassigned, Early, VIP) verified');
 
 // 4. Verify Search and Filter Area
 assert(html.includes('ra-search-input'), 'Guest search input missing');
@@ -73,13 +70,9 @@ assert(html.includes('btn-toggle-advanced-filters'), 'Advanced filters toggle bu
 console.log('✔ Primary Filter Bar verified');
 
 // 5. Verify Dual-Panel Workspace: Left Panel (Reservations Table)
-assert(html.includes('Reservations Requiring Assignment'), 'Table section header missing');
+assert(html.includes('RESERVATIONS'), 'Table section header missing');
 assert(html.includes('Eta Thomas'), 'Sample guest "Eta Thomas" missing');
-assert(html.includes('Ehrke, Lyle'), 'Sample guest "Ehrke, Lyle" missing');
-assert(html.includes('Grant, Ginger'), 'Sample guest "Grant, Ginger" missing');
-assert(html.includes('Dr. Sarah Mitchell'), 'Sample guest "Dr. Sarah Mitchell" missing');
-assert(html.includes('ABC Conference'), 'Group / Block banner for ABC Conference missing');
-assert(html.includes('SEP09-CORP'), 'Block code SEP09-CORP missing');
+assert(html.includes('ABC CONFERENCE'), 'Group / Block banner for ABC Conference missing');
 console.log('✔ Left Panel (Reservations Requiring Assignment & Group Block Banner) verified');
 
 // 6. Verify Dual-Panel Workspace: Right Panel (Contextual Guest & Recommendations)

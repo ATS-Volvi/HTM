@@ -81,6 +81,7 @@ export function renderInventoryProcurementView(state) {
                 <td>
                   <div style="font-weight: 700; color: #0F172A;">${pr.department}</div>
                   <div style="font-size: 11px; color: #64748B;">Store: ${pr.storeCode}</div>
+                  ${pr.destination ? `<div style="font-size: 10px; color: #0284c7; font-weight: 600; margin-top: 2px;">📍 ${pr.destination}</div>` : ''}
                 </td>
                 <td style="font-size: 12px; color: #334155;">${pr.requestedBy}</td>
                 <td>
@@ -91,19 +92,29 @@ export function renderInventoryProcurementView(state) {
                 </td>
                 <td style="font-family: var(--font-mono); font-weight: 700; color: #0F172A;">$${pr.totalAmount.toFixed(2)}</td>
                 <td>
-                  <span class="badge ${pr.status.includes('Pending') ? 'badge-urgent' : 'badge-clean'}">
+                  <span class="badge ${pr.status.includes('Pending') ? 'badge-urgent' : (pr.status.includes('Dispatched') ? 'badge-inspected' : 'badge-clean')}">
                     ${pr.status}
                   </span>
                 </td>
                 <td>
                   ${pr.status.includes('Pending') ? `
-                    <button class="btn-primary btn-approve-pr" style="padding: 4px 10px; font-size: 11px;" data-pr-id="${pr.id}">
-                      <span class="material-symbols-outlined" style="font-size: 14px;">check_circle</span>
-                      GM Approve & Issue PO
-                    </button>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                      ${pr.department === 'Housekeeping' ? `
+                        <button class="btn-success btn-dispatch-hk-pr" style="padding: 4px 8px; font-size: 11px;" data-pr-id="${pr.id}" title="Issue items from Central Warehouse directly to Floor Pantry">
+                          <span class="material-symbols-outlined" style="font-size: 14px;">local_shipping</span>
+                          Dispatch to HK
+                        </button>
+                      ` : ''}
+                      <button class="btn-primary btn-approve-pr" style="padding: 4px 8px; font-size: 11px;" data-pr-id="${pr.id}">
+                        <span class="material-symbols-outlined" style="font-size: 14px;">check_circle</span>
+                        GM Approve & PO
+                      </button>
+                    </div>
+                  ` : (pr.status.includes('Dispatched') ? `
+                    <span class="badge badge-clean">Dispatched to HK</span>
                   ` : `
                     <span class="badge badge-clean">PO Generated</span>
-                  `}
+                  `)}
                 </td>
               </tr>
             `).join('')}
@@ -218,6 +229,14 @@ export function bindInventoryProcurementEvents() {
     btn.addEventListener('click', () => {
       const prId = btn.dataset.prId;
       store.approvePurchaseRequisition(prId);
+    });
+  });
+
+  // Direct Dispatch HK Requisition from Central Store
+  document.querySelectorAll('.btn-dispatch-hk-pr').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const prId = btn.dataset.prId;
+      store.fulfillHousekeepingRequisition(prId);
     });
   });
 

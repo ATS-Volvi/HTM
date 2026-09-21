@@ -819,12 +819,12 @@ const initialFolios = {
 
 // ── Housekeeping Staff Roster (Proline PMS Standard) ─────────────────────
 const initialHousekeepingStaff = [
-  { id: 'hk-staff-1', name: 'Maria Santos', role: 'Lead Attendant', initials: 'MS', primaryFloors: ['5', '4'], maxCredits: 14.0, onDuty: true, shift: 'Morning (07:00 - 15:30)' },
-  { id: 'hk-staff-2', name: 'Elena Gomez', role: 'Senior Attendant', initials: 'EG', primaryFloors: ['4'], maxCredits: 14.0, onDuty: true, shift: 'Morning (07:00 - 15:30)' },
-  { id: 'hk-staff-3', name: 'Fatima Zahra', role: 'Floor Attendant', initials: 'FZ', primaryFloors: ['3'], maxCredits: 14.0, onDuty: true, shift: 'Morning (07:00 - 15:30)' },
-  { id: 'hk-staff-4', name: 'Carlos Ruiz', role: 'Floor Attendant', initials: 'CR', primaryFloors: ['3', '4'], maxCredits: 14.0, onDuty: true, shift: 'Morning (07:00 - 15:30)' },
-  { id: 'hk-staff-5', name: 'David Kim', role: 'Floor Attendant', initials: 'DK', primaryFloors: ['2'], maxCredits: 14.0, onDuty: true, shift: 'Morning (07:00 - 15:30)' },
-  { id: 'hk-staff-6', name: 'Aisha Patel', role: 'Express Float Attendant', initials: 'AP', primaryFloors: ['2', '3'], maxCredits: 14.0, onDuty: true, shift: 'Morning (07:00 - 15:30)' }
+  { id: 'hk-staff-1', name: 'Aisha Patel', role: 'Floor Attendant', initials: 'AP', primaryFloors: ['4', '2'], maxCredits: 14.0, onDuty: true, shift: 'Morning (07:00 - 15:30)', phone: '+1 (555) 234-5671', email: 'aisha.p@grandmeridian.com' },
+  { id: 'hk-staff-2', name: 'Rahul Sharma', role: 'Senior Attendant', initials: 'RS', primaryFloors: ['5'], maxCredits: 14.0, onDuty: true, shift: 'Morning (07:00 - 15:30)', phone: '+1 (555) 234-5672', email: 'rahul.s@grandmeridian.com' },
+  { id: 'hk-staff-3', name: 'Priya Nair', role: 'Suite Specialist', initials: 'PN', primaryFloors: ['6', '4'], maxCredits: 12.0, onDuty: true, shift: 'Morning (07:00 - 15:30)', phone: '+1 (555) 234-5673', email: 'priya.n@grandmeridian.com' },
+  { id: 'hk-staff-4', name: 'Carlos Ruiz', role: 'Floor Attendant', initials: 'CR', primaryFloors: ['3', '1'], maxCredits: 14.0, onDuty: true, shift: 'Morning (07:00 - 15:30)', phone: '+1 (555) 234-5674', email: 'carlos.r@grandmeridian.com' },
+  { id: 'hk-staff-5', name: 'Elena Gomez', role: 'Senior Attendant', initials: 'EG', primaryFloors: ['4'], maxCredits: 14.0, onDuty: true, shift: 'Evening (15:00 - 23:30)', phone: '+1 (555) 234-5675', email: 'elena.g@grandmeridian.com' },
+  { id: 'hk-staff-6', name: 'Maria Santos', role: 'Lead Supervisor', initials: 'MS', primaryFloors: ['5', '6'], maxCredits: 14.0, onDuty: false, shift: 'Night (23:00 - 07:30)', phone: '+1 (555) 234-5676', email: 'maria.s@grandmeridian.com' }
 ];
 
 // ── Housekeeping Tasks ────────────────────────────────────────────────────
@@ -834,6 +834,15 @@ const initialHousekeepingTasks = [
   { id: 'hk-3', roomNumber: '302', floor: '3', type: 'Full Departure Clean', priority: 'High', status: 'Pending', assignedTo: 'Fatima Zahra', credits: 3.5, estimatedMin: 45, checklistDone: 0, checklistTotal: 8 },
   { id: 'hk-4', roomNumber: '305', floor: '3', type: 'Deep Steam Clean & Sanitize', priority: 'High', status: 'Pending', assignedTo: 'Carlos Ruiz', credits: 4.0, estimatedMin: 60, checklistDone: 0, checklistTotal: 8 },
   { id: 'hk-5', roomNumber: '203', floor: '2', type: 'Full Departure Clean', priority: 'Normal', status: 'Pending', assignedTo: 'David Kim', credits: 3.0, estimatedMin: 40, checklistDone: 0, checklistTotal: 8 }
+];
+
+// ── Lost & Found Registry ────────────────────────────────────────────────
+const initialLostAndFound = [
+  { id: 'LF-9821', name: 'Apple AirPods Pro (2nd Gen)', category: 'ELECTRONICS', room: '402', guest: 'Julian Vane', date: 'Today, 11:30 AM', staff: 'Elena R. (Housekeeping)', status: 'MATCHED', storage: 'Locker B-12' },
+  { id: 'LF-9820', name: 'Montblanc Meisterstück Rollerball Pen', category: 'VALUABLES', room: '404', guest: 'Sophia Loren', date: 'Yesterday, 04:15 PM', staff: 'Carlos M. (Concierge)', status: 'MATCHED', storage: 'Safe Vault 1' },
+  { id: 'LF-9819', name: 'Navy Cashmere Scarf', category: 'APPAREL', room: 'Lobby Lounge', guest: 'Unassigned', date: 'Sep 01, 09:00 PM', staff: 'Front Desk Night Audit', status: 'UNCLAIMED', storage: 'Bin 4' },
+  { id: 'LF-9818', name: 'Passport & Leather Travel Wallet', category: 'DOCUMENTS', room: '201', guest: 'Jane Doe', date: 'Sep 01, 02:20 PM', staff: 'Elena R. (Housekeeping)', status: 'RETURNED', storage: 'Returned at Desk' },
+  { id: 'LF-9817', name: 'Ray-Ban Aviator Sunglasses (Gold)', category: 'ACCESSORIES', room: 'Pool Deck Cabana 4', guest: 'Unassigned', date: 'Aug 30, 05:00 PM', staff: 'Pool Attendant', status: 'UNCLAIMED', storage: 'Bin 2' }
 ];
 
 // ── Maintenance Work Orders (with live SLA) ──────────────────────────────
@@ -1040,6 +1049,8 @@ function getInitialState() {
     folios: initialFolios,
     housekeepingTasks: initialHousekeepingTasks,
     housekeepingStaff: initialHousekeepingStaff,
+    housekeepingRequests: [],
+    serviceRequests: [],
     maintenanceTickets: initialMaintenanceTickets,
     ingredients: initialIngredients,
     recipes: initialRecipes,
@@ -1064,7 +1075,146 @@ function getInitialState() {
       { id: 'req-2', title: 'Suit Steam Pressing (2 jackets)', category: 'Laundry', status: 'Delivered', time: '10:45 AM' }
     ],
     serviceRequests: initialServiceRequests,
-    activeCheckedInGuests: []
+    // ── Linen, Towels & Consumables Master State ──────────────────────────
+    linenInventory: {
+      towels: [
+        { id: 't-bath', name: 'Bath Towel (Plush 700 GSM)', category: 'Towels', parLevel: 360, cleanInPantries: 210, dirtyAwaitingLaundry: 64, inLaundryCycle: 86, unit: 'pcs' },
+        { id: 't-hand', name: 'Hand Towel (Combed Cotton)', category: 'Towels', parLevel: 280, cleanInPantries: 175, dirtyAwaitingLaundry: 42, inLaundryCycle: 63, unit: 'pcs' },
+        { id: 't-face', name: 'Face Cloth / Washcloth', category: 'Towels', parLevel: 240, cleanInPantries: 160, dirtyAwaitingLaundry: 35, inLaundryCycle: 45, unit: 'pcs' },
+        { id: 't-mat', name: 'Bath Mat (Heavyweight)', category: 'Towels', parLevel: 140, cleanInPantries: 85, dirtyAwaitingLaundry: 22, inLaundryCycle: 33, unit: 'pcs' }
+      ],
+      bedLinens: [
+        { id: 'b-sheet-king', name: 'King Fitted Sheet (400TC Egyptian Cotton)', category: 'Bed Linens', parLevel: 200, cleanInPantries: 125, dirtyAwaitingLaundry: 32, inLaundryCycle: 43, unit: 'pcs' },
+        { id: 'b-duvet-king', name: 'King Duvet Cover (Sateen Stripe)', category: 'Bed Linens', parLevel: 160, cleanInPantries: 98, dirtyAwaitingLaundry: 26, inLaundryCycle: 36, unit: 'pcs' },
+        { id: 'b-pillowcase', name: 'Standard Pillowcase (Goose Down Casing)', category: 'Bed Linens', parLevel: 500, cleanInPantries: 310, dirtyAwaitingLaundry: 84, inLaundryCycle: 106, unit: 'pcs' },
+        { id: 'b-sheet-twin', name: 'Single/Twin Flat Sheet', category: 'Bed Linens', parLevel: 120, cleanInPantries: 80, dirtyAwaitingLaundry: 15, inLaundryCycle: 25, unit: 'pcs' }
+      ],
+      bathroomAmenities: [
+        { id: 'a-shampoo', name: 'Diptyque Philosykos Shampoo (50ml)', category: 'Amenities', stockAvailable: 340, minThreshold: 100, unit: 'bottles', consumedToday: 28 },
+        { id: 'a-conditioner', name: 'Diptyque Nourishing Conditioner (50ml)', category: 'Amenities', stockAvailable: 310, minThreshold: 100, unit: 'bottles', consumedToday: 24 },
+        { id: 'a-bodywash', name: 'Diptyque Refreshing Body Wash (50ml)', category: 'Amenities', stockAvailable: 365, minThreshold: 100, unit: 'bottles', consumedToday: 30 },
+        { id: 'a-soap', name: 'Artisanal Shea Butter Hand Soap (40g)', category: 'Amenities', stockAvailable: 420, minThreshold: 120, unit: 'bars', consumedToday: 38 },
+        { id: 'a-dental', name: 'Bamboo Dental Kit w/ Marvis Toothpaste', category: 'Amenities', stockAvailable: 260, minThreshold: 80, unit: 'kits', consumedToday: 18 },
+        { id: 'a-shaving', name: 'Executive Shaving Kit & Cream', category: 'Amenities', stockAvailable: 190, minThreshold: 60, unit: 'kits', consumedToday: 12 },
+        { id: 'a-vanity', name: 'Cotton Vanity & Sewing Kit', category: 'Amenities', stockAvailable: 280, minThreshold: 80, unit: 'kits', consumedToday: 16 }
+      ]
+    },
+    dailyLinenConsumption: [
+      {
+        id: 'lc-101',
+        roomId: '302',
+        roomType: 'Classic King Room',
+        cleanType: 'Departure Turnover (Full Strip)',
+        attendant: 'Fatima Zahra',
+        timestamp: '09:15 AM',
+        towelsChanged: { bathTowels: 2, handTowels: 2, washcloths: 2, bathMats: 1 },
+        sheetsChanged: { fittedSheets: 1, duvetCovers: 1, pillowcases: 2 },
+        amenitiesRefilled: { shampoo: 1, conditioner: 1, bodyWash: 1, soap: 2, dentalKit: 1 }
+      },
+      {
+        id: 'lc-102',
+        roomId: '402',
+        roomType: 'Deluxe Ocean Suite',
+        cleanType: 'Departure Turnover (Full Strip)',
+        attendant: 'Elena Gomez',
+        timestamp: '09:45 AM',
+        towelsChanged: { bathTowels: 4, handTowels: 2, washcloths: 2, bathMats: 1 },
+        sheetsChanged: { fittedSheets: 1, duvetCovers: 1, pillowcases: 4 },
+        amenitiesRefilled: { shampoo: 2, conditioner: 2, bodyWash: 2, soap: 2, dentalKit: 2, shavingKit: 1 }
+      },
+      {
+        id: 'lc-103',
+        roomId: '201',
+        roomType: 'Classic King Room',
+        cleanType: 'Daily Stayover Refresh',
+        attendant: 'David Kim',
+        timestamp: '10:15 AM',
+        towelsChanged: { bathTowels: 2, handTowels: 1, washcloths: 0, bathMats: 0 },
+        sheetsChanged: { fittedSheets: 0, duvetCovers: 0, pillowcases: 0 },
+        amenitiesRefilled: { shampoo: 1, conditioner: 0, bodyWash: 1, soap: 1, dentalKit: 0 }
+      },
+      {
+        id: 'lc-104',
+        roomId: '501',
+        roomType: 'Presidential Royal Penthouse',
+        cleanType: 'VIP Turndown & Linen Refresh',
+        attendant: 'Maria Santos',
+        timestamp: '10:45 AM',
+        towelsChanged: { bathTowels: 4, handTowels: 4, washcloths: 4, bathMats: 2 },
+        sheetsChanged: { fittedSheets: 1, duvetCovers: 1, pillowcases: 6 },
+        amenitiesRefilled: { shampoo: 2, conditioner: 2, bodyWash: 2, soap: 3, dentalKit: 2, vanityKit: 2 }
+      }
+    ],
+    laundryBatches: [
+      {
+        id: 'LND-2026-081',
+        code: 'BATCH #81',
+        status: 'In Laundry (Washing & Pressing)',
+        sentTime: 'Today 08:30 AM',
+        expectedReturn: 'Today 14:30 PM',
+        vendor: 'Riviera Commercial Eco-Laundry Ltd.',
+        totalPieces: 148,
+        breakdown: '60 Bath Towels, 40 Hand Towels, 20 Bedsheets, 28 Pillowcases',
+        weightKg: 84.5,
+        dispatchedBy: 'Victoria S. (Executive HK)'
+      },
+      {
+        id: 'LND-2026-080',
+        code: 'BATCH #80',
+        status: 'Completed & Delivered',
+        sentTime: 'Yesterday 14:00 PM',
+        expectedReturn: 'Today 08:00 AM',
+        vendor: 'Riviera Commercial Eco-Laundry Ltd.',
+        totalPieces: 165,
+        breakdown: '75 Bath Towels, 45 Hand Towels, 25 King Sheets, 20 Duvets',
+        weightKg: 96.0,
+        dispatchedBy: 'Carlos Ruiz'
+      }
+    ],
+
+    // ── Housekeeping Shift Time Slots ──────────────────────────────────────
+    shiftTimeSlots: [
+      {
+        id: 'shift-morning',
+        name: 'Morning Shift',
+        code: 'AM',
+        startTime: '07:00',
+        endTime: '15:30',
+        type: 'Departure Turnovers & Check-In Prep',
+        activeLead: 'Victoria S. (Executive Housekeeper)',
+        focus: 'Departure room turnaround, VIP arrivals preparation, linen restocking'
+      },
+      {
+        id: 'shift-evening',
+        name: 'Evening Shift',
+        code: 'PM',
+        startTime: '15:00',
+        endTime: '23:30',
+        type: 'Turndown Service & Late Arrivals',
+        activeLead: 'Elena Gomez (Senior Attendant)',
+        focus: 'VIP turndown service, amenity deliveries, late walk-in rush cleans'
+      },
+      {
+        id: 'shift-night',
+        name: 'Night Shift',
+        code: 'NIGHT',
+        startTime: '23:00',
+        endTime: '07:30',
+        type: 'Deep Clean & Emergency Callout',
+        activeLead: 'Maria Santos (Night Lead)',
+        focus: 'Lobby marble polishing, public washroom deep clean, emergency guest calls'
+      }
+    ],
+    currentShiftId: 'shift-morning',
+    shiftHandoverNotes: [
+      {
+        id: 'ho-1',
+        shiftId: 'shift-morning',
+        author: 'Victoria S.',
+        time: '14:45',
+        note: 'Floors 4 & 5 departures completed ahead of 15:00 arrival peak. Suite 615 VIP protocol amenity placed.'
+      }
+    ]
   };
 }
 
@@ -1085,6 +1235,9 @@ class VolvitechStore {
           const merged = {
             ...defaults,
             ...saved,
+            shiftTimeSlots: (saved.shiftTimeSlots && saved.shiftTimeSlots.length > 0) ? saved.shiftTimeSlots : defaults.shiftTimeSlots,
+            currentShiftId: saved.currentShiftId || defaults.currentShiftId,
+            shiftHandoverNotes: saved.shiftHandoverNotes || defaults.shiftHandoverNotes,
             rooms: (saved.rooms && saved.rooms.length > 0) ? saved.rooms.map(r => ({ ...r, roomNumber: r.roomNumber || r.id })) : defaults.rooms,
             serviceRequests: (() => {
               const raw = (saved.serviceRequests && saved.serviceRequests.length > 0) ? saved.serviceRequests : defaults.serviceRequests;
@@ -1113,7 +1266,10 @@ class VolvitechStore {
                 }
               });
               return currentGst.length > 0 ? currentGst : defaults.guests;
-            })()
+            })(),
+            linenInventory: saved.linenInventory || defaults.linenInventory,
+            dailyLinenConsumption: (saved.dailyLinenConsumption && saved.dailyLinenConsumption.length > 0) ? saved.dailyLinenConsumption : defaults.dailyLinenConsumption,
+            laundryBatches: (saved.laundryBatches && saved.laundryBatches.length > 0) ? saved.laundryBatches : defaults.laundryBatches
           };
           // Guarantee Room 204 condition for Acceptance Test 28 (Vacant & Dirty)
           const rm204 = (merged.rooms || []).find(r => String(r.id) === '204' || String(r.roomNumber) === '204');
@@ -1236,8 +1392,8 @@ class VolvitechStore {
   }
 
   setNavTab(tab) {
-    // If navigating to housekeeping from other workspaces
-    if (tab === 'housekeeping' && this.state.activeWorkspace !== 'HOUSEKEEPING') {
+    // If navigating to Housekeeping-only operational modules (like staff assignments, dispatch, house status)
+    if (['hk_assignments', 'hk_mobile', 'hk_analytics', 'hk_dispatch', 'hk_staff', 'hk_house_status'].includes(tab) && this.state.activeWorkspace !== 'HOUSEKEEPING') {
       this.state.activeWorkspace = 'HOUSEKEEPING';
     }
     // If navigating to maintenance from other workspaces
@@ -2275,26 +2431,366 @@ class VolvitechStore {
 
   // WORKFLOW 2B: Housekeeping Status Flow (Dirty -> Cleaning -> Clean -> Inspected)
   updateHousekeepingTaskStatus(taskId, newStatus) {
-    const task = (this.state.housekeepingTasks || []).find(t => t.id === taskId);
+    const task = (this.state.housekeepingTasks || []).find(t => t.id === taskId || String(t.roomNumber) === String(taskId));
     if (!task) return;
 
     task.status = newStatus;
     const room = (this.state.rooms || []).find(r => String(r.id) === String(task.roomNumber));
 
     if (room) {
-      if (newStatus === 'In Progress') {
+      if (newStatus === 'In Progress' || newStatus === 'CLEANING') {
         room.status = 'In Progress';
-      } else if (newStatus === 'Completed') {
+      } else if (newStatus === 'Completed' || newStatus === 'CLEANED' || newStatus === 'Clean') {
         room.status = 'Clean';
-        task.checklistDone = task.checklistTotal;
-      } else if (newStatus === 'Inspected') {
+        task.status = 'CLEANED';
+        task.checklistDone = task.checklistTotal || 8;
+      } else if (newStatus === 'Inspected' || newStatus === 'READY') {
         room.status = 'Inspected';
-        task.status = 'Inspected';
+        task.status = 'READY';
+        task.checklistDone = task.checklistTotal || 8;
+      } else if (newStatus === 'Dirty' || newStatus === 'DIRTY' || newStatus === 'FAILED') {
+        room.status = 'Dirty';
+        task.status = newStatus;
       }
     }
 
-    this.showToast(`HK Task ${taskId} for Room ${task.roomNumber} updated to "${newStatus}"`, 'info');
+    this.showToast(`HK Task for Room ${task.roomNumber} updated to "${newStatus}"`, 'info');
     this.notify();
+  }
+
+  // Front Desk: Submit Rush Turnover Request (Expedited Cleaning)
+  requestRushTurnover(roomNumber, reason = 'Expedited Front Desk Check-in', assignedTo = null) {
+    const room = (this.state.rooms || []).find(r => String(r.id) === String(roomNumber));
+    let task = (this.state.housekeepingTasks || []).find(t => String(t.roomNumber) === String(roomNumber));
+
+    if (task) {
+      task.priority = 'URGENT';
+      task.urgentReason = reason;
+      task.rushRequestedAt = new Date().toISOString();
+      task.rushRequestedBy = 'Front Desk';
+      if (assignedTo) task.assignedTo = assignedTo;
+    } else {
+      task = {
+        id: `hk-${Date.now()}-${roomNumber}`,
+        roomNumber: String(roomNumber),
+        floor: room ? String(room.floor) : (String(roomNumber)[0] || '1'),
+        type: (room && room.vip) ? 'VIP Rush Turnover' : 'Express Checkout Clean',
+        priority: 'URGENT',
+        status: (room && room.status === 'In Progress') ? 'In Progress' : 'Pending',
+        assignedTo: assignedTo || (room && room.housekeeper) || 'Unassigned',
+        credits: 3.0,
+        estimatedMin: 30,
+        checklistDone: 0,
+        checklistTotal: 8,
+        urgentReason: reason,
+        rushRequestedAt: new Date().toISOString(),
+        rushRequestedBy: 'Front Desk'
+      };
+      if (!this.state.housekeepingTasks) this.state.housekeepingTasks = [];
+      this.state.housekeepingTasks.unshift(task);
+    }
+
+    // Also record into housekeepingRequests telemetry
+    if (!this.state.housekeepingRequests) this.state.housekeepingRequests = [];
+    const isAssigned = Boolean(assignedTo);
+    this.state.housekeepingRequests.unshift({
+      id: `REQ-${Date.now().toString().slice(-4)}`,
+      roomNumber: String(roomNumber),
+      type: 'RUSH_TURNOVER',
+      item: `Rush Cleaning: ${reason}`,
+      priority: 'URGENT',
+      requestedBy: 'Front Desk',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      createdAt: new Date().toISOString(),
+      status: isAssigned ? 'Assigned' : 'Unassigned',
+      assignedTo: isAssigned ? assignedTo : 'Unassigned'
+    });
+
+    this.showToast(`Rush turnover requested for Room #${roomNumber}. Housekeeping alerted.`, 'info');
+    this.notify();
+    return { success: true, task };
+  }
+
+  // Front Desk: Submit Guest Service / Amenities Request
+  requestHousekeepingService({ roomId, requestItem, notes = '', priority = 'NORMAL', guestName = 'In-House Guest' } = {}) {
+    if (!this.state.housekeepingRequests) this.state.housekeepingRequests = [];
+    if (!this.state.serviceRequests) this.state.serviceRequests = [];
+
+    const newReq = {
+      id: `SR-${Date.now().toString().slice(-4)}`,
+      roomNumber: String(roomId),
+      item: requestItem || 'Guest Amenity Request',
+      type: 'HOUSEKEEPING',
+      notes: notes,
+      priority: priority,
+      guestName: guestName,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      createdAt: new Date().toISOString(),
+      status: 'Unassigned',
+      assignedTo: 'Unassigned'
+    };
+
+    this.state.housekeepingRequests.unshift(newReq);
+    this.state.serviceRequests.unshift(newReq);
+
+    this.showToast(`Service request for Room #${roomId} (${requestItem}) dispatched to Housekeeping.`, 'success');
+    this.notify();
+    return newReq;
+  }
+
+  // Get all pending requests requiring Housekeeping assignment / attention
+  getPendingHousekeepingRequests() {
+    const requests = this.state.housekeepingRequests || [];
+    return requests.filter(r => r.status === 'Unassigned' || r.status === 'Pending' || !r.assignedTo || r.assignedTo.includes('Unassigned'));
+  }
+
+  // Assign Housekeeping Request (Rush Turnover or Guest Amenity) to Attendant
+  assignHousekeepingRequest(requestId, staffName) {
+    if (!this.state.housekeepingRequests) this.state.housekeepingRequests = [];
+    const req = this.state.housekeepingRequests.find(r => String(r.id) === String(requestId));
+    if (req) {
+      req.assignedTo = staffName;
+      req.status = 'Assigned';
+      req.assignedAt = new Date().toISOString();
+
+      // Also update corresponding room turnover if it's a rush turnover
+      if (req.type === 'RUSH_TURNOVER' && req.roomNumber) {
+        this.assignStaffToRoom(req.roomNumber, staffName);
+        const task = (this.state.housekeepingTasks || []).find(t => String(t.roomNumber) === String(req.roomNumber));
+        if (task) {
+          task.assignedTo = staffName;
+          task.status = 'In Progress';
+        }
+      }
+
+      // Also sync to serviceRequests if exists
+      if (this.state.serviceRequests) {
+        const sReq = this.state.serviceRequests.find(r => String(r.id) === String(requestId));
+        if (sReq) {
+          sReq.assignedTo = staffName;
+          sReq.status = 'Assigned';
+        }
+      }
+
+      this.showToast(`Request #${requestId} for Room #${req.roomNumber} assigned to ${staffName}.`, 'success');
+      this.notify();
+    }
+    return req;
+  }
+
+  // Complete Housekeeping Request
+  completeHousekeepingRequest(requestId, notes = '') {
+    if (!this.state.housekeepingRequests) this.state.housekeepingRequests = [];
+    const req = this.state.housekeepingRequests.find(r => String(r.id) === String(requestId));
+    if (req) {
+      req.status = 'Completed';
+      req.completedAt = new Date().toISOString();
+      if (notes) req.completionNotes = notes;
+    }
+    if (this.state.serviceRequests) {
+      const sReq = this.state.serviceRequests.find(r => String(r.id) === String(requestId));
+      if (sReq) {
+        sReq.status = 'Completed';
+        sReq.completedAt = new Date().toISOString();
+      }
+    }
+    this.showToast(`Housekeeping request #${requestId} marked Completed.`, 'success');
+    this.notify();
+    return req;
+  }
+
+  // Auto-Dispatch all unassigned Front Desk requests to on-duty attendants
+  autoDispatchPendingRequests() {
+    const pending = this.getPendingHousekeepingRequests();
+    if (pending.length === 0) {
+      this.showToast('No unassigned requests to dispatch.', 'info');
+      return { dispatchedCount: 0 };
+    }
+
+    const attendants = [
+      { name: 'Aisha', floors: ['4', '2'] },
+      { name: 'Rahul', floors: ['5'] },
+      { name: 'Priya', floors: ['6', '4'] },
+      { name: 'Carlos', floors: ['3', '1'] }
+    ];
+
+    let count = 0;
+    pending.forEach((req, idx) => {
+      const room = (this.state.rooms || []).find(r => String(r.id) === String(req.roomNumber));
+      const floor = room ? String(room.floor) : '4';
+      const match = attendants.find(a => a.floors.includes(floor)) || attendants[idx % attendants.length];
+      this.assignHousekeepingRequest(req.id, match.name);
+      count++;
+    });
+
+    this.showToast(`Auto-dispatched ${count} incoming Front Desk request(s) to floor attendants.`, 'success');
+    this.notify();
+    return { dispatchedCount: count };
+  }
+
+  // Supervisor QA Inspection Action (Pass / Fail Rework Flow)
+  inspectRoom(roomNumber, { passed = true, score = 100, notes = '', inspector = 'Victoria S. (Executive Housekeeper)' } = {}) {
+    const room = (this.state.rooms || []).find(r => String(r.id) === String(roomNumber));
+    let task = (this.state.housekeepingTasks || []).find(t => String(t.roomNumber) === String(roomNumber));
+
+    if (passed) {
+      if (room) {
+        room.status = 'Inspected';
+        room.lastInspectedBy = inspector;
+        room.lastInspectedAt = new Date().toISOString();
+        room.inspectionScore = score;
+        delete room.deficiencies;
+      }
+      if (task) {
+        task.status = 'READY';
+        task.checklistDone = task.checklistTotal || 8;
+        task.inspectionScore = score;
+        task.inspector = inspector;
+        task.priority = 'NORMAL';
+        task.urgentReason = null;
+      }
+      this.showToast(`Room #${roomNumber} PASSED QA Inspection (${score}%). Marked READY for Front Desk Check-In.`, 'success');
+    } else {
+      if (room) {
+        room.status = 'Dirty';
+        room.inspectionScore = score;
+        room.deficiencies = notes || 'Failed inspection checklist standards';
+      }
+      if (task) {
+        task.status = 'FAILED';
+        task.priority = 'URGENT';
+        task.reworkNotes = notes;
+        task.urgentReason = `Inspection failed: ${notes}`;
+        task.inspector = inspector;
+      } else if (room) {
+        task = {
+          id: `hk-${Date.now()}-${room.id}`,
+          roomNumber: String(room.id),
+          floor: String(room.floor),
+          type: 'QA Rework / Priority Turnover',
+          priority: 'URGENT',
+          status: 'FAILED',
+          assignedTo: room.housekeeper || 'Elena Gomez',
+          credits: 2.0,
+          estimatedMin: 30,
+          checklistDone: 4,
+          checklistTotal: 8,
+          reworkNotes: notes,
+          urgentReason: `Inspection failed: ${notes}`,
+          createdAt: new Date().toISOString()
+        };
+        this.state.housekeepingTasks.unshift(task);
+      }
+      this.showToast(`Room #${roomNumber} FAILED QA Inspection. Marked DIRTY with urgent rework dispatched.`, 'error');
+    }
+
+    this.notify();
+    return { success: true, passed, room, task };
+  }
+
+  // Lost & Found Registry Actions
+  logLostAndFoundItem(itemData) {
+    if (!this.state.lostAndFound) {
+      this.state.lostAndFound = [];
+    }
+    const newItem = {
+      id: itemData.id || `LF-${Date.now().toString().slice(-4)}`,
+      name: itemData.name || itemData.itemName || itemData.item || 'Unspecified Item',
+      category: itemData.category || 'VALUABLES',
+      room: String(itemData.room || itemData.roomNumber || '402'),
+      guest: itemData.guest || 'Unassigned',
+      date: itemData.date || 'Today, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      staff: itemData.staff || itemData.foundBy || 'Housekeeping Attendant',
+      status: itemData.status || 'UNCLAIMED',
+      storage: itemData.storage || itemData.location || 'Locker Bank A'
+    };
+    this.state.lostAndFound.unshift(newItem);
+    this.showToast(`Logged item "${newItem.name}" (Ref: ${newItem.id}) into Lost & Found Registry`, 'success');
+    this.notify();
+    return newItem;
+  }
+
+  resolveLostAndFoundItem(itemId, status = 'RETURNED') {
+    if (!this.state.lostAndFound) return;
+    const item = this.state.lostAndFound.find(i => i.id === itemId);
+    if (item) {
+      item.status = status;
+      this.showToast(`Item ${item.name} (${itemId}) marked as ${status}`, 'success');
+      this.notify();
+    }
+  }
+
+  getLostAndFoundItems() {
+    return this.state.lostAndFound || [];
+  }
+
+  // ── Staff Members Management ─────────────────────────────────────────────
+  getHousekeepingStaff() {
+    return this.state.housekeepingStaff || [];
+  }
+
+  addHousekeepingStaff(staffData) {
+    if (!this.state.housekeepingStaff) this.state.housekeepingStaff = [];
+    const newStaff = {
+      id: `hk-staff-${Date.now().toString().slice(-4)}`,
+      name: staffData.name || 'Floor Attendant',
+      role: staffData.role || 'Floor Attendant',
+      initials: staffData.initials || (staffData.name ? staffData.name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2) : 'HK'),
+      primaryFloors: Array.isArray(staffData.primaryFloors) ? staffData.primaryFloors : ['4'],
+      maxCredits: Number(staffData.maxCredits) || 14.0,
+      onDuty: staffData.onDuty !== undefined ? Boolean(staffData.onDuty) : true,
+      shift: staffData.shift || 'Morning (07:00 - 15:30)',
+      phone: staffData.phone || '+1 (555) 000-0000',
+      email: staffData.email || `${(staffData.name || 'staff').toLowerCase().replace(/\s+/g, '.')}@grandmeridian.com`
+    };
+    this.state.housekeepingStaff.push(newStaff);
+    this.showToast(`Staff member "${newStaff.name}" added to roster.`, 'success');
+    this.notify();
+    return newStaff;
+  }
+
+  updateHousekeepingStaff(staffId, updates) {
+    if (!this.state.housekeepingStaff) return null;
+    const staff = this.state.housekeepingStaff.find(s => s.id === staffId);
+    if (staff) {
+      Object.assign(staff, updates);
+      if (updates.name && !updates.initials) {
+        staff.initials = updates.name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
+      }
+      this.showToast(`Staff member "${staff.name}" profile updated.`, 'info');
+      this.notify();
+    }
+    return staff;
+  }
+
+  deleteHousekeepingStaff(staffId) {
+    if (!this.state.housekeepingStaff) return false;
+    const idx = this.state.housekeepingStaff.findIndex(s => s.id === staffId);
+    if (idx !== -1) {
+      const removed = this.state.housekeepingStaff.splice(idx, 1)[0];
+      this.showToast(`Staff member "${removed.name}" removed from roster.`, 'info');
+      this.notify();
+      return true;
+    }
+    return false;
+  }
+
+  toggleStaffDutyStatus(staffId) {
+    if (!this.state.housekeepingStaff) return null;
+    const staff = this.state.housekeepingStaff.find(s => s.id === staffId);
+    if (staff) {
+      staff.onDuty = !staff.onDuty;
+      this.showToast(`${staff.name} is now marked ${staff.onDuty ? 'ON DUTY' : 'OFF DUTY'}.`, 'info');
+      this.notify();
+    }
+    return staff;
+  }
+
+  getStaffActiveAssignments(staffName) {
+    const rooms = (this.state.rooms || []).filter(r => r.housekeeper === staffName || (r.housekeeper && r.housekeeper.toLowerCase().includes(staffName.toLowerCase())));
+    const tasks = (this.state.housekeepingTasks || []).filter(t => t.assignedTo === staffName || (t.assignedTo && t.assignedTo.toLowerCase().includes(staffName.toLowerCase())));
+    const requests = (this.state.housekeepingRequests || []).filter(r => (r.assignedTo === staffName || (r.assignedTo && r.assignedTo.toLowerCase().includes(staffName.toLowerCase()))) && r.status !== 'Completed');
+    return { rooms, tasks, requests };
   }
 
   // Room Status & Staff Assignment Unified Method
@@ -2456,6 +2952,741 @@ class VolvitechStore {
   getStaffTotalRooms(staffName) {
     const rooms = (this.state.rooms || []).filter(r => r.housekeeper === staffName);
     return rooms.length;
+  }
+
+  // ── HOUSEKEEPING SHIFT TIME SLOTS & HOUSE STATUS DUAL TELEMETRY ───────────
+
+  getHousekeepingShiftTimeSlots() {
+    return this.state.shiftTimeSlots || [];
+  }
+
+  getCurrentShift() {
+    const currentId = this.state.currentShiftId || 'shift-morning';
+    return (this.state.shiftTimeSlots || []).find(s => s.id === currentId) || this.state.shiftTimeSlots?.[0] || null;
+  }
+
+  setCurrentShift(shiftId) {
+    const target = (this.state.shiftTimeSlots || []).find(s => s.id === shiftId);
+    if (target) {
+      this.state.currentShiftId = shiftId;
+      this.showToast(`Active Housekeeping Shift switched to ${target.name} (${target.startTime} – ${target.endTime})`, 'info');
+      this.notify();
+    }
+  }
+
+  addShiftHandoverNote({ shiftId, note, author = 'Supervisor' }) {
+    if (!note || !note.trim()) return null;
+    const newNote = {
+      id: `ho-${Date.now()}`,
+      shiftId: shiftId || this.state.currentShiftId || 'shift-morning',
+      author: author || 'Lead Supervisor',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      date: new Date().toISOString().split('T')[0],
+      note: note.trim()
+    };
+    if (!this.state.shiftHandoverNotes) {
+      this.state.shiftHandoverNotes = [];
+    }
+    this.state.shiftHandoverNotes.unshift(newNote);
+    this.showToast(`Handover note recorded for ${newNote.author}`, 'success');
+    this.notify();
+    return newNote;
+  }
+
+  updateShiftTimeSlot(shiftId, updates) {
+    const slot = (this.state.shiftTimeSlots || []).find(s => s.id === shiftId);
+    if (slot) {
+      Object.assign(slot, updates);
+      this.notify();
+    }
+  }
+
+  getRoomCombinedStatus(roomId) {
+    const room = (this.state.rooms || []).find(r => String(r.id) === String(roomId) || String(r.roomNumber) === String(roomId));
+    if (!room) return null;
+
+    const roomNumStr = String(room.roomNumber || room.id);
+    const activeTickets = (this.state.maintenanceTickets || []).filter(t => {
+      if (t.status === 'Resolved' || t.status === 'Closed') return false;
+      const target = String(t.roomOrArea || '').toLowerCase();
+      return target.includes(roomNumStr.toLowerCase()) || target.includes(`room ${roomNumStr.toLowerCase()}`);
+    });
+
+    const isOOO = room.status === 'Out of Order' || room.outOfOrder || activeTickets.some(t => t.priority === 'Critical');
+    
+    let maintenanceStatus = 'Operational';
+    let maintenanceBadgeClass = 'emerald';
+    let primaryTicket = null;
+
+    if (isOOO) {
+      maintenanceStatus = 'Out of Order';
+      maintenanceBadgeClass = 'rose';
+      primaryTicket = activeTickets[0] || null;
+    } else if (activeTickets.length > 0) {
+      maintenanceStatus = 'Work Order Open';
+      maintenanceBadgeClass = 'amber';
+      primaryTicket = activeTickets[0];
+    }
+
+    const cleanlinessStatus = room.status; // 'Clean' | 'Dirty' | 'In Progress' | 'Inspected' | 'Out of Order'
+    const isReadyForCheckIn = (cleanlinessStatus === 'Inspected' || cleanlinessStatus === 'Clean') && maintenanceStatus === 'Operational';
+
+    return {
+      room,
+      roomId: roomNumStr,
+      roomNumber: roomNumStr,
+      floor: room.floor,
+      type: room.type,
+      occupancy: room.occupancy,
+      guest: room.guest,
+      vip: room.vip,
+      dnd: room.dnd,
+      cleaningSlot: room.cleaningSlot || null,
+      lastAttemptNotice: room.lastAttemptNotice || null,
+      serviceAttempts: room.serviceAttempts || [],
+      housekeepingRequested: room.housekeepingRequested || false,
+      housekeeper: room.housekeeper || 'Unassigned',
+      cleanlinessStatus,
+      maintenanceStatus,
+      maintenanceBadgeClass,
+      activeTickets,
+      primaryTicket,
+      isReadyForCheckIn,
+      isOOO
+    };
+  }
+
+  // ── IN-ROOM GUEST TABLET & KNOCK-ENTRY PROTOCOL ACTIONS ──────────────────
+
+  scheduleRoomCleaningSlot(roomId, slotData) {
+    const room = (this.state.rooms || []).find(r => String(r.id) === String(roomId) || String(r.roomNumber) === String(roomId));
+    if (!room) return null;
+
+    room.cleaningSlot = {
+      label: slotData.label || 'Custom Window',
+      startTime: slotData.startTime || '11:00',
+      endTime: slotData.endTime || '12:30',
+      requestedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      preferences: slotData.preferences || []
+    };
+
+    // Clear missed attempt notice once a new slot is picked
+    room.lastAttemptNotice = null;
+
+    this.showToast(`Cleaning slot scheduled for Room ${room.roomNumber || room.id}: ${room.cleaningSlot.startTime} – ${room.cleaningSlot.endTime}`, 'success');
+    this.notify();
+    return room.cleaningSlot;
+  }
+
+  requestRoomHousekeepingOnDemand(roomId, preferences = []) {
+    const room = (this.state.rooms || []).find(r => String(r.id) === String(roomId) || String(r.roomNumber) === String(roomId));
+    if (!room) return null;
+
+    room.housekeepingRequested = true;
+    room.dnd = false; // Requesting cleaning disables DND
+    room.lastAttemptNotice = null;
+
+    const newReq = {
+      id: `hkr-${Date.now().toString().slice(-4)}`,
+      roomId: String(room.roomNumber || room.id),
+      roomNumber: String(room.roomNumber || room.id),
+      type: 'On-Demand Cleaning (Tablet Request)',
+      priority: 'High',
+      status: 'Pending',
+      guestName: room.guest || 'In-House Guest',
+      notes: preferences.length > 0 ? `Preferences: ${preferences.join(', ')}` : 'Guest requested immediate service via in-room tablet',
+      requestedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      assignedTo: room.housekeeper || 'Unassigned'
+    };
+
+    if (!this.state.housekeepingRequests) {
+      this.state.housekeepingRequests = [];
+    }
+    this.state.housekeepingRequests.unshift(newReq);
+
+    this.showToast(`Immediate housekeeping requested for Room ${room.roomNumber || room.id}`, 'success');
+    this.notify();
+    return newReq;
+  }
+
+  toggleRoomDND(roomId) {
+    const room = (this.state.rooms || []).find(r => String(r.id) === String(roomId) || String(r.roomNumber) === String(roomId));
+    if (!room) return false;
+
+    room.dnd = !room.dnd;
+    const isDND = room.dnd;
+    this.showToast(
+      isDND ? `Room ${room.roomNumber || room.id} set to DO NOT DISTURB (Privacy Active)` : `Room ${room.roomNumber || room.id} DND turned off`,
+      isDND ? 'warning' : 'info'
+    );
+    this.notify();
+    return isDND;
+  }
+
+  recordRoomServiceAttempt(roomId, { outcome, attendant = 'Floor Attendant', notes = '' }) {
+    const room = (this.state.rooms || []).find(r => String(r.id) === String(roomId) || String(r.roomNumber) === String(roomId));
+    if (!room) return null;
+
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const attemptRecord = {
+      id: `att-${Date.now()}`,
+      timestamp: timeStr,
+      date: new Date().toISOString().split('T')[0],
+      attendant,
+      outcome, // 'NO_RESPONSE' | 'GUEST_ANSWERED_ENTER' | 'DND_BLOCKED'
+      notes: notes || (outcome === 'NO_RESPONSE' ? 'Attendant knocked x3. No response. Entry deferred to respect guest privacy.' : 'Service entry recorded')
+    };
+
+    if (!room.serviceAttempts) {
+      room.serviceAttempts = [];
+    }
+    room.serviceAttempts.unshift(attemptRecord);
+
+    if (outcome === 'NO_RESPONSE') {
+      // STRICT PROTOCOL: Attendant cannot enter if no response!
+      room.lastAttemptNotice = {
+        time: timeStr,
+        attendant,
+        status: 'No Response',
+        message: `We knocked at ${timeStr} for daily housekeeping. To protect your privacy, we did not enter. Please schedule a time slot or request service whenever convenient.`
+      };
+      this.showToast(`Knock protocol logged: No response at Room ${room.roomNumber || room.id}. Entry strictly deferred to protect guest privacy.`, 'warning');
+    } else if (outcome === 'GUEST_ANSWERED_ENTER') {
+      room.lastAttemptNotice = null;
+      room.status = 'In Progress';
+      this.showToast(`Guest granted entry at Room ${room.roomNumber || room.id}. Cleaning commenced.`, 'success');
+    } else if (outcome === 'DND_BLOCKED') {
+      this.showToast(`Entry blocked at Room ${room.roomNumber || room.id}: Do Not Disturb is active.`, 'error');
+    }
+
+    this.notify();
+    return attemptRecord;
+  }
+
+  // ── LINEN, LAUNDRY & CONSUMABLES TRACKING ────────────────────────────────
+
+  getLinenInventory() {
+    if (!this.state.linenInventory) {
+      this.state.linenInventory = getInitialState().linenInventory;
+    }
+    return this.state.linenInventory;
+  }
+
+  getDailyLinenConsumption() {
+    if (!this.state.dailyLinenConsumption) {
+      this.state.dailyLinenConsumption = [];
+    }
+    const logs = this.state.dailyLinenConsumption;
+
+    let totalBathTowels = 0;
+    let totalHandTowels = 0;
+    let totalWashcloths = 0;
+    let totalBathMats = 0;
+
+    let totalFittedSheets = 0;
+    let totalDuvetCovers = 0;
+    let totalPillowcases = 0;
+
+    let totalShampoos = 0;
+    let totalConditioners = 0;
+    let totalBodyWashes = 0;
+    let totalSoaps = 0;
+    let totalDentalKits = 0;
+    let totalShavingKits = 0;
+    let totalVanityKits = 0;
+
+    logs.forEach(log => {
+      if (log.towelsChanged) {
+        totalBathTowels += Number(log.towelsChanged.bathTowels || 0);
+        totalHandTowels += Number(log.towelsChanged.handTowels || 0);
+        totalWashcloths += Number(log.towelsChanged.washcloths || 0);
+        totalBathMats += Number(log.towelsChanged.bathMats || 0);
+      }
+      if (log.sheetsChanged) {
+        totalFittedSheets += Number(log.sheetsChanged.fittedSheets || 0);
+        totalDuvetCovers += Number(log.sheetsChanged.duvetCovers || 0);
+        totalPillowcases += Number(log.sheetsChanged.pillowcases || 0);
+      }
+      if (log.amenitiesRefilled) {
+        totalShampoos += Number(log.amenitiesRefilled.shampoo || 0);
+        totalConditioners += Number(log.amenitiesRefilled.conditioner || 0);
+        totalBodyWashes += Number(log.amenitiesRefilled.bodyWash || 0);
+        totalSoaps += Number(log.amenitiesRefilled.soap || 0);
+        totalDentalKits += Number(log.amenitiesRefilled.dentalKit || 0);
+        totalShavingKits += Number(log.amenitiesRefilled.shavingKit || 0);
+        totalVanityKits += Number(log.amenitiesRefilled.vanityKit || 0);
+      }
+    });
+
+    const totalTowels = totalBathTowels + totalHandTowels + totalWashcloths + totalBathMats;
+    const totalSheets = totalFittedSheets + totalDuvetCovers + totalPillowcases;
+    const totalAmenities = totalShampoos + totalConditioners + totalBodyWashes + totalSoaps + totalDentalKits + totalShavingKits + totalVanityKits;
+
+    return {
+      logs,
+      totals: {
+        totalTowels,
+        totalBathTowels,
+        totalHandTowels,
+        totalWashcloths,
+        totalBathMats,
+        totalSheets,
+        totalFittedSheets,
+        totalDuvetCovers,
+        totalPillowcases,
+        totalAmenities,
+        totalShampoos,
+        totalConditioners,
+        totalBodyWashes,
+        totalSoaps,
+        totalDentalKits,
+        totalShavingKits,
+        totalVanityKits
+      }
+    };
+  }
+
+  getLaundryBatches() {
+    return this.state.laundryBatches || [];
+  }
+
+  recordRoomLinenTurnover(roomId, { cleanType = 'Departure Turnover (Full Strip)', itemsChanged = null, attendant = null, notes = '' } = {}) {
+    const room = (this.state.rooms || []).find(r => String(r.id) === String(roomId) || String(r.roomNumber) === String(roomId));
+    const roomType = room ? room.type : 'Deluxe Room';
+    const isSuite = roomType.toLowerCase().includes('suite') || roomType.toLowerCase().includes('penthouse');
+    const isDeparture = cleanType.toLowerCase().includes('departure') || cleanType.toLowerCase().includes('full');
+
+    const towelsChanged = itemsChanged?.towelsChanged || (isDeparture ? {
+      bathTowels: isSuite ? 4 : 2,
+      handTowels: 2,
+      washcloths: 2,
+      bathMats: isSuite ? 2 : 1
+    } : {
+      bathTowels: 2,
+      handTowels: 1,
+      washcloths: 0,
+      bathMats: 0
+    });
+
+    const sheetsChanged = itemsChanged?.sheetsChanged || (isDeparture ? {
+      fittedSheets: 1,
+      duvetCovers: 1,
+      pillowcases: isSuite ? 4 : 2
+    } : {
+      fittedSheets: 0,
+      duvetCovers: 0,
+      pillowcases: 0
+    });
+
+    const amenitiesRefilled = itemsChanged?.amenitiesRefilled || (isDeparture ? {
+      shampoo: isSuite ? 2 : 1,
+      conditioner: isSuite ? 2 : 1,
+      bodyWash: isSuite ? 2 : 1,
+      soap: isSuite ? 2 : 1,
+      dentalKit: isSuite ? 2 : 1,
+      shavingKit: isSuite ? 1 : 0,
+      vanityKit: isSuite ? 1 : 0
+    } : {
+      shampoo: 1,
+      conditioner: 0,
+      bodyWash: 1,
+      soap: 1,
+      dentalKit: 0,
+      shavingKit: 0,
+      vanityKit: 0
+    });
+
+    const newLog = {
+      id: `lc-${Date.now().toString().slice(-4)}`,
+      roomId: String(roomId),
+      roomType,
+      cleanType,
+      attendant: attendant || (room ? room.housekeeper : 'Floor Attendant') || 'Floor Attendant',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      notes,
+      towelsChanged,
+      sheetsChanged,
+      amenitiesRefilled
+    };
+
+    if (!this.state.dailyLinenConsumption) {
+      this.state.dailyLinenConsumption = [];
+    }
+    this.state.dailyLinenConsumption.unshift(newLog);
+
+    // Adjust inventory in state.linenInventory
+    const inv = this.getLinenInventory();
+
+    // Adjust Towels
+    const bathTowelItem = inv.towels.find(t => t.id === 't-bath');
+    if (bathTowelItem && towelsChanged.bathTowels) {
+      bathTowelItem.cleanInPantries = Math.max(0, bathTowelItem.cleanInPantries - towelsChanged.bathTowels);
+      bathTowelItem.dirtyAwaitingLaundry += towelsChanged.bathTowels;
+    }
+    const handTowelItem = inv.towels.find(t => t.id === 't-hand');
+    if (handTowelItem && towelsChanged.handTowels) {
+      handTowelItem.cleanInPantries = Math.max(0, handTowelItem.cleanInPantries - towelsChanged.handTowels);
+      handTowelItem.dirtyAwaitingLaundry += towelsChanged.handTowels;
+    }
+    const washclothItem = inv.towels.find(t => t.id === 't-face');
+    if (washclothItem && towelsChanged.washcloths) {
+      washclothItem.cleanInPantries = Math.max(0, washclothItem.cleanInPantries - towelsChanged.washcloths);
+      washclothItem.dirtyAwaitingLaundry += towelsChanged.washcloths;
+    }
+    const matItem = inv.towels.find(t => t.id === 't-mat');
+    if (matItem && towelsChanged.bathMats) {
+      matItem.cleanInPantries = Math.max(0, matItem.cleanInPantries - towelsChanged.bathMats);
+      matItem.dirtyAwaitingLaundry += towelsChanged.bathMats;
+    }
+
+    // Adjust Bed Linens
+    const sheetItem = inv.bedLinens.find(b => b.id === 'b-sheet-king');
+    if (sheetItem && sheetsChanged.fittedSheets) {
+      sheetItem.cleanInPantries = Math.max(0, sheetItem.cleanInPantries - sheetsChanged.fittedSheets);
+      sheetItem.dirtyAwaitingLaundry += sheetsChanged.fittedSheets;
+    }
+    const duvetItem = inv.bedLinens.find(b => b.id === 'b-duvet-king');
+    if (duvetItem && sheetsChanged.duvetCovers) {
+      duvetItem.cleanInPantries = Math.max(0, duvetItem.cleanInPantries - sheetsChanged.duvetCovers);
+      duvetItem.dirtyAwaitingLaundry += sheetsChanged.duvetCovers;
+    }
+    const pillowItem = inv.bedLinens.find(b => b.id === 'b-pillowcase');
+    if (pillowItem && sheetsChanged.pillowcases) {
+      pillowItem.cleanInPantries = Math.max(0, pillowItem.cleanInPantries - sheetsChanged.pillowcases);
+      pillowItem.dirtyAwaitingLaundry += sheetsChanged.pillowcases;
+    }
+
+    // Adjust Amenities
+    const updateAmenity = (id, count) => {
+      const item = inv.bathroomAmenities.find(a => a.id === id);
+      if (item && count) {
+        item.stockAvailable = Math.max(0, item.stockAvailable - count);
+        item.consumedToday = (item.consumedToday || 0) + count;
+      }
+    };
+    updateAmenity('a-shampoo', amenitiesRefilled.shampoo);
+    updateAmenity('a-conditioner', amenitiesRefilled.conditioner);
+    updateAmenity('a-bodywash', amenitiesRefilled.bodyWash);
+    updateAmenity('a-soap', amenitiesRefilled.soap);
+    updateAmenity('a-dental', amenitiesRefilled.dentalKit);
+    updateAmenity('a-shaving', amenitiesRefilled.shavingKit);
+    updateAmenity('a-vanity', amenitiesRefilled.vanityKit);
+
+    this.showToast(`Linen & amenities logged for Room #${roomId} (${cleanType})`, 'info');
+    this.notify();
+    return newLog;
+  }
+
+  sendLinensToLaundry({ piecesCount = 50, breakdown = 'Assorted soiled linens and towels', vendor = 'Riviera Commercial Eco-Laundry Ltd.', weightKg = 30.0, notes = '' } = {}) {
+    if (!this.state.laundryBatches) {
+      this.state.laundryBatches = [];
+    }
+    const batchNumber = (this.state.laundryBatches.length + 82);
+    const newBatch = {
+      id: `LND-${Date.now().toString().slice(-6)}`,
+      code: `BATCH #${batchNumber}`,
+      status: 'In Laundry (Washing & Pressing)',
+      sentTime: `Today ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+      expectedReturn: 'Today +4h',
+      vendor,
+      totalPieces: Number(piecesCount) || 50,
+      breakdown,
+      weightKg: Number(weightKg) || 28.5,
+      dispatchedBy: 'Victoria S. (Executive HK)',
+      notes
+    };
+    this.state.laundryBatches.unshift(newBatch);
+
+    const inv = this.getLinenInventory();
+    const count = Number(piecesCount) || 50;
+    inv.towels.forEach(t => {
+      const move = Math.min(t.dirtyAwaitingLaundry, Math.max(1, Math.floor(count / 6)));
+      t.dirtyAwaitingLaundry -= move;
+      t.inLaundryCycle += move;
+    });
+    inv.bedLinens.forEach(b => {
+      const move = Math.min(b.dirtyAwaitingLaundry, Math.max(1, Math.floor(count / 8)));
+      b.dirtyAwaitingLaundry -= move;
+      b.inLaundryCycle += move;
+    });
+
+    this.showToast(`Laundry Batch "${newBatch.code}" dispatched (${newBatch.totalPieces} pieces).`, 'success');
+    this.notify();
+    return newBatch;
+  }
+
+  receiveCleanLinenBatch(batchId) {
+    if (!this.state.laundryBatches) return null;
+    const batch = this.state.laundryBatches.find(b => b.id === batchId || b.code === batchId);
+    if (!batch) return null;
+
+    batch.status = 'Completed & Delivered';
+    batch.receivedTime = `Today ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+    const inv = this.getLinenInventory();
+    const count = Number(batch.totalPieces) || 50;
+    inv.towels.forEach(t => {
+      const move = Math.min(t.inLaundryCycle, Math.max(1, Math.floor(count / 6)));
+      t.inLaundryCycle -= move;
+      t.cleanInPantries += move;
+    });
+    inv.bedLinens.forEach(b => {
+      const move = Math.min(b.inLaundryCycle, Math.max(1, Math.floor(count / 8)));
+      b.inLaundryCycle -= move;
+      b.cleanInPantries += move;
+    });
+
+    this.showToast(`Clean delivery received for ${batch.code} (${batch.totalPieces} pcs restocked).`, 'success');
+    this.notify();
+    return batch;
+  }
+
+  // ── HOUSEKEEPING TO CENTRAL INVENTORY REQUISITIONS ───────────────────────
+  
+  requestSuppliesFromInventory({
+    category = 'Amenities',
+    itemId,
+    itemName,
+    quantity = 50,
+    unit = 'pcs',
+    destination = 'Floor 4 Service Pantry',
+    urgency = 'Normal',
+    requestedBy = 'Victoria S. (Executive Housekeeper)',
+    justification = ''
+  } = {}) {
+    if (!this.state.purchaseRequisitions) {
+      this.state.purchaseRequisitions = [];
+    }
+
+    const estUnitCosts = {
+      'Diptyque Philosykos Shampoo (50ml)': 4.50,
+      'Diptyque Nourishing Conditioner (50ml)': 4.50,
+      'Diptyque Refreshing Body Wash (50ml)': 4.20,
+      'Artisanal Shea Butter Hand Soap (40g)': 2.00,
+      'Bamboo Dental Kit w/ Marvis Toothpaste': 3.50,
+      'Executive Shaving Kit & Cream': 4.00,
+      'Cotton Vanity & Sewing Kit': 2.50,
+      'Bath Towel (Plush 700 GSM)': 24.00,
+      'Hand Towel (Combed Cotton)': 12.00,
+      'Face Cloth / Washcloth': 6.00,
+      'Bath Mat (Heavyweight)': 16.00,
+      'King Fitted Sheet (400TC Egyptian Cotton)': 45.00,
+      'King Duvet Cover (Sateen Stripe)': 65.00,
+      'Standard Pillowcase (Goose Down Casing)': 18.00,
+      'Single/Twin Flat Sheet': 35.00
+    };
+
+    const resolvedName = itemName || (itemId ? this.getAmenityOrLinenName(itemId) : 'Housekeeping Supplies');
+    const unitCost = estUnitCosts[resolvedName] || 5.00;
+    const qty = Math.max(1, Number(quantity) || 50);
+    const estTotal = +(qty * unitCost).toFixed(2);
+    const prNum = `PR-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const newPR = {
+      id: `pr-${Date.now().toString().slice(-4)}`,
+      prNumber: prNum,
+      storeCode: 'HK-STORE',
+      department: 'Housekeeping',
+      requestedBy: requestedBy || 'Victoria S. (Executive Housekeeper)',
+      createdAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+      status: 'Pending GM Approval',
+      urgency: urgency || 'Normal',
+      destination: destination || 'Central HK Depot / Floor Pantries',
+      items: [
+        {
+          sku: itemId ? `HK-${String(itemId).toUpperCase()}` : 'HK-SUPPLY',
+          name: resolvedName,
+          qty: qty,
+          unit: unit,
+          estUnitCost: unitCost,
+          totalCost: estTotal
+        }
+      ],
+      totalAmount: estTotal,
+      justification: justification || `Requisition from Housekeeping for ${destination}. Stock required for guest turnover par.`
+    };
+
+    this.state.purchaseRequisitions.unshift(newPR);
+    this.showToast(`Requisition ${prNum} dispatched to Central Inventory: ${qty} ${unit} of ${resolvedName}.`, 'success');
+    this.notify();
+    return newPR;
+  }
+
+  getHousekeepingRequisitions() {
+    return (this.state.purchaseRequisitions || []).filter(pr => pr.department === 'Housekeeping');
+  }
+
+  fulfillHousekeepingRequisition(prId) {
+    const pr = (this.state.purchaseRequisitions || []).find(p => p.id === prId || p.prNumber === prId);
+    if (!pr) return null;
+
+    pr.status = 'Dispatched to HK Pantry';
+    pr.dispatchedAt = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    pr.dispatchedBy = 'Central Stores Manager';
+
+    // Increment Housekeeping inventory
+    const inv = this.getLinenInventory();
+    if (pr.items && Array.isArray(pr.items)) {
+      pr.items.forEach(item => {
+        const itemLower = (item.name || '').toLowerCase();
+        
+        // 1. Check Bathroom Amenities
+        const amen = inv.bathroomAmenities.find(a => 
+          itemLower.includes(a.name.toLowerCase()) || 
+          a.name.toLowerCase().includes(itemLower) ||
+          (item.sku && a.id && item.sku.toLowerCase().includes(a.id.toLowerCase()))
+        );
+        if (amen) {
+          amen.stockAvailable += item.qty;
+          return;
+        }
+
+        // 2. Check Towels
+        const towel = inv.towels.find(t => 
+          itemLower.includes(t.name.toLowerCase()) || 
+          t.name.toLowerCase().includes(itemLower) ||
+          (item.sku && t.id && item.sku.toLowerCase().includes(t.id.toLowerCase()))
+        );
+        if (towel) {
+          towel.cleanInPantries += item.qty;
+          return;
+        }
+
+        // 3. Check Bed Linens
+        const linen = inv.bedLinens.find(b => 
+          itemLower.includes(b.name.toLowerCase()) || 
+          b.name.toLowerCase().includes(itemLower) ||
+          (item.sku && b.id && item.sku.toLowerCase().includes(b.id.toLowerCase()))
+        );
+        if (linen) {
+          linen.cleanInPantries += item.qty;
+          return;
+        }
+      });
+    }
+
+    this.showToast(`Supplies for ${pr.prNumber} fulfilled and dispatched to ${pr.destination || 'Housekeeping'}!`, 'success');
+    this.notify();
+    return pr;
+  }
+
+  getAmenityOrLinenName(itemId) {
+    const inv = this.getLinenInventory();
+    const all = [
+      ...inv.bathroomAmenities,
+      ...inv.towels,
+      ...inv.bedLinens
+    ];
+    const match = all.find(i => i.id === itemId);
+    return match ? match.name : itemId;
+  }
+
+  restockAmenitySupplies(itemId, quantity = 50, notes = '') {
+    const inv = this.getLinenInventory();
+    const item = inv.bathroomAmenities.find(a => a.id === itemId);
+    if (item) {
+      item.stockAvailable += Number(quantity);
+      this.showToast(`Restocked ${quantity} ${item.unit} of "${item.name}".`, 'success');
+      this.notify();
+      return item;
+    }
+    return null;
+  }
+
+  updateRoomLinenConsumptionLog(logId, updates) {
+    if (!this.state.dailyLinenConsumption) return null;
+    const log = this.state.dailyLinenConsumption.find(l => l.id === logId);
+    if (!log) return null;
+
+    if (updates.cleanType) log.cleanType = updates.cleanType;
+    if (updates.attendant) log.attendant = updates.attendant;
+    if (updates.notes !== undefined) log.notes = updates.notes;
+    if (updates.timestamp) log.timestamp = updates.timestamp;
+    if (updates.roomType) log.roomType = updates.roomType;
+    if (updates.roomId) log.roomId = updates.roomId;
+
+    if (updates.towelsChanged) {
+      log.towelsChanged = {
+        ...log.towelsChanged,
+        ...updates.towelsChanged
+      };
+    }
+    if (updates.sheetsChanged) {
+      log.sheetsChanged = {
+        ...log.sheetsChanged,
+        ...updates.sheetsChanged
+      };
+    }
+    if (updates.amenitiesRefilled) {
+      log.amenitiesRefilled = {
+        ...log.amenitiesRefilled,
+        ...updates.amenitiesRefilled
+      };
+    }
+
+    this.showToast(`Consumption log for Room #${log.roomId} updated.`, 'info');
+    this.notify();
+    return log;
+  }
+
+  deleteRoomLinenConsumptionLog(logId) {
+    if (!this.state.dailyLinenConsumption) return false;
+    const idx = this.state.dailyLinenConsumption.findIndex(l => l.id === logId);
+    if (idx !== -1) {
+      const removed = this.state.dailyLinenConsumption.splice(idx, 1)[0];
+      this.showToast(`Turnover entry for Room #${removed.roomId} removed from audit.`, 'info');
+      this.notify();
+      return true;
+    }
+    return false;
+  }
+
+  updateLinenInventoryItem(category, itemId, updates) {
+    const inv = this.getLinenInventory();
+    if (!inv || !inv[category]) return null;
+    const item = inv[category].find(i => i.id === itemId);
+    if (item) {
+      Object.assign(item, updates);
+      this.showToast(`Stock configuration for "${item.name}" updated.`, 'info');
+      this.notify();
+      return item;
+    }
+    return null;
+  }
+
+  reportRoomMaintenanceDefect({ roomId, issueType, description, priority = 'High', reportedBy = 'Housekeeping Attendant' }) {
+    const room = (this.state.rooms || []).find(r => String(r.id) === String(roomId) || String(r.roomNumber) === String(roomId));
+    const roomNumStr = room ? String(room.roomNumber || room.id) : String(roomId);
+    
+    const newTicket = {
+      id: `maint-${Date.now().toString().slice(-4)}`,
+      roomOrArea: `Room ${roomNumStr}`,
+      assetName: issueType || 'Room Fixture / Appliance',
+      assetCode: `DEF-${roomNumStr}-${Date.now().toString().slice(-3)}`,
+      category: issueType || 'Housekeeping Defect',
+      priority: priority || 'High',
+      slaMinutesRemaining: priority === 'Critical' ? 45 : priority === 'High' ? 90 : 180,
+      reportedBy: reportedBy || 'Housekeeping Attendant',
+      assignedEngineer: 'Engineering On-Call Team',
+      description: description || `Defect flagged during housekeeping turnover in Room ${roomNumStr}`,
+      status: 'Pending',
+      partsUsed: [],
+      createdAt: new Date().toISOString().replace('T', ' ').substring(0, 16)
+    };
+
+    if (!this.state.maintenanceTickets) {
+      this.state.maintenanceTickets = [];
+    }
+    this.state.maintenanceTickets.unshift(newTicket);
+
+    if (priority === 'Critical' && room) {
+      room.status = 'Out of Order';
+    }
+
+    this.showToast(`Maintenance Work Order ${newTicket.id} dispatched to Engineering for Room ${roomNumStr}`, 'warning');
+    this.notify();
+    return newTicket;
   }
 
   // WORKFLOW 3: Maintenance Ticket Logged -> SLA Countdown -> Resolution
@@ -2632,6 +3863,34 @@ class VolvitechStore {
           stk.status = 'Healthy';
         }
       });
+
+      // If Housekeeping PR, also restock linenInventory
+      if (pr.department === 'Housekeeping') {
+        const inv = this.getLinenInventory();
+        pr.items.forEach(item => {
+          const itemLower = (item.name || '').toLowerCase();
+          const amen = inv.bathroomAmenities.find(a => 
+            itemLower.includes(a.name.toLowerCase()) || 
+            a.name.toLowerCase().includes(itemLower) ||
+            (item.sku && a.id && item.sku.toLowerCase().includes(a.id.toLowerCase()))
+          );
+          if (amen) amen.stockAvailable += item.qty;
+
+          const towel = inv.towels.find(t => 
+            itemLower.includes(t.name.toLowerCase()) || 
+            t.name.toLowerCase().includes(itemLower) ||
+            (item.sku && t.id && item.sku.toLowerCase().includes(t.id.toLowerCase()))
+          );
+          if (towel) towel.cleanInPantries += item.qty;
+
+          const linen = inv.bedLinens.find(b => 
+            itemLower.includes(b.name.toLowerCase()) || 
+            b.name.toLowerCase().includes(itemLower) ||
+            (item.sku && b.id && item.sku.toLowerCase().includes(b.id.toLowerCase()))
+          );
+          if (linen) linen.cleanInPantries += item.qty;
+        });
+      }
     }
 
     this.showToast(`Goods received for ${po.poNumber}. 3-Way Match verified and inventory incremented.`, 'success');

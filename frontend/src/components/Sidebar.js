@@ -40,29 +40,23 @@ export function renderSidebar(state) {
       },
     ];
   } else if (isHousekeeping) {
+    const dirtyRoomsCount = (state.rooms || []).filter(r => r.status === 'Dirty' || r.status === 'DIRTY').length;
+    const pendingRequests = (state.housekeepingRequests || []).filter(r => 
+      r.status === 'Unassigned' || r.status === 'Pending' || !r.assignedTo || r.assignedTo.includes('Unassigned')
+    );
+    const pendingCount = pendingRequests.length;
+    const onDutyStaffCount = (state.housekeepingStaff || []).filter(s => s.onDuty).length;
+    const openMaintCount = (state.maintenanceTickets || []).filter(t => t.status !== 'Resolved' && t.status !== 'Closed').length;
+
     navSections = [
       {
-        title: 'OVERVIEW',
+        title: 'HOUSEKEEPING',
         items: [
-          { id: 'housekeeping', label: 'Housekeeping Board', icon: 'cleaning_services' },
-        ],
-      },
-      {
-        title: 'OPERATIONS',
-        items: [
-          { id: 'hk_tasks', label: 'Cleaning Tasks', icon: 'checklist' },
-          { id: 'hk_inspections', label: 'Room Inspections', icon: 'verified' },
-          { id: 'hk_requests', label: 'Guest Requests', icon: 'room_service' },
-          { id: 'hk_lostfound', label: 'Lost & Found', icon: 'inventory_2' },
-        ],
-      },
-      {
-        title: 'ROOM INTEGRATION',
-        items: [
-          { id: 'house_status', label: 'House Status', icon: 'grid_view' },
-          { id: 'room_master', label: 'Room Master', icon: 'meeting_room' },
-          { id: 'inventory', label: 'Room Board', icon: 'table_chart' },
-          { id: 'maintenance', label: 'Maintenance', icon: 'engineering' },
+          { id: 'housekeeping', label: 'Dashboard', icon: 'dashboard', badge: dirtyRoomsCount ? `${dirtyRoomsCount} dirty` : null },
+          { id: 'hk_dispatch', label: 'Live Dispatch', icon: 'bolt', badge: pendingCount ? `${pendingCount} new` : null },
+          { id: 'hk_staff', label: 'Staff Members', icon: 'badge', badge: onDutyStaffCount ? `${onDutyStaffCount} on duty` : null },
+          { id: 'hk_house_status', label: 'House Status', icon: 'grid_view', badge: openMaintCount ? `${openMaintCount} maint` : null },
+          { id: 'hk_linen', label: 'Linen & Laundry', icon: 'local_laundry_service' },
         ],
       },
     ];
@@ -70,6 +64,7 @@ export function renderSidebar(state) {
     const arrivalsCount = (state.reservations || []).filter(r => r.status === 'Confirmed' || r.status === 'ARRIVED').length;
     const inHouseCount = (state.activeCheckedInGuests || []).length || (state.reservations || []).filter(r => r.status === 'Checked In' || r.status === 'IN_HOUSE').length;
     const pendingServicesCount = (state.serviceRequests || []).filter(s => s.status === 'Pending').length;
+    const dirtyRoomsCount = (state.rooms || []).filter(r => r.status === 'Dirty' || r.status === 'DIRTY').length;
 
     navSections = [
       {
@@ -81,6 +76,8 @@ export function renderSidebar(state) {
           { id: 'room_master', label: 'Room Master', icon: 'meeting_room' },
           { id: 'crm', label: 'Guest Profiles', icon: 'person' },
           { id: 'services', label: 'Services / Requests', icon: 'room_service', badge: pendingServicesCount || null },
+          { id: 'housekeeping', label: 'Housekeeping Status', icon: 'cleaning_services', badge: dirtyRoomsCount ? `${dirtyRoomsCount} dirty` : null },
+          { id: 'lost_and_found', label: 'Lost & Found', icon: 'inventory_2' },
         ],
       },
     ];
@@ -119,9 +116,17 @@ export function renderSidebar(state) {
                     (item.id === 'house_status' && (activeTab === 'house_status' || activeTab === 'room_grid' || activeTab === 'room_matrix' || activeTab === 'room_status')) ||
                     (item.id === 'room_master' && (activeTab === 'room_master' || activeTab === 'room_configuration' || activeTab === 'room_inventory')) ||
                     (item.id === 'crm' && (activeTab === 'crm' || activeTab === 'guests')) ||
-                    (item.id === 'services' && (activeTab === 'services' || activeTab === 'requests'))
+                    (item.id === 'services' && (activeTab === 'services' || activeTab === 'requests')) ||
+                    (item.id === 'housekeeping' && (activeTab === 'housekeeping' || activeTab === 'hk_tasks' || activeTab === 'hk_inspections' || activeTab === 'hk_requests' || activeTab === 'hk_lostfound')) ||
+                    (item.id === 'lost_and_found' && (activeTab === 'lost_and_found' || activeTab === 'lostfound'))
                   )) ||
-                  (isHousekeeping && item.id === 'housekeeping' && (!activeTab || activeTab === 'housekeeping')) ||
+                  (isHousekeeping && (
+                    (item.id === 'housekeeping' && (!activeTab || activeTab === 'housekeeping')) ||
+                    (item.id === 'hk_dispatch' && (activeTab === 'hk_dispatch' || activeTab === 'dispatch')) ||
+                    (item.id === 'hk_staff' && (activeTab === 'hk_staff' || activeTab === 'staff')) ||
+                    (item.id === 'hk_house_status' && (activeTab === 'hk_house_status' || activeTab === 'hk_house' || activeTab === 'hk_room_status')) ||
+                    (item.id === 'hk_linen' && (activeTab === 'hk_linen' || activeTab === 'linen' || activeTab === 'hk_laundry' || activeTab === 'hk_linen_inventory'))
+                  )) ||
                   (isMaintenance && item.id === 'maintenance' && (!activeTab || activeTab === 'maintenance'));
                 return `
                   <button 
