@@ -12,10 +12,10 @@ export function renderSidebar(state) {
 
   let navSections;
   if (isMaintenance) {
-    const openTickets = (state.maintenanceTickets || []).filter(t => t.status !== 'Resolved' && t.status !== 'Closed');
-    const urgentTickets = openTickets.filter(t => t.priority === 'Critical' || t.priority === 'CRITICAL' || t.priority === 'High' || t.priority === 'HIGH');
-    const openRequestsCount = openTickets.length || 4;
-    const urgentCount = urgentTickets.length || 2;
+    const workOrders = state.maintenanceWorkOrders || [];
+    const isUnresolved = s => !['REPAIR_COMPLETE', 'VERIFICATION', 'CLOSED', 'RESOLVED', 'CANCELLED'].includes(s);
+    const urgentCount = workOrders.filter(w => ['CRITICAL', 'HIGH'].includes(w.priority) && isUnresolved(w.status)).length;
+    const openRequestsCount = workOrders.filter(w => !['CLOSED', 'CANCELLED'].includes(w.status)).length;
 
     navSections = [
       {

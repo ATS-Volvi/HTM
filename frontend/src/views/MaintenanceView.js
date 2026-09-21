@@ -19,7 +19,14 @@ export class MaintenanceDashboardView {
     this.activeWorkOrderDetail = null;
     this.showCreateModal = false;
     this.workOrdersTab = 'dashboard';
-    this.workOrders = this._buildWorkOrders();
+    if (store && store.state) {
+      if (!store.state.maintenanceWorkOrders || !store.state.maintenanceWorkOrders.length) {
+        store.state.maintenanceWorkOrders = this._buildWorkOrders();
+      }
+      this.workOrders = store.state.maintenanceWorkOrders;
+    } else {
+      this.workOrders = this._buildWorkOrders();
+    }
     this.assets = this._buildAssets();
     this.preventive = this._buildPreventive();
     this.pmSchedule = this.preventive;
@@ -894,10 +901,21 @@ export class MaintenanceDashboardView {
 
         <div class="px-6 py-4 border-t border-outline-variant bg-surface-container flex items-center justify-between gap-3 flex-wrap">
           <div class="flex items-center gap-2 flex-wrap">
-            <button class="btn-advance-status px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold cursor-pointer hover:bg-primary/90 transition-all flex items-center gap-1.5 active:scale-95" data-woid="${wo.id}">
+            ${!['REPAIR_COMPLETE', 'VERIFICATION', 'CLOSED'].includes(wo.status) ? `
+              <button class="btn-complete-wo px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 shadow-sm active:scale-95" data-woid="${wo.id}">
+                <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                <span>Mark Repair Complete</span>
+              </button>
+            ` : `
+              <button class="btn-close-wo-final px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold cursor-pointer hover:bg-primary/90 transition-all flex items-center gap-1.5 shadow-sm active:scale-95" data-woid="${wo.id}">
+                <span class="material-symbols-outlined text-[16px]">task_alt</span>
+                <span>Close Work Order</span>
+              </button>
+            `}
+            <button class="btn-advance-status px-3.5 py-2 rounded-xl border border-outline-variant hover:bg-surface-container text-on-surface text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 active:scale-95" data-woid="${wo.id}">
               <span class="material-symbols-outlined text-[15px]">arrow_forward</span>${this._nextStepLabel(wo.status)}
             </button>
-            <button id="btn-hold-wo" class="px-4 py-2 rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container text-xs font-semibold cursor-pointer flex items-center gap-1">
+            <button id="btn-hold-wo" class="px-3 py-2 rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container text-xs font-semibold cursor-pointer flex items-center gap-1">
               <span class="material-symbols-outlined text-[14px]">pause</span>On Hold
             </button>
           </div>
@@ -1230,6 +1248,42 @@ export class MaintenanceDashboardView {
       this.renderContent();
     };
 
+    // Direct Complete button in drawer
+    const compBtn = this.container.querySelector('.btn-complete-wo');
+    if (compBtn) compBtn.onclick = () => {
+      const wo = this.workOrders.find(w => w.id === compBtn.dataset.woid); if (!wo) return;
+      wo.status = 'REPAIR_COMPLETE';
+      wo.timeline.push({ time: 'Just now', action: 'Repair marked complete by technician', by: 'Julian Croft' });
+      if (wo.roomImpact !== 'NONE') {
+        wo.roomImpact = 'NONE';
+        if (wo.room) {
+          const room = (store.state.rooms || []).find(r => r.id === wo.room || r.roomNumber === wo.room || r.room_number === wo.room);
+          if (room) {
+            room.maintenanceStatus = 'Operational';
+            if (room.status === 'Out of Order' || room.status === 'Maintenance') {
+              room.status = 'Dirty';
+            }
+          }
+        }
+      }
+      this.activeWorkOrderDetail = null;
+      if (store) store.notify();
+      Toast.show({ title: 'Repair Complete', message: `${wo.id} marked complete and removed from Attention Required.`, type: 'success' });
+      this.renderContent();
+    };
+
+    // Close WO final in drawer
+    const closeFinalBtn = this.container.querySelector('.btn-close-wo-final');
+    if (closeFinalBtn) closeFinalBtn.onclick = () => {
+      const wo = this.workOrders.find(w => w.id === closeFinalBtn.dataset.woid); if (!wo) return;
+      wo.status = 'CLOSED';
+      wo.timeline.push({ time: 'Just now', action: 'Work order verified and closed', by: 'Julian Croft' });
+      this.activeWorkOrderDetail = null;
+      if (store) store.notify();
+      Toast.show({ title: 'Work Order Closed', message: `${wo.id} has been verified and closed.`, type: 'success' });
+      this.renderContent();
+    };
+
     // Advance status
     const adv = this.container.querySelector('.btn-advance-status');
     if (adv) adv.onclick = () => {
@@ -1246,10 +1300,9 @@ export class MaintenanceDashboardView {
               room.status = 'Dirty';
             }
           }
-          store.notify();
         }
-        Toast.show({ title: 'Room Restored', message: `Room ${wo.room} repair is complete and maintenance block is cleared.`, type: 'success' });
       }
+      if (store) store.notify();
       Toast.show({ title: `${wo.id} Updated`, message: `Status: ${this._sLabel(wo.status)}`, type: 'success' });
       this.renderContent();
     };
