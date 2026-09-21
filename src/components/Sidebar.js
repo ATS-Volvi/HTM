@@ -16,6 +16,9 @@ export function renderSidebar(state) {
     const isUnresolved = s => !['REPAIR_COMPLETE', 'VERIFICATION', 'CLOSED', 'RESOLVED', 'CANCELLED'].includes(s);
     const urgentCount = workOrders.filter(w => ['CRITICAL', 'HIGH'].includes(w.priority) && isUnresolved(w.status)).length;
     const openRequestsCount = workOrders.filter(w => !['CLOSED', 'CANCELLED'].includes(w.status)).length;
+    const pms = state.preventiveMaintenance || [];
+    const pmAlertsCount = pms.filter(p => p.daysUntil <= (p.notifyAdvanceDays || 7)).length;
+    const pmBadge = pmAlertsCount ? `${pmAlertsCount} alerts` : (pms.length ? `${pms.length} active` : '4 alerts');
 
     navSections = [
       {
@@ -23,7 +26,7 @@ export function renderSidebar(state) {
         items: [
           { id: 'maint_dashboard', label: 'Dashboard', icon: 'dashboard' },
           { id: 'maint_requests', label: 'Maintenance Requests', icon: 'build', badge: urgentCount ? `${urgentCount} urgent` : (openRequestsCount ? `${openRequestsCount} open` : null) },
-          { id: 'maint_preventive', label: 'Preventive Maintenance', icon: 'event_repeat', badge: '5 due' },
+          { id: 'maint_preventive', label: 'Preventive Maintenance', icon: 'event_repeat', badge: pmBadge },
           { id: 'maint_machines', label: 'Machines', icon: 'precision_manufacturing', badge: '6 units' },
           { id: 'maint_staff', label: 'Engineers or Staff', icon: 'engineering', badge: '4 on duty' },
         ],

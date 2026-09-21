@@ -17,18 +17,25 @@ export class MaintenanceDashboardView {
     this.filterTechnician = 'ALL';
     this.activeQuickFilter = 'ALL';
     this.activeWorkOrderDetail = null;
+    this.activePmDetail = null;
     this.showCreateModal = false;
+    this.showSchedulePmModal = false;
+    this.pmFrequencyFilter = 'ALL';
     this.workOrdersTab = 'dashboard';
     if (store && store.state) {
       if (!store.state.maintenanceWorkOrders || !store.state.maintenanceWorkOrders.length) {
         store.state.maintenanceWorkOrders = this._buildWorkOrders();
       }
       this.workOrders = store.state.maintenanceWorkOrders;
+      if (!store.state.preventiveMaintenance || !store.state.preventiveMaintenance.length) {
+        store.state.preventiveMaintenance = this._buildPreventive();
+      }
+      this.preventive = store.state.preventiveMaintenance;
     } else {
       this.workOrders = this._buildWorkOrders();
+      this.preventive = this._buildPreventive();
     }
     this.assets = this._buildAssets();
-    this.preventive = this._buildPreventive();
     this.pmSchedule = this.preventive;
     this.technicians = [
       { id: 't1', name: 'Tariq Mahmoud', initials: 'TM', role: 'Lead HVAC Engineer', specialty: 'HVAC', onDuty: true },
@@ -177,12 +184,342 @@ export class MaintenanceDashboardView {
 
   _buildPreventive() {
     return [
-      { id: 'pm1', title: 'AC Filter Service — Rooms 401-406', location: 'Floor 4 Suites', assetCode: 'AC-FLOOR4', dueDate: '12 Sep 2026', daysUntil: 4, frequency: 'Quarterly', assignedTo: 'Tariq Mahmoud' },
-      { id: 'pm2', title: 'Cummins Generator — Load Test & Oil', location: 'Basement Engineering', assetCode: 'GEN-MAIN-01', dueDate: '15 Sep 2026', daysUntil: 7, frequency: 'Quarterly', assignedTo: 'Anil Sharma' },
-      { id: 'pm3', title: 'Fire Suppression System Inspection', location: 'All Floors', assetCode: 'FIRE-SYS-01', dueDate: '18 Sep 2026', daysUntil: 10, frequency: 'Semi-Annual', assignedTo: 'Tariq Mahmoud' },
-      { id: 'pm4', title: 'Pool Water Treatment System', location: 'Pool and Spa', assetCode: 'POOL-TREAT-01', dueDate: '10 Sep 2026', daysUntil: 2, frequency: 'Weekly', assignedTo: 'Rajesh Kumar' },
-      { id: 'pm5', title: 'Main Lobby Elevator — Schindler Service', location: 'Lobby', assetCode: 'LIFT-MAIN-01', dueDate: '15 Nov 2026', daysUntil: 68, frequency: 'Quarterly', assignedTo: 'Marco Bellini' },
+      {
+        id: 'pm1',
+        title: 'AC Filter Service — Rooms 401-406',
+        location: 'Floor 4 Suites',
+        assetCode: 'AC-FLOOR4',
+        assetName: 'Daikin Cassette AC Units',
+        frequency: 'Quarterly',
+        scheduleRule: 'Quarterly • 12th of Month • 08:30 AM',
+        dueDate: '12 Sep 2026',
+        dueTime: '08:30 AM',
+        daysUntil: 4,
+        lastCompleted: '12 Jun 2026',
+        assignedTo: 'Tariq Mahmoud',
+        notifyAdvanceDays: 7,
+        estimatedDuration: '1h 30m',
+        cycleCount: 14,
+        status: 'UPCOMING',
+        checklist: [
+          'Inspect and thoroughly wash primary air intake nylon pre-filters',
+          'Measure refrigerant line suction pressure & temp differential (ΔT ≥ 8°C)',
+          'Sanitize evaporator condensation drain tray & flush pump discharge line',
+          'Test wall thermostat sensor calibration & fan 3-speed stepped relay'
+        ],
+        sop: 'Standard HVAC Quarter-turn PM protocol. Tag out isolator switch before servicing fan coil motor.',
+        linkedWoId: null,
+        notificationSent: false
+      },
+      {
+        id: 'pm2',
+        title: 'Cummins Generator — Load Test & Oil',
+        location: 'Basement Engineering',
+        assetCode: 'GEN-MAIN-01',
+        assetName: 'Cummins C150D5 Diesel Generator',
+        frequency: 'Monthly',
+        scheduleRule: 'Monthly • 15th of Month • 10:00 AM',
+        dueDate: '15 Sep 2026',
+        dueTime: '10:00 AM',
+        daysUntil: 7,
+        lastCompleted: '15 Aug 2026',
+        assignedTo: 'Anil Sharma',
+        notifyAdvanceDays: 7,
+        estimatedDuration: '2h 00m',
+        cycleCount: 28,
+        status: 'UPCOMING',
+        checklist: [
+          'Verify starter battery terminal voltage (nominal 24.8V DC)',
+          'Inspect lube oil level, viscosity and coolant jacket heater',
+          'Execute 30-minute off-load run & 15-minute simulated load transfer',
+          'Inspect fuel day-tank level (min 85% capacity required) and water separator'
+        ],
+        sop: 'Critical emergency power asset. Log frequency (50Hz ±0.5) and output voltage on central BMS logbook.',
+        linkedWoId: null,
+        notificationSent: false
+      },
+      {
+        id: 'pm3',
+        title: 'Fire Suppression System Inspection',
+        location: 'All Floors',
+        assetCode: 'FIRE-SYS-01',
+        assetName: 'Honeywell Notifier Fire Sprinkler & Alarm System',
+        frequency: 'Semi-Annual',
+        scheduleRule: 'Semi-Annual • 18th of Mar/Sep • 06:00 AM',
+        dueDate: '18 Sep 2026',
+        dueTime: '06:00 AM',
+        daysUntil: 10,
+        lastCompleted: '18 Mar 2026',
+        assignedTo: 'Tariq Mahmoud',
+        notifyAdvanceDays: 14,
+        estimatedDuration: '3h 00m',
+        cycleCount: 8,
+        status: 'SCHEDULED',
+        checklist: [
+          'Test diesel jockey pump automatic pressure cut-in switch (at 7.5 bar)',
+          'Inspect riser flow valves and tamper switches on Floors 1-5',
+          'Verify optical smoke detectors in public corridors and kitchen hood interlock',
+          'Verify civil defense direct dialer monitoring circuit test'
+        ],
+        sop: 'Notify front desk and duty manager 1 hour before acoustic bell strobe test. Reset repeater panel after run.',
+        linkedWoId: null,
+        notificationSent: false
+      },
+      {
+        id: 'pm4',
+        title: 'Pool Water Treatment System',
+        location: 'Pool and Spa',
+        assetCode: 'POOL-TREAT-01',
+        assetName: 'Prominent Pool Chlorination & Filtration Plant',
+        frequency: 'Weekly',
+        scheduleRule: 'Weekly • Every Wednesday • 07:00 AM',
+        dueDate: '10 Sep 2026',
+        dueTime: '07:00 AM',
+        daysUntil: 2,
+        lastCompleted: '03 Sep 2026',
+        assignedTo: 'Rajesh Kumar',
+        notifyAdvanceDays: 3,
+        estimatedDuration: '45m',
+        cycleCount: 86,
+        status: 'DUE_SOON',
+        checklist: [
+          'Chemical testing: Free Chlorine (1.5 - 3.0 ppm), pH (7.2 - 7.6)',
+          'Backwash and rinse dual sand filtration media vessels',
+          'Check chemical dosing peristaltic pumps and refill hypochlorite carboys',
+          'Inspect automated ORP sensor probe calibration'
+        ],
+        sop: 'Daily & Weekly health department logbook entry mandatory before 08:00 AM guest pool opening.',
+        linkedWoId: null,
+        notificationSent: false
+      },
+      {
+        id: 'pm5',
+        title: 'Kitchen Exhaust Hood & Grease Trap Degreasing',
+        location: 'Kitchen',
+        assetCode: 'KIT-HOOD-01',
+        assetName: 'CaptiveAire Kitchen Extraction Hoods',
+        frequency: 'Monthly',
+        scheduleRule: 'Monthly • 14th of Month • 11:30 PM',
+        dueDate: '14 Sep 2026',
+        dueTime: '11:30 PM',
+        daysUntil: 6,
+        lastCompleted: '14 Aug 2026',
+        assignedTo: 'Rajesh Kumar',
+        notifyAdvanceDays: 7,
+        estimatedDuration: '2h 15m',
+        cycleCount: 19,
+        status: 'UPCOMING',
+        checklist: [
+          'Soak and pressure wash baffle filters in caustic degreasing vat',
+          'Scrape grease collection gutter troughs and clean discharge spouts',
+          'Check belt tension on rooftop exhaust centrifugal fans',
+          'Empty grease interceptor pit and dose bio-enzymatic treatment'
+        ],
+        sop: 'Must be performed after kitchen culinary night shutdown. Lock out exhaust fans at rooftop breaker.',
+        linkedWoId: null,
+        notificationSent: false
+      },
+      {
+        id: 'pm6',
+        title: 'Cold Water Booster Pump Station & Pressure Vessels',
+        location: 'Basement Pump Room',
+        assetCode: 'PUMP-BOOST-01',
+        assetName: 'Grundfos Hydro MPC Booster Set',
+        frequency: 'Weekly',
+        scheduleRule: 'Weekly • Every Sunday • 06:00 AM',
+        dueDate: '13 Sep 2026',
+        dueTime: '06:00 AM',
+        daysUntil: 5,
+        lastCompleted: '06 Sep 2026',
+        assignedTo: 'Marco Bellini',
+        notifyAdvanceDays: 3,
+        estimatedDuration: '40m',
+        cycleCount: 52,
+        status: 'UPCOMING',
+        checklist: [
+          'Inspect delivery manifold pressure (target 4.8 bar)',
+          'Check diaphragm expansion tanks pre-charge pressure (3.2 bar)',
+          'Verify variable speed frequency drive (VFD) sequencing',
+          'Inspect mechanical shaft seals for weeping or motor overheating'
+        ],
+        sop: 'Perform early morning before peak guest morning shower demand.',
+        linkedWoId: null,
+        notificationSent: false
+      },
+      {
+        id: 'pm7',
+        title: 'Main Lobby Elevator — Schindler Service',
+        location: 'Lobby',
+        assetCode: 'LIFT-MAIN-01',
+        assetName: 'Schindler 3300 Passenger Lift',
+        frequency: 'Quarterly',
+        scheduleRule: 'Quarterly • 15th of Nov/Feb/May/Aug • 08:00 AM',
+        dueDate: '15 Nov 2026',
+        dueTime: '08:00 AM',
+        daysUntil: 68,
+        lastCompleted: '15 Aug 2026',
+        assignedTo: 'Marco Bellini',
+        notifyAdvanceDays: 14,
+        estimatedDuration: '3h 30m',
+        cycleCount: 12,
+        status: 'SCHEDULED',
+        checklist: [
+          'Inspect car guide shoe wear, gib clearance, and rail lubrication',
+          'Test car door interlock switches and light curtain sensor response',
+          'Inspect traction machine gearbox oil, brake air gap, and rope tension',
+          'Verify emergency car alarm telephone and battery backup descent'
+        ],
+        sop: 'Coordinate with Schindler certified technician. Place Out of Service barriers at Ground & Penthouse landing.',
+        linkedWoId: null,
+        notificationSent: false
+      }
     ];
+  }
+
+  // ── Preventive Scheduling Helpers ─────────────────────────────────────────
+  _addFrequencyToDate(dateStr, frequency) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const parts = (dateStr || '').trim().split(' ');
+    if (parts.length < 3) return dateStr;
+    const day = parseInt(parts[0], 10);
+    const monthIdx = months.indexOf(parts[1]);
+    const year = parseInt(parts[2], 10);
+    if (monthIdx === -1 || isNaN(day) || isNaN(year)) return dateStr;
+
+    const d = new Date(year, monthIdx, day);
+    if (frequency === 'Daily') d.setDate(d.getDate() + 1);
+    else if (frequency === 'Weekly') d.setDate(d.getDate() + 7);
+    else if (frequency === 'Bi-Weekly') d.setDate(d.getDate() + 14);
+    else if (frequency === 'Monthly') d.setMonth(d.getMonth() + 1);
+    else if (frequency === 'Quarterly') d.setMonth(d.getMonth() + 3);
+    else if (frequency === 'Semi-Annual') d.setMonth(d.getMonth() + 6);
+    else if (frequency === 'Annual') d.setFullYear(d.getFullYear() + 1);
+    else d.setDate(d.getDate() + 7);
+
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
+  _calcDaysUntil(dateStr) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const parts = (dateStr || '').trim().split(' ');
+    if (parts.length < 3) return 7;
+    const day = parseInt(parts[0], 10);
+    const monthIdx = months.indexOf(parts[1]);
+    const year = parseInt(parts[2], 10);
+    if (monthIdx === -1) return 7;
+    // Base simulation reference date: 8 Sep 2026
+    const baseDate = new Date(2026, 8, 8);
+    const targetDate = new Date(year, monthIdx, day);
+    const diff = targetDate.getTime() - baseDate.getTime();
+    return Math.max(0, Math.round(diff / (1000 * 60 * 60 * 24)));
+  }
+
+  _calculateFutureCycles(startDate, frequency, count = 4) {
+    const cycles = [];
+    let cur = startDate;
+    for (let i = 0; i < count; i++) {
+      cur = this._addFrequencyToDate(cur, frequency);
+      cycles.push(cur);
+    }
+    return cycles;
+  }
+
+  _advancePmCycle(pmId) {
+    const pm = this.preventive.find(p => p.id === pmId);
+    if (!pm) return;
+    const oldDueDate = pm.dueDate;
+    const nextDate = this._addFrequencyToDate(pm.dueDate, pm.frequency);
+    pm.lastCompleted = '8 Sep 2026';
+    pm.dueDate = nextDate;
+    pm.daysUntil = this._calcDaysUntil(nextDate);
+    pm.cycleCount = (pm.cycleCount || 0) + 1;
+    pm.notificationSent = false;
+    pm.status = pm.daysUntil <= 2 ? 'DUE_SOON' : (pm.daysUntil <= (pm.notifyAdvanceDays || 7) ? 'UPCOMING' : 'SCHEDULED');
+
+    if (pm.linkedWoId) {
+      const wo = this.workOrders.find(w => w.id === pm.linkedWoId);
+      if (wo) {
+        wo.status = 'REPAIR_COMPLETE';
+        wo.timeline.push({ time: 'Just now', action: `PM Service cycle #${pm.cycleCount} completed and verified`, by: 'System PM Engine' });
+      }
+      pm.linkedWoId = null;
+    }
+
+    if (store) store.notify();
+    Toast.show({
+      title: 'PM Cycle Advanced',
+      message: `Completed ${pm.title}. Next scheduled service: ${nextDate} (${pm.frequency} schedule).`,
+      type: 'success'
+    });
+    this.renderContent();
+  }
+
+  _createWoFromPm(pmId) {
+    const pm = this.preventive.find(p => p.id === pmId);
+    if (!pm) return;
+
+    if (pm.linkedWoId) {
+      this.activeWorkOrderDetail = pm.linkedWoId;
+      this.renderContent();
+      return;
+    }
+
+    const newId = `MT-${10490 + this.workOrders.length}`;
+    const wo = {
+      id: newId,
+      location: pm.location,
+      area: pm.location.includes('Kitchen') ? 'Kitchen' : (pm.location.includes('Room') || pm.location.includes('Floor') ? 'Guest Rooms' : 'Public Areas'),
+      room: null,
+      assetName: pm.assetName || pm.title,
+      assetCode: pm.assetCode,
+      issueType: 'Preventive Maintenance',
+      issue: `PM: ${pm.title}`,
+      description: `Scheduled ${pm.frequency} preventive maintenance routine. Fixed Cadence: ${pm.scheduleRule}. Checklist: ${(pm.checklist || []).join('; ')}. ${pm.sop || ''}`,
+      priority: pm.daysUntil <= 2 ? 'HIGH' : 'NORMAL',
+      status: 'ASSIGNED',
+      reportedBy: `PM Auto-Schedule (${pm.frequency})`,
+      source: 'PM Schedule',
+      assignedTo: pm.assignedTo,
+      guestAffected: false,
+      guestName: null,
+      roomImpact: 'NONE',
+      partsUsed: [],
+      partsRequired: [],
+      timeline: [
+        { time: 'Just now', action: `Work order auto-generated from fixed ${pm.frequency} schedule (${pm.scheduleRule})`, by: 'PM Scheduling System' },
+        { time: 'Just now', action: `Dispatched to lead engineer ${pm.assignedTo}`, by: 'PM Scheduling System' },
+      ],
+      createdAt: `8 Sep • ${new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}`,
+      startedAt: null,
+      elapsedMin: 0,
+      overdue: false,
+      slaMin: 180,
+      isPm: true,
+      pmId: pm.id
+    };
+
+    this.workOrders.unshift(wo);
+    pm.linkedWoId = newId;
+    pm.status = 'IN_PROGRESS';
+    if (store) store.notify();
+    Toast.show({
+      title: 'Work Order Dispatched',
+      message: `${newId} generated for ${pm.title}. Assigned to ${pm.assignedTo}.`,
+      type: 'success'
+    });
+    this.renderContent();
+  }
+
+  _notifyEngineer(pmId) {
+    const pm = this.preventive.find(p => p.id === pmId);
+    if (!pm) return;
+    pm.notificationSent = true;
+    Toast.show({
+      title: 'Notification Alert Sent',
+      message: `Advance PM reminder dispatched to ${pm.assignedTo} for ${pm.title} (Due in ${pm.daysUntil} days • ${pm.frequency}).`,
+      type: 'info'
+    });
+    this.renderContent();
   }
 
   // ── Computed ──────────────────────────────────────────────────────────────
@@ -279,7 +616,9 @@ export class MaintenanceDashboardView {
       ${this.workOrdersTab === 'preventive' ? this._html_preventive() : ''}
       ${this.workOrdersTab === 'technicians' ? this._html_technicians() : ''}
       ${activeWO ? this._html_drawer(activeWO) : ''}
+      ${this.activePmDetail ? this._html_pmDrawer(this.preventive.find(p => p.id === this.activePmDetail)) : ''}
       ${this.showCreateModal ? this._html_createModal() : ''}
+      ${this.showSchedulePmModal ? this._html_schedulePmModal() : ''}
     `;
     this.bindEvents();
   }
@@ -698,13 +1037,19 @@ export class MaintenanceDashboardView {
                 <button class="btn-goto-tab text-[10px] font-bold text-primary hover:underline cursor-pointer" data-tab="preventive">View PM</button>
               </div>
               <div class="space-y-2">
-                ${this.preventive.slice(0, 3).map(pm => `
-                  <div class="text-[10px] p-2 rounded-lg bg-surface-container/50 border border-outline-variant/40 flex items-center justify-between">
-                    <div>
+                ${this.preventive.slice(0, 4).map(pm => `
+                  <div class="text-[10px] p-2.5 rounded-lg bg-surface-container/50 border border-outline-variant/40 flex items-center justify-between gap-2">
+                    <div class="min-w-0">
                       <div class="font-bold text-on-surface truncate">${pm.title}</div>
-                      <div class="text-on-surface-variant font-data-mono">${pm.location}</div>
+                      <div class="text-on-surface-variant font-data-mono flex items-center gap-1 mt-0.5">
+                        <span class="px-1.5 py-0.2 rounded text-[8px] font-bold ${pm.frequency === 'Weekly' ? 'bg-purple-100 text-purple-700' : pm.frequency === 'Monthly' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'}">${pm.frequency}</span>
+                        <span class="truncate">${pm.location}</span>
+                      </div>
                     </div>
-                    <span class="px-1.5 py-0.5 rounded font-bold font-data-mono ${pm.daysUntil <= 2 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}">${pm.daysUntil}d</span>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      <span class="px-1.5 py-0.5 rounded font-bold font-data-mono ${pm.daysUntil <= 2 ? 'bg-red-100 text-red-700' : pm.daysUntil <= 7 ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}">${pm.daysUntil}d</span>
+                      <button class="btn-quick-run-pm px-2 py-1 rounded bg-primary text-on-primary font-bold text-[9px] cursor-pointer hover:bg-primary/90 transition-all active:scale-95" data-pmid="${pm.id}">Run</button>
+                    </div>
                   </div>
                 `).join('')}
               </div>
@@ -1048,39 +1393,524 @@ export class MaintenanceDashboardView {
 
   // ── Preventive Panel ──────────────────────────────────────────────────────
   _html_preventive() {
+    const pms = this.preventive;
+    const dueSoon = pms.filter(p => p.daysUntil <= 2);
+    const upcoming = pms.filter(p => p.daysUntil > 2 && p.daysUntil <= (p.notifyAdvanceDays || 7));
+    const onTrack = pms.filter(p => p.daysUntil > (p.notifyAdvanceDays || 7));
+    const alertItems = pms.filter(p => p.daysUntil <= (p.notifyAdvanceDays || 7)).sort((a, b) => a.daysUntil - b.daysUntil);
+
+    // Apply frequency filter
+    let filteredPms = [...pms];
+    if (this.pmFrequencyFilter === 'ALERTS') {
+      filteredPms = filteredPms.filter(p => p.daysUntil <= (p.notifyAdvanceDays || 7));
+    } else if (this.pmFrequencyFilter !== 'ALL') {
+      filteredPms = filteredPms.filter(p => p.frequency === this.pmFrequencyFilter);
+    }
+    filteredPms.sort((a, b) => a.daysUntil - b.daysUntil);
+
+    const freqCounts = {
+      ALL: pms.length,
+      ALERTS: alertItems.length,
+      Weekly: pms.filter(p => p.frequency === 'Weekly').length,
+      Monthly: pms.filter(p => p.frequency === 'Monthly').length,
+      Quarterly: pms.filter(p => p.frequency === 'Quarterly').length,
+      'Semi-Annual': pms.filter(p => p.frequency === 'Semi-Annual' || p.frequency === 'Annual').length,
+    };
+
+    const freqColor = f => {
+      switch (f) {
+        case 'Weekly': return 'bg-purple-100 text-purple-700 border-purple-300';
+        case 'Monthly': return 'bg-blue-100 text-blue-700 border-blue-300';
+        case 'Quarterly': return 'bg-teal-100 text-teal-700 border-teal-300';
+        case 'Semi-Annual': return 'bg-indigo-100 text-indigo-700 border-indigo-300';
+        case 'Annual': return 'bg-amber-100 text-amber-700 border-amber-300';
+        default: return 'bg-slate-100 text-slate-700 border-slate-300';
+      }
+    };
+
     return `
-      <div class="space-y-4">
-        <div class="flex items-center justify-between">
-          <p class="text-sm text-on-surface-variant">Scheduled preventive maintenance — auto-generates work orders when due.</p>
-          <button class="px-3 py-1.5 rounded-lg border border-primary text-primary text-xs font-bold hover:bg-primary/5 cursor-pointer flex items-center gap-1">
-            <span class="material-symbols-outlined text-[14px]">add</span>Schedule PM
+      <div class="space-y-6">
+        <!-- 1. Preventive Schedule & Notification Alerts Header Banner -->
+        <div class="bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-surface-container-lowest border border-amber-500/30 rounded-2xl p-5 shadow-xs">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div class="flex items-start gap-3.5">
+              <div class="w-11 h-11 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <span class="material-symbols-outlined text-2xl">notifications_active</span>
+              </div>
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h2 class="text-base font-bold text-primary">Preventive Maintenance Schedule & Notification Alerts</h2>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 font-data-mono flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span>
+                    ${dueSoon.length} DUE SOON • ${upcoming.length} UPCOMING THIS WEEK
+                  </span>
+                </div>
+                <p class="text-xs text-on-surface-variant mt-0.5">
+                  Fixed recurring schedules timed by <strong>Weekly, Monthly, and Quarterly</strong> intervals with automated advance notifications for engineering staff.
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap shrink-0">
+              <button id="btn-open-schedule-pm" class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 cursor-pointer flex items-center gap-1.5 transition-all shadow-xs active:scale-95">
+                <span class="material-symbols-outlined text-[16px]">add_circle</span>+ Schedule PM
+              </button>
+            </div>
+          </div>
+
+          <!-- Notification Alert Cards Strip -->
+          ${alertItems.length > 0 ? `
+            <div class="mt-4 pt-4 border-t border-amber-500/20">
+              <div class="text-[10px] font-bold uppercase tracking-wider text-amber-900 mb-2.5 font-data-mono flex items-center justify-between">
+                <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">alarm</span>Upcoming Timed Service Notifications</span>
+                <span class="text-[10px] text-amber-700 font-normal">Advance alerts active (${alertItems.length})</span>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                ${alertItems.map(pm => {
+                  const isCritSoon = pm.daysUntil <= 2;
+                  const borderCls = isCritSoon ? 'border-red-300 bg-red-50/80' : 'border-amber-300 bg-amber-50/80';
+                  const badgeCls = isCritSoon ? 'bg-red-600 text-white' : 'bg-amber-600 text-white';
+                  const alertLabel = isCritSoon ? `🚨 DUE IN ${pm.daysUntil} DAYS` : `⚠️ DUE IN ${pm.daysUntil} DAYS`;
+                  return `
+                    <div class="rounded-xl border ${borderCls} p-3 flex flex-col justify-between shadow-2xs hover:shadow-xs transition-all">
+                      <div>
+                        <div class="flex items-center justify-between gap-1 mb-1.5">
+                          <span class="px-2 py-0.5 rounded text-[9px] font-bold font-data-mono ${badgeCls}">${alertLabel}</span>
+                          <span class="px-1.5 py-0.5 rounded border text-[9px] font-bold font-data-mono ${freqColor(pm.frequency)}">${pm.frequency}</span>
+                        </div>
+                        <h4 class="text-xs font-bold text-primary leading-snug line-clamp-2">${pm.title}</h4>
+                        <div class="text-[10px] text-on-surface-variant font-data-mono mt-1 flex items-center gap-1 truncate">
+                          <span class="material-symbols-outlined text-[12px] text-primary/70">precision_manufacturing</span>
+                          <span>${pm.assetCode} · ${pm.location}</span>
+                        </div>
+                        <div class="text-[10px] text-on-surface-variant mt-1">
+                          Timing: <strong class="text-on-surface">${pm.scheduleRule}</strong>
+                        </div>
+                        <div class="text-[10px] text-on-surface-variant mt-0.5">
+                          Assigned: <strong class="text-primary">${pm.assignedTo}</strong>
+                        </div>
+                      </div>
+                      <div class="mt-3 pt-2.5 border-t border-black/10 flex items-center gap-1.5 flex-wrap">
+                        ${pm.linkedWoId ? `
+                          <button class="btn-open-wo flex-1 px-2.5 py-1 rounded-lg bg-teal-600 text-white text-[10px] font-bold cursor-pointer hover:bg-teal-700 transition-all flex items-center justify-center gap-1" data-woid="${pm.linkedWoId}">
+                            <span class="material-symbols-outlined text-[12px]">build</span>WO Active (${pm.linkedWoId})
+                          </button>
+                        ` : `
+                          <button class="btn-pm-create-wo flex-1 px-2 py-1 rounded-lg bg-primary text-on-primary text-[10px] font-bold cursor-pointer hover:bg-primary/90 transition-all flex items-center justify-center gap-0.5 active:scale-95" data-pmid="${pm.id}">
+                            <span class="material-symbols-outlined text-[12px]">bolt</span>Create WO
+                          </button>
+                        `}
+                        <button class="btn-pm-advance-cycle px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[10px] font-bold cursor-pointer transition-all flex items-center gap-0.5 active:scale-95" data-pmid="${pm.id}" title="Complete this cycle and advance to next scheduled date">
+                          <span class="material-symbols-outlined text-[12px]">check_circle</span>Done
+                        </button>
+                        <button class="btn-pm-notify-tech p-1 rounded-lg border border-outline-variant hover:bg-white text-on-surface-variant text-[10px] font-bold cursor-pointer transition-all flex items-center" data-pmid="${pm.id}" title="Send notification reminder to ${pm.assignedTo}">
+                          <span class="material-symbols-outlined text-[13px] ${pm.notificationSent ? 'text-green-600' : 'text-primary'}">forward_to_inbox</span>
+                        </button>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- 2. Fixed Schedule Cadence & Frequency Filter Bar -->
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div class="flex items-center gap-1.5 overflow-x-auto pb-1">
+            ${[
+              { id: 'ALL', label: `All Schedules (${freqCounts.ALL})`, icon: 'list_alt' },
+              { id: 'ALERTS', label: `🚨 Alerts & Due Soon (${freqCounts.ALERTS})`, icon: 'notifications' },
+              { id: 'Weekly', label: `Weekly (${freqCounts.Weekly})`, icon: 'view_week' },
+              { id: 'Monthly', label: `Monthly (${freqCounts.Monthly})`, icon: 'calendar_month' },
+              { id: 'Quarterly', label: `Quarterly (${freqCounts.Quarterly})`, icon: 'event_repeat' },
+              { id: 'Semi-Annual', label: `Semi-Annual (${freqCounts['Semi-Annual']})`, icon: 'date_range' },
+            ].map(f => {
+              const active = this.pmFrequencyFilter === f.id;
+              const cls = active
+                ? 'bg-primary text-on-primary font-bold shadow-xs'
+                : 'bg-surface-container-lowest border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary font-semibold';
+              return `
+                <button class="pm-freq-filter-btn px-3 py-1.5 rounded-lg text-xs cursor-pointer transition-all whitespace-nowrap flex items-center gap-1.5 ${cls}" data-freq="${f.id}">
+                  <span class="material-symbols-outlined text-[14px]">${f.icon}</span>
+                  <span>${f.label}</span>
+                </button>
+              `;
+            }).join('')}
+          </div>
+          <div class="text-xs text-on-surface-variant font-data-mono">
+            Showing <strong>${filteredPms.length}</strong> of ${pms.length} PM routines
+          </div>
+        </div>
+
+        <!-- 3. Fixed Schedule Preventive Maintenance Table -->
+        <div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-xs">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="border-b border-outline-variant bg-surface-container text-[10px] font-bold tracking-wider text-on-surface-variant uppercase font-data-mono">
+                  <th class="py-3 px-4">Task & Asset</th>
+                  <th class="py-3 px-4">Location</th>
+                  <th class="py-3 px-4">Fixed Cadence & Timing</th>
+                  <th class="py-3 px-4">Due Date & Horizon</th>
+                  <th class="py-3 px-4">Alert Status</th>
+                  <th class="py-3 px-4">Lead Engineer</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-outline-variant/40">
+                ${filteredPms.length > 0 ? filteredPms.map(pm => {
+                  const isSoon = pm.daysUntil <= 2;
+                  const isNear = pm.daysUntil <= (pm.notifyAdvanceDays || 7);
+                  const bc = isSoon ? 'bg-red-100 text-red-700 border-red-300' : isNear ? 'bg-orange-100 text-orange-700 border-orange-300' : 'bg-blue-100 text-blue-700 border-blue-300';
+                  const bl = pm.linkedWoId ? 'WO ACTIVE' : isSoon ? 'DUE SOON' : isNear ? 'UPCOMING' : 'SCHEDULED';
+                  return `
+                    <tr class="hover:bg-surface-container/40 transition-colors ${isSoon ? 'bg-red-50/20' : ''}">
+                      <td class="py-3.5 px-4">
+                        <div class="flex items-start gap-2">
+                          <div>
+                            <div class="text-xs font-bold text-primary hover:underline cursor-pointer btn-view-pm" data-pmid="${pm.id}">${pm.title}</div>
+                            <div class="text-[10px] text-on-surface-variant font-data-mono flex items-center gap-1.5 mt-0.5">
+                              <span class="font-bold text-primary/80">${pm.assetCode}</span>
+                              <span class="text-outline-variant">•</span>
+                              <span class="truncate max-w-[140px]">${pm.assetName || pm.title}</span>
+                              <span class="px-1.5 py-0.2 rounded bg-surface-container text-[9px] text-on-surface-variant">${(pm.checklist || []).length} checks</span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="py-3.5 px-4">
+                        <div class="text-xs text-on-surface">${pm.location}</div>
+                        <div class="text-[10px] text-on-surface-variant font-data-mono">Est. ${pm.estimatedDuration || '1h'}</div>
+                      </td>
+                      <td class="py-3.5 px-4">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                          <span class="px-2 py-0.5 rounded border text-[9px] font-bold font-data-mono ${freqColor(pm.frequency)}">${pm.frequency}</span>
+                        </div>
+                        <div class="text-[10px] text-on-surface font-semibold mt-1 font-data-mono">${pm.scheduleRule}</div>
+                      </td>
+                      <td class="py-3.5 px-4">
+                        <div class="text-xs font-bold font-data-mono text-on-surface">${pm.dueDate}</div>
+                        <div class="text-[10px] font-data-mono font-bold ${isSoon ? 'text-red-600' : isNear ? 'text-orange-600' : 'text-on-surface-variant'}">
+                          ${pm.daysUntil === 0 ? 'Due Today' : `${pm.daysUntil} days away`}
+                        </div>
+                      </td>
+                      <td class="py-3.5 px-4">
+                        <div class="flex flex-col items-start gap-1">
+                          <span class="px-2 py-0.5 rounded border text-[9px] font-bold font-data-mono ${bc}">${bl}</span>
+                          <span class="text-[9px] text-on-surface-variant font-data-mono">Notice: ${pm.notifyAdvanceDays || 7}d advance</span>
+                        </div>
+                      </td>
+                      <td class="py-3.5 px-4">
+                        <div class="flex items-center gap-2">
+                          <div class="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                            ${pm.assignedTo.split(' ').map(n=>n[0]).join('').slice(0,2)}
+                          </div>
+                          <div>
+                            <div class="text-xs text-on-surface font-medium">${pm.assignedTo}</div>
+                            <div class="text-[9px] text-on-surface-variant">Cycle #${pm.cycleCount || 1}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="py-3.5 px-4 text-right">
+                        <div class="flex items-center justify-end gap-1.5 flex-wrap">
+                          ${pm.linkedWoId ? `
+                            <button class="btn-open-wo px-2.5 py-1.5 rounded-lg border border-teal-500 text-teal-700 hover:bg-teal-50 text-xs font-bold cursor-pointer transition-all flex items-center gap-1" data-woid="${pm.linkedWoId}">
+                              <span class="material-symbols-outlined text-[13px]">build</span>WO: ${pm.linkedWoId}
+                            </button>
+                          ` : `
+                            <button class="btn-pm-create-wo px-2.5 py-1.5 rounded-lg bg-primary text-on-primary hover:bg-primary/90 text-xs font-bold cursor-pointer transition-all flex items-center gap-1 active:scale-95 shadow-2xs" data-pmid="${pm.id}" title="Generate Work Order">
+                              <span class="material-symbols-outlined text-[13px]">bolt</span>Create WO
+                            </button>
+                          `}
+                          <button class="btn-pm-advance-cycle px-2 py-1.5 rounded-lg border border-emerald-500/40 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold cursor-pointer transition-all flex items-center gap-1 active:scale-95" data-pmid="${pm.id}" title="Mark completed and advance to next scheduled cycle">
+                            <span class="material-symbols-outlined text-[14px]">check_circle</span>Done
+                          </button>
+                          <button class="btn-view-pm px-2 py-1.5 rounded-lg border border-outline-variant hover:border-primary text-xs font-semibold text-on-surface-variant hover:text-primary cursor-pointer transition-all" data-pmid="${pm.id}">
+                            Schedule
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }).join('') : `
+                  <tr>
+                    <td colspan="7" class="py-12 text-center text-on-surface-variant">
+                      <span class="material-symbols-outlined text-4xl block mb-2 opacity-30">event_busy</span>
+                      <p class="text-sm font-semibold">No preventive maintenance schedules match this frequency filter.</p>
+                      <button class="pm-freq-filter-btn mt-2 text-xs font-bold text-primary hover:underline" data-freq="ALL">Reset to All Schedules</button>
+                    </td>
+                  </tr>
+                `}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── PM Detail & Multi-Cycle Schedule Drawer ───────────────────────────────
+  _html_pmDrawer(pm) {
+    if (!pm) return '';
+    const futureCycles = this._calculateFutureCycles(pm.dueDate, pm.frequency, 4);
+
+    return `
+      <div id="pm-detail-backdrop" class="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm animate-fadeIn"></div>
+      <div class="fixed right-0 top-0 h-full z-[61] w-full max-w-2xl bg-surface-bright shadow-2xl flex flex-col overflow-hidden" style="animation:slideInRight .25s ease">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-outline-variant bg-surface-container flex items-start justify-between gap-4">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
+              <span class="px-2 py-0.5 rounded border text-[10px] font-bold font-data-mono bg-purple-100 text-purple-700 border-purple-300">${pm.frequency} Routine</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold font-data-mono bg-surface-container-high text-primary border border-outline-variant">Cycle #${pm.cycleCount || 1}</span>
+              ${pm.daysUntil <= 2 ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-300 font-data-mono">🚨 DUE IN ' + pm.daysUntil + ' DAYS</span>' : ''}
+            </div>
+            <h2 class="font-bold text-lg text-primary leading-snug">${pm.title}</h2>
+            <div class="flex items-center gap-3 mt-1 text-xs text-on-surface-variant flex-wrap">
+              <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">location_on</span>${pm.location}</span>
+              <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">precision_manufacturing</span>${pm.assetCode} (${pm.assetName || 'Plant Asset'})</span>
+            </div>
+          </div>
+          <button id="btn-close-pm-detail" class="p-2 hover:bg-surface-container rounded-full text-on-surface-variant cursor-pointer shrink-0">
+            <span class="material-symbols-outlined text-[20px]">close</span>
           </button>
         </div>
-        <div class="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
-          <table class="w-full text-left">
-            <thead><tr class="border-b border-outline-variant bg-surface-container text-[10px] font-bold tracking-wider text-on-surface-variant uppercase font-data-mono">
-              <th class="py-3 px-4">Task</th><th class="py-3 px-4">Location</th><th class="py-3 px-4">Due Date</th><th class="py-3 px-4">Status</th><th class="py-3 px-4">Frequency</th><th class="py-3 px-4">Technician</th><th class="py-3 px-4 text-right">Action</th>
-            </tr></thead>
-            <tbody class="divide-y divide-outline-variant/40">
-              ${this.preventive.map(pm => {
-                const isSoon = pm.daysUntil <= 2;
-                const isNear = pm.daysUntil <= 7;
-                const bc = isSoon ? 'bg-red-100 text-red-700 border-red-300' : isNear ? 'bg-orange-100 text-orange-700 border-orange-300' : 'bg-blue-100 text-blue-700 border-blue-300';
-                const bl = isSoon ? 'DUE SOON' : isNear ? 'UPCOMING' : 'SCHEDULED';
-                return `
-                  <tr class="hover:bg-surface-container/40 transition-colors ${isSoon ? 'bg-red-50/30' : ''}">
-                    <td class="py-3 px-4 text-xs font-bold text-on-surface">${pm.title}</td>
-                    <td class="py-3 px-4"><div class="text-xs text-on-surface">${pm.location}</div><div class="text-[10px] text-on-surface-variant font-data-mono">${pm.assetCode}</div></td>
-                    <td class="py-3 px-4"><div class="text-xs font-bold">${pm.dueDate}</div><div class="text-[10px] ${isSoon ? 'text-red-600 font-bold' : 'text-on-surface-variant'}">${pm.daysUntil} days away</div></td>
-                    <td class="py-3 px-4"><span class="px-2 py-0.5 rounded border text-[9px] font-bold font-data-mono ${bc}">${bl}</span></td>
-                    <td class="py-3 px-4 text-[10px] text-on-surface-variant">${pm.frequency}</td>
-                    <td class="py-3 px-4 text-xs text-on-surface">${pm.assignedTo}</td>
-                    <td class="py-3 px-4 text-right"><button class="px-3 py-1.5 rounded-lg border border-outline-variant hover:border-primary text-xs font-semibold text-on-surface-variant hover:text-primary cursor-pointer transition-all">${isNear ? 'Create WO' : 'View'}</button></td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
+
+        <!-- Quick Telemetry Grid -->
+        <div class="grid grid-cols-4 gap-3 px-6 py-3.5 border-b border-outline-variant/60 bg-surface-container/30">
+          <div>
+            <div class="text-[9px] text-on-surface-variant font-data-mono uppercase tracking-wider">Frequency</div>
+            <div class="text-xs font-bold text-primary mt-0.5">${pm.frequency}</div>
+          </div>
+          <div>
+            <div class="text-[9px] text-on-surface-variant font-data-mono uppercase tracking-wider">Next Due Date</div>
+            <div class="text-xs font-bold text-on-surface mt-0.5">${pm.dueDate}</div>
+          </div>
+          <div>
+            <div class="text-[9px] text-on-surface-variant font-data-mono uppercase tracking-wider">Lead Technician</div>
+            <div class="text-xs font-bold text-on-surface mt-0.5">${pm.assignedTo}</div>
+          </div>
+          <div>
+            <div class="text-[9px] text-on-surface-variant font-data-mono uppercase tracking-wider">Last Serviced</div>
+            <div class="text-xs font-bold text-on-surface-variant mt-0.5">${pm.lastCompleted || 'Not recorded'}</div>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div class="flex-1 overflow-y-auto custom-scrollbar px-6 py-5 space-y-6">
+          <!-- 1. Fixed Recurrence Schedule Rule -->
+          <div>
+            <div class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-2 font-data-mono flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px] text-primary">event_repeat</span>
+              Fixed Recurrence Schedule Rule
+            </div>
+            <div class="bg-surface-container rounded-xl p-4 border border-outline-variant/60">
+              <div class="text-sm font-bold text-primary">${pm.scheduleRule}</div>
+              <p class="text-xs text-on-surface-variant mt-1">
+                Automated scheduler triggers advance notifications <strong>${pm.notifyAdvanceDays || 7} days prior</strong> to inspection due date. Work orders auto-populate standard SOP and spares checklist.
+              </p>
+            </div>
+          </div>
+
+          <!-- 2. Upcoming Service Cycles Timeline -->
+          <div>
+            <div class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-2.5 font-data-mono flex items-center justify-between">
+              <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px] text-primary">calendar_month</span>Upcoming Service Cycles Schedule Horizon</span>
+              <span class="text-[9px] text-on-surface-variant font-normal">Auto-calculated (${pm.frequency})</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div class="p-3 rounded-xl border border-primary/40 bg-primary/5">
+                <div class="text-[9px] font-bold uppercase font-data-mono text-primary">Current Cycle</div>
+                <div class="text-xs font-bold text-primary mt-1 font-data-mono">${pm.dueDate}</div>
+                <div class="text-[10px] font-bold text-red-600 mt-0.5">${pm.daysUntil}d away</div>
+              </div>
+              ${futureCycles.slice(0, 3).map((cycleDate, idx) => `
+                <div class="p-3 rounded-xl border border-outline-variant bg-surface-container-lowest">
+                  <div class="text-[9px] font-bold uppercase font-data-mono text-on-surface-variant">Cycle #${(pm.cycleCount || 1) + idx + 1}</div>
+                  <div class="text-xs font-bold text-on-surface mt-1 font-data-mono">${cycleDate}</div>
+                  <div class="text-[10px] text-on-surface-variant mt-0.5">${pm.frequency}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- 3. Inspection Checklist -->
+          <div>
+            <div class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-2.5 font-data-mono flex items-center justify-between">
+              <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px] text-primary">checklist</span>Standard Operating Inspection Checklist</span>
+              <span class="text-[9px] text-on-surface-variant font-normal">${(pm.checklist || []).length} steps</span>
+            </div>
+            <div class="space-y-2 bg-surface-container rounded-xl p-4 border border-outline-variant/60">
+              ${(pm.checklist || []).map((step, idx) => `
+                <label class="flex items-start gap-2.5 text-xs text-on-surface cursor-pointer select-none">
+                  <input type="checkbox" class="mt-0.5 accent-primary rounded cursor-pointer" />
+                  <span class="leading-relaxed"><strong class="font-data-mono text-primary/80">${idx + 1}.</strong> ${step}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- 4. SOP Instructions -->
+          ${pm.sop ? `
+            <div>
+              <div class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-2 font-data-mono">Safety & Standard Operating Procedure (SOP)</div>
+              <div class="text-xs text-on-surface leading-relaxed bg-surface-container rounded-xl p-4 border border-outline-variant/60 italic">
+                "${pm.sop}"
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- 5. Notification Status & Actions -->
+          <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between gap-3">
+            <div>
+              <div class="text-xs font-bold text-primary flex items-center gap-1">
+                <span class="material-symbols-outlined text-[16px] text-amber-600">notifications</span>
+                Advance Engineer Notification
+              </div>
+              <p class="text-[11px] text-on-surface-variant mt-0.5">
+                ${pm.notificationSent ? `Notification reminder dispatched to <strong>${pm.assignedTo}</strong>.` : `Notification triggers <strong>${pm.notifyAdvanceDays || 7} days prior</strong> to due date.`}
+              </p>
+            </div>
+            <button class="btn-pm-notify-tech px-3 py-1.5 rounded-lg border border-primary text-primary hover:bg-primary/5 text-xs font-bold cursor-pointer transition-all shrink-0 active:scale-95" data-pmid="${pm.id}">
+              ${pm.notificationSent ? 'Resend Alert' : 'Send Alert Now'}
+            </button>
+          </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="p-4 border-t border-outline-variant bg-surface-container flex items-center justify-between gap-3">
+          <button id="btn-close-pm-detail2" class="px-4 py-2 rounded-xl border border-outline-variant hover:bg-surface-container text-xs font-bold text-on-surface-variant cursor-pointer">
+            Close
+          </button>
+          <div class="flex items-center gap-2">
+            ${pm.linkedWoId ? `
+              <button class="btn-open-wo px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-sm" data-woid="${pm.linkedWoId}">
+                <span class="material-symbols-outlined text-[16px]">build</span>Open Active Work Order (${pm.linkedWoId})
+              </button>
+            ` : `
+              <button class="btn-pm-create-wo px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95" data-pmid="${pm.id}">
+                <span class="material-symbols-outlined text-[16px]">bolt</span>Generate Work Order Now
+              </button>
+            `}
+            <button class="btn-pm-advance-cycle px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95" data-pmid="${pm.id}">
+              <span class="material-symbols-outlined text-[16px]">check_circle</span>Complete & Advance Cycle
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── Schedule PM Modal ─────────────────────────────────────────────────────
+  _html_schedulePmModal() {
+    return `
+      <div id="pm-schedule-backdrop" class="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm animate-fadeIn"></div>
+      <div class="fixed inset-0 z-[71] flex items-center justify-center p-4">
+        <div class="bg-surface-bright rounded-2xl shadow-2xl border border-outline-variant max-w-xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-fadeIn">
+          <!-- Modal Header -->
+          <div class="px-6 py-4 border-b border-outline-variant bg-surface-container flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-primary text-on-primary flex items-center justify-center font-bold text-sm">
+                <span class="material-symbols-outlined text-[18px]">calendar_add_on</span>
+              </div>
+              <div>
+                <h3 class="font-bold text-base text-primary">Schedule Preventive Maintenance</h3>
+                <p class="text-xs text-on-surface-variant">Set up fixed recurring equipment service with automated alerts.</p>
+              </div>
+            </div>
+            <button id="btn-close-schedule-pm" class="p-1.5 hover:bg-surface-container rounded-full text-on-surface-variant cursor-pointer">
+              <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
+          </div>
+
+          <!-- Modal Form -->
+          <div class="p-6 overflow-y-auto custom-scrollbar space-y-4 flex-1">
+            <div>
+              <label class="block text-xs font-bold text-primary mb-1">Task Title *</label>
+              <input id="pm-new-title" type="text" placeholder="e.g. Chiller Condenser Tube Descaling & Water Treatment"
+                class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:outline-none focus:border-primary font-medium" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-primary mb-1">Machine / Asset *</label>
+                <select id="pm-new-asset" class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:outline-none focus:border-primary">
+                  ${this.assets.map(a => `<option value="${a.code}" data-loc="${a.location}" data-name="${a.name}">${a.name} (${a.code})</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-primary mb-1">Location *</label>
+                <input id="pm-new-location" type="text" value="${this.assets[0]?.location || 'Plant Room'}"
+                  class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:outline-none focus:border-primary" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-primary mb-1">Fixed Schedule Frequency *</label>
+                <select id="pm-new-frequency" class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:outline-none focus:border-primary font-bold">
+                  <option value="Weekly">Weekly (Every 7 Days)</option>
+                  <option value="Bi-Weekly">Bi-Weekly (Every 14 Days)</option>
+                  <option value="Monthly" selected>Monthly (Every Month)</option>
+                  <option value="Quarterly">Quarterly (Every 3 Months)</option>
+                  <option value="Semi-Annual">Semi-Annual (Every 6 Months)</option>
+                  <option value="Annual">Annual (Every Year)</option>
+                  <option value="Daily">Daily (Every Day)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-primary mb-1">Schedule Timing Rule *</label>
+                <input id="pm-new-rule" type="text" placeholder="e.g. Monthly • 15th of Month • 10:00 AM" value="Monthly • 15th of Month • 10:00 AM"
+                  class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:outline-none focus:border-primary font-data-mono" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-primary mb-1">First Due Date *</label>
+                <input id="pm-new-duedate" type="text" value="25 Sep 2026"
+                  class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:outline-none focus:border-primary font-data-mono" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-primary mb-1">Lead Engineer *</label>
+                <select id="pm-new-tech" class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:outline-none focus:border-primary">
+                  ${this.technicians.map(t => `<option value="${t.name}">${t.name} (${t.specialty})</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-primary mb-1">Advance Notification</label>
+                <select id="pm-new-notify" class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:outline-none focus:border-primary">
+                  <option value="2">2 days before</option>
+                  <option value="3">3 days before</option>
+                  <option value="7" selected>7 days before</option>
+                  <option value="14">14 days before</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-primary mb-1">Inspection Checklist (one item per line)</label>
+              <textarea id="pm-new-checklist" rows="3" placeholder="Inspect mechanical seals&#10;Check operating pressure differential&#10;Test automated safety trip switches"
+                class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:outline-none focus:border-primary"></textarea>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-primary mb-1">Standard Operating Procedure / Safety Notes</label>
+              <input id="pm-new-sop" type="text" placeholder="e.g. Lockout/tagout primary power isolator before servicing."
+                class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:outline-none focus:border-primary" />
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="px-6 py-4 border-t border-outline-variant bg-surface-container flex items-center justify-end gap-3">
+            <button id="btn-cancel-schedule-pm" class="px-4 py-2 rounded-xl border border-outline-variant hover:bg-surface-container text-xs font-bold text-on-surface-variant cursor-pointer">
+              Cancel
+            </button>
+            <button id="btn-submit-schedule-pm" class="px-5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold cursor-pointer transition-all shadow-sm active:scale-95 flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">save</span>
+              Save & Activate Schedule
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -1374,6 +2204,144 @@ export class MaintenanceDashboardView {
       wo.timeline.push({ time: 'Just now', action: `Assigned to ${tech.name}`, by: 'Julian Croft' });
       Toast.show({ title: 'Assigned', message: `${wo.id} assigned to ${tech.name}`, type: 'success' });
       this.renderContent();
+    });
+
+    // ── Preventive Maintenance Events ─────────────────────────────────────────
+    // Frequency filter pills
+    this.container.querySelectorAll('.pm-freq-filter-btn').forEach(btn => {
+      btn.onclick = () => {
+        this.pmFrequencyFilter = btn.dataset.freq;
+        this.renderContent();
+      };
+    });
+
+    // Open Schedule PM Modal
+    const openSchedBtn = g('#btn-open-schedule-pm');
+    if (openSchedBtn) openSchedBtn.onclick = () => {
+      this.showSchedulePmModal = true;
+      this.renderContent();
+    };
+
+    // Close Schedule PM Modal
+    [g('#btn-close-schedule-pm'), g('#btn-cancel-schedule-pm'), g('#pm-schedule-backdrop')].forEach(el => {
+      if (el) el.onclick = () => {
+        this.showSchedulePmModal = false;
+        this.renderContent();
+      };
+    });
+
+    // Auto-fill location when asset changes in modal
+    const pmAssetSel = g('#pm-new-asset');
+    if (pmAssetSel) {
+      pmAssetSel.onchange = () => {
+        const opt = pmAssetSel.options[pmAssetSel.selectedIndex];
+        const locInp = g('#pm-new-location');
+        if (locInp && opt?.dataset?.loc) locInp.value = opt.dataset.loc;
+      };
+    }
+
+    // Submit Schedule PM
+    const submitSchedBtn = g('#btn-submit-schedule-pm');
+    if (submitSchedBtn) submitSchedBtn.onclick = () => {
+      const title = g('#pm-new-title')?.value?.trim();
+      if (!title) {
+        Toast.show({ title: 'Validation Error', message: 'Please enter a task title for the PM schedule.', type: 'error' });
+        return;
+      }
+      const assetOpt = g('#pm-new-asset')?.selectedOptions?.[0];
+      const assetCode = assetOpt?.value || 'GEN-01';
+      const assetName = assetOpt?.dataset?.name || title;
+      const location = g('#pm-new-location')?.value?.trim() || 'Plant Room';
+      const frequency = g('#pm-new-frequency')?.value || 'Monthly';
+      const scheduleRule = g('#pm-new-rule')?.value?.trim() || `${frequency} Routine`;
+      const dueDate = g('#pm-new-duedate')?.value?.trim() || '25 Sep 2026';
+      const tech = g('#pm-new-tech')?.value || 'Tariq Mahmoud';
+      const notifyAdvanceDays = parseInt(g('#pm-new-notify')?.value || '7', 10);
+      const checklistText = g('#pm-new-checklist')?.value || '';
+      const checklist = checklistText.split('\n').map(s => s.trim()).filter(Boolean);
+      const sop = g('#pm-new-sop')?.value?.trim() || 'Standard Operating Procedure.';
+
+      const newPm = {
+        id: `pm${Date.now().toString().slice(-4)}`,
+        title,
+        location,
+        assetCode,
+        assetName,
+        frequency,
+        scheduleRule,
+        dueDate,
+        dueTime: '09:00 AM',
+        daysUntil: this._calcDaysUntil(dueDate),
+        lastCompleted: 'Not recorded',
+        assignedTo: tech,
+        notifyAdvanceDays,
+        estimatedDuration: '1h 30m',
+        cycleCount: 1,
+        status: 'UPCOMING',
+        checklist: checklist.length ? checklist : ['Perform visual inspection and verify operational clearance', 'Test safety controls and record operating metrics'],
+        sop,
+        linkedWoId: null,
+        notificationSent: false
+      };
+      newPm.status = newPm.daysUntil <= 2 ? 'DUE_SOON' : (newPm.daysUntil <= notifyAdvanceDays ? 'UPCOMING' : 'SCHEDULED');
+
+      this.preventive.unshift(newPm);
+      this.showSchedulePmModal = false;
+      if (store) store.notify();
+      Toast.show({
+        title: 'PM Schedule Created',
+        message: `${title} scheduled (${frequency}: ${scheduleRule}).`,
+        type: 'success'
+      });
+      this.renderContent();
+    };
+
+    // View PM Detail Drawer
+    this.container.querySelectorAll('.btn-view-pm').forEach(b => {
+      b.onclick = () => {
+        this.activePmDetail = b.dataset.pmid;
+        this.renderContent();
+      };
+    });
+
+    // Close PM Detail Drawer
+    [g('#btn-close-pm-detail'), g('#btn-close-pm-detail2'), g('#pm-detail-backdrop')].forEach(el => {
+      if (el) el.onclick = () => {
+        this.activePmDetail = null;
+        this.renderContent();
+      };
+    });
+
+    // Create WO from PM
+    this.container.querySelectorAll('.btn-pm-create-wo').forEach(b => {
+      b.onclick = (e) => {
+        e.stopPropagation();
+        this._createWoFromPm(b.dataset.pmid);
+      };
+    });
+
+    // Advance PM Cycle
+    this.container.querySelectorAll('.btn-pm-advance-cycle').forEach(b => {
+      b.onclick = (e) => {
+        e.stopPropagation();
+        this._advancePmCycle(b.dataset.pmid);
+      };
+    });
+
+    // Notify engineer
+    this.container.querySelectorAll('.btn-pm-notify-tech').forEach(b => {
+      b.onclick = (e) => {
+        e.stopPropagation();
+        this._notifyEngineer(b.dataset.pmid);
+      };
+    });
+
+    // Quick run PM from dashboard agenda preview
+    this.container.querySelectorAll('.btn-quick-run-pm').forEach(b => {
+      b.onclick = (e) => {
+        e.stopPropagation();
+        this._createWoFromPm(b.dataset.pmid);
+      };
     });
   }
 
