@@ -8,34 +8,24 @@ import { NewBookingModal } from '../views/frontoffice/NewBookingModal.js';
 export function renderSidebar(state) {
   const isHousekeeping = state.activeWorkspace === 'HOUSEKEEPING';
   const isMaintenance = state.activeWorkspace === 'MAINTENANCE';
-  const activeTab = state.activeNavTab || (isMaintenance ? 'maintenance' : (isHousekeeping ? 'housekeeping' : 'reservations'));
+  const activeTab = state.activeNavTab || (isMaintenance ? 'maint_dashboard' : (isHousekeeping ? 'housekeeping' : 'reservations'));
 
   let navSections;
   if (isMaintenance) {
+    const openTickets = (state.maintenanceTickets || []).filter(t => t.status !== 'Resolved' && t.status !== 'Closed');
+    const urgentTickets = openTickets.filter(t => t.priority === 'Critical' || t.priority === 'CRITICAL' || t.priority === 'High' || t.priority === 'HIGH');
+    const openRequestsCount = openTickets.length || 4;
+    const urgentCount = urgentTickets.length || 2;
+
     navSections = [
       {
-        title: 'OVERVIEW',
+        title: 'MAINTENANCE',
         items: [
-          { id: 'maintenance', label: 'Maintenance Board', icon: 'engineering' },
-        ],
-      },
-      {
-        title: 'OPERATIONS',
-        items: [
-          { id: 'maint_workorders', label: 'Work Orders', icon: 'build' },
-          { id: 'maint_urgent', label: 'Urgent & Safety', icon: 'warning' },
-          { id: 'maint_pm', label: 'Preventive PM', icon: 'event_repeat' },
-          { id: 'maint_assets', label: 'Asset Registry', icon: 'inventory_2' },
-          { id: 'maint_team', label: 'Engineering Team', icon: 'groups' },
-        ],
-      },
-      {
-        title: 'ROOM INTEGRATION',
-        items: [
-          { id: 'house_status', label: 'House Status', icon: 'grid_view' },
-          { id: 'room_master', label: 'Room Master', icon: 'meeting_room' },
-          { id: 'inventory', label: 'Room Board', icon: 'table_chart' },
-          { id: 'housekeeping', label: 'Housekeeping', icon: 'cleaning_services' },
+          { id: 'maint_dashboard', label: 'Dashboard', icon: 'dashboard' },
+          { id: 'maint_requests', label: 'Maintenance Requests', icon: 'build', badge: urgentCount ? `${urgentCount} urgent` : (openRequestsCount ? `${openRequestsCount} open` : null) },
+          { id: 'maint_preventive', label: 'Preventive Maintenance', icon: 'event_repeat', badge: '5 due' },
+          { id: 'maint_machines', label: 'Machines', icon: 'precision_manufacturing', badge: '6 units' },
+          { id: 'maint_staff', label: 'Engineers or Staff', icon: 'engineering', badge: '4 on duty' },
         ],
       },
     ];
@@ -127,7 +117,13 @@ export function renderSidebar(state) {
                     (item.id === 'hk_house_status' && (activeTab === 'hk_house_status' || activeTab === 'hk_house' || activeTab === 'hk_room_status')) ||
                     (item.id === 'hk_linen' && (activeTab === 'hk_linen' || activeTab === 'linen' || activeTab === 'hk_laundry' || activeTab === 'hk_linen_inventory'))
                   )) ||
-                  (isMaintenance && item.id === 'maintenance' && (!activeTab || activeTab === 'maintenance'));
+                  (isMaintenance && (
+                    (item.id === 'maint_dashboard' && (!activeTab || activeTab === 'maint_dashboard' || activeTab === 'maintenance')) ||
+                    (item.id === 'maint_requests' && (activeTab === 'maint_requests' || activeTab === 'maint_workorders' || activeTab === 'maint_urgent')) ||
+                    (item.id === 'maint_preventive' && (activeTab === 'maint_preventive' || activeTab === 'maint_pm')) ||
+                    (item.id === 'maint_machines' && (activeTab === 'maint_machines' || activeTab === 'maint_assets')) ||
+                    (item.id === 'maint_staff' && (activeTab === 'maint_staff' || activeTab === 'maint_team'))
+                  ));
                 return `
                   <button 
                     class="nav-sidebar-btn w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all text-left group ${
@@ -228,7 +224,7 @@ export function bindSidebarEvents() {
   const newWorkOrderBtn = document.getElementById('btn-sidebar-new-workorder');
   if (newWorkOrderBtn) {
     newWorkOrderBtn.onclick = () => {
-      const addBtn = document.getElementById('btn-new-work-order');
+      const addBtn = document.getElementById('btn-create-wo') || document.getElementById('btn-new-work-order');
       if (addBtn) addBtn.click();
     };
   }

@@ -87,10 +87,12 @@ function renderApp() {
       'dashboard', 'bookings', 'profiles', 'arrivals', 'inhouse', 'room_grid', 'room_matrix', 'room_status',
       'crm', 'services', 'queue_reservations', 'departures',
       'room_board', 'house_status', 'room_master', 'room_configuration', 'billing', 'messages', 'traces', 'wakeup_calls',
-      'housekeeping', 'hk_dispatch', 'dispatch', 'hk_staff', 'staff', 'hk_house_status', 'maintenance', 'inventory'
+      'housekeeping', 'hk_dispatch', 'dispatch', 'hk_staff', 'staff', 'hk_house_status', 'inventory',
+      'maintenance', 'maint_dashboard', 'maint_requests', 'maint_preventive', 'maint_machines', 'maint_staff',
+      'maint_workorders', 'maint_urgent', 'maint_pm', 'maint_assets', 'maint_team'
     ];
     const resolvedTab = (urlTab && validTabs.includes(urlTab)) ? urlTab : null;
-    const activeTab = resolvedTab || state.activeNavTab || (isMaintenance ? 'maintenance' : (isHousekeeping ? 'housekeeping' : 'reservations'));
+    const activeTab = resolvedTab || state.activeNavTab || (isMaintenance ? 'maint_dashboard' : (isHousekeeping ? 'housekeeping' : 'reservations'));
     state.activeNavTab = activeTab;
 
     appContainer.innerHTML = `
@@ -285,6 +287,11 @@ function renderApp() {
         activeViewInstance.loadData().then(() => activeViewInstance.bindEvents());
         break;
 
+      case 'maint_dashboard':
+      case 'maint_requests':
+      case 'maint_preventive':
+      case 'maint_machines':
+      case 'maint_staff':
       case 'maintenance':
       case 'maint_workorders':
       case 'maint_urgent':
@@ -294,16 +301,25 @@ function renderApp() {
         activeViewInstance = new MaintenanceDashboardView();
         mountPoint.appendChild(activeViewInstance.render());
         activeViewInstance.loadData().then(() => {
-          if (activeTab === 'maint_urgent') {
+          if (activeTab === 'maint_dashboard' || activeTab === 'maintenance') {
+            activeViewInstance.workOrdersTab = 'dashboard';
+            activeViewInstance.renderContent();
+          } else if (activeTab === 'maint_requests' || activeTab === 'maint_workorders') {
+            activeViewInstance.workOrdersTab = 'list';
+            activeViewInstance.renderContent();
+          } else if (activeTab === 'maint_urgent') {
+            activeViewInstance.workOrdersTab = 'list';
             activeViewInstance.setQuickFilter('URGENT');
-          } else if (activeTab === 'maint_pm') {
+          } else if (activeTab === 'maint_preventive' || activeTab === 'maint_pm') {
             activeViewInstance.workOrdersTab = 'preventive';
             activeViewInstance.renderContent();
-          } else if (activeTab === 'maint_assets') {
+          } else if (activeTab === 'maint_machines' || activeTab === 'maint_assets') {
             activeViewInstance.workOrdersTab = 'assets';
             activeViewInstance.renderContent();
-          } else if (activeTab === 'maint_team') {
+          } else if (activeTab === 'maint_staff' || activeTab === 'maint_team') {
             activeViewInstance.workOrdersTab = 'technicians';
+            activeViewInstance.renderContent();
+          } else {
             activeViewInstance.renderContent();
           }
         });
@@ -315,7 +331,10 @@ function renderApp() {
         if (isMaintenance) {
           activeViewInstance = new MaintenanceDashboardView();
           mountPoint.appendChild(activeViewInstance.render());
-          activeViewInstance.loadData().then(() => activeViewInstance.bindEvents());
+          activeViewInstance.loadData().then(() => {
+            activeViewInstance.workOrdersTab = 'dashboard';
+            activeViewInstance.renderContent();
+          });
         } else if (isHousekeeping) {
           activeViewInstance = new HousekeepingDashboardView();
           mountPoint.appendChild(activeViewInstance.render());

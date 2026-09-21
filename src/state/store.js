@@ -1397,7 +1397,7 @@ class VolvitechStore {
       this.state.activeWorkspace = 'HOUSEKEEPING';
     }
     // If navigating to maintenance from other workspaces
-    if (tab === 'maintenance' && this.state.activeWorkspace !== 'MAINTENANCE') {
+    if (['maintenance', 'maint_dashboard', 'maint_requests', 'maint_preventive', 'maint_machines', 'maint_staff', 'maint_workorders', 'maint_urgent', 'maint_pm', 'maint_assets', 'maint_team'].includes(tab) && this.state.activeWorkspace !== 'MAINTENANCE') {
       this.state.activeWorkspace = 'MAINTENANCE';
     }
     // If navigating back to Front Desk core operations
@@ -3593,7 +3593,6 @@ class VolvitechStore {
     }
     return null;
   }
-
 
   updateRoomLinenConsumptionLog(logId, updates) {
     if (!this.state.dailyLinenConsumption) return null;

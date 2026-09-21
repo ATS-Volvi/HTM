@@ -18,10 +18,11 @@ export class MaintenanceDashboardView {
     this.activeQuickFilter = 'ALL';
     this.activeWorkOrderDetail = null;
     this.showCreateModal = false;
-    this.workOrdersTab = 'list';
+    this.workOrdersTab = 'dashboard';
     this.workOrders = this._buildWorkOrders();
     this.assets = this._buildAssets();
     this.preventive = this._buildPreventive();
+    this.pmSchedule = this.preventive;
     this.technicians = [
       { id: 't1', name: 'Tariq Mahmoud', initials: 'TM', role: 'Lead HVAC Engineer', specialty: 'HVAC', onDuty: true },
       { id: 't2', name: 'Marco Bellini', initials: 'MB', role: 'Plumbing Specialist', specialty: 'Plumbing', onDuty: true },
@@ -29,6 +30,15 @@ export class MaintenanceDashboardView {
       { id: 't4', name: 'Anil Sharma', initials: 'AS', role: 'Electrical Engineer', specialty: 'Electrical', onDuty: true },
       { id: 't5', name: 'Chen Wei', initials: 'CW', role: 'General Maintenance', specialty: 'General', onDuty: false },
     ];
+  }
+
+  async loadData() {
+    return Promise.resolve();
+  }
+
+  setQuickFilter(filter) {
+    this.activeQuickFilter = filter;
+    this.renderContent();
   }
 
   _buildWorkOrders() {
@@ -250,9 +260,10 @@ export class MaintenanceDashboardView {
     this.container.innerHTML = `
       ${this._html_header()}
       ${this._html_kpis(m)}
-      ${urgentWOs.length > 0 ? this._html_urgent(urgentWOs) : ''}
-      ${this._html_stepper()}
+      ${urgentWOs.length > 0 && (this.workOrdersTab === 'dashboard' || this.workOrdersTab === 'list') ? this._html_urgent(urgentWOs) : ''}
+      ${this.workOrdersTab === 'list' || this.workOrdersTab === 'dashboard' ? this._html_stepper() : ''}
       ${this._html_tabbar(filtered)}
+      ${this.workOrdersTab === 'dashboard' ? this._html_dashboard(m, urgentWOs) : ''}
       ${this.workOrdersTab === 'list' ? this._html_table(filtered) : ''}
       ${this.workOrdersTab === 'assets' ? this._html_assets() : ''}
       ${this.workOrdersTab === 'preventive' ? this._html_preventive() : ''}
@@ -265,6 +276,15 @@ export class MaintenanceDashboardView {
 
   // ── Header ────────────────────────────────────────────────────────────────
   _html_header() {
+    const titles = {
+      dashboard: { title: 'Maintenance Dashboard', desc: 'Real-time overview of hotel plant, machinery uptime, and urgent repair tickets.' },
+      list: { title: 'Maintenance Requests', desc: 'Track, dispatch, and resolve guest room and facilities work orders.' },
+      preventive: { title: 'Preventive Maintenance', desc: 'Scheduled recurring equipment servicing, inspections, and compliance checks.' },
+      assets: { title: 'Machines', desc: 'Asset registry of HVAC, vertical transport, kitchen systems, and generators.' },
+      technicians: { title: 'Engineers or Staff', desc: 'On-duty engineering technicians, specialty assignments, and active work queues.' }
+    };
+    const currentTabInfo = titles[this.workOrdersTab] || titles.dashboard;
+
     return `
       <section class="flex flex-col lg:flex-row lg:items-end justify-between gap-4 pb-4 border-b border-outline-variant/60">
         <div>
@@ -273,11 +293,11 @@ export class MaintenanceDashboardView {
             <span class="text-on-surface-variant font-data-mono text-xs">→</span>
             <span class="text-[10px] font-bold uppercase tracking-wider text-primary font-data-mono">Maintenance</span>
             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
-              <span class="material-symbols-outlined text-[12px]">engineering</span> Engineering and Repairs
+              <span class="material-symbols-outlined text-[12px]">engineering</span> ${currentTabInfo.title}
             </span>
           </div>
-          <h1 class="text-2xl sm:text-3xl font-bold text-primary tracking-tight">Maintenance</h1>
-          <p class="text-sm text-on-surface-variant mt-0.5">Monitor repairs, work orders and hotel equipment.</p>
+          <h1 class="text-2xl sm:text-3xl font-bold text-primary tracking-tight">${currentTabInfo.title}</h1>
+          <p class="text-sm text-on-surface-variant mt-0.5">${currentTabInfo.desc}</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <select id="sel-maint-area" class="border border-outline-variant rounded-xl font-data-mono text-xs py-2 px-3 bg-surface-bright text-primary focus:outline-none focus:border-primary cursor-pointer">
@@ -427,20 +447,256 @@ export class MaintenanceDashboardView {
   }
 
   // ── Tab Bar ───────────────────────────────────────────────────────────────
+  // ── Tab Bar ───────────────────────────────────────────────────────────────
   _html_tabbar(filtered) {
     const tabs = [
-      { id:'list', label:`Work Orders (${filtered.length})`, icon:'table_rows' },
-      { id:'assets', label:`Assets (${this.assets.length})`, icon:'precision_manufacturing' },
-      { id:'preventive', label:'Preventive Maintenance', icon:'event_repeat' },
-      { id:'technicians', label:'Technicians', icon:'people' },
+      { id:'dashboard', label:'Dashboard', icon:'dashboard' },
+      { id:'list', label:`Maintenance Requests (${this.workOrders.length})`, icon:'build' },
+      { id:'preventive', label:`Preventive Maintenance (${this.preventive.length})`, icon:'event_repeat' },
+      { id:'assets', label:`Machines (${this.assets.length})`, icon:'precision_manufacturing' },
+      { id:'technicians', label:`Engineers or Staff (${this.technicians.length})`, icon:'engineering' },
     ];
     return `
-      <div class="flex items-center gap-1 border-b border-outline-variant/60 pb-2">
+      <div class="flex items-center gap-1 border-b border-outline-variant/60 pb-2 overflow-x-auto">
         ${tabs.map(t => `
-          <button class="maint-tab-btn px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${this.workOrdersTab === t.id ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container hover:text-primary'}" data-tab="${t.id}">
-            <span class="material-symbols-outlined text-[15px]">${t.icon}</span>${t.label}
+          <button class="maint-tab-btn px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${this.workOrdersTab === t.id ? 'bg-primary text-on-primary shadow-xs' : 'text-on-surface-variant hover:bg-surface-container hover:text-primary'}" data-tab="${t.id}">
+            <span class="material-symbols-outlined text-[15px]">${t.icon}</span><span>${t.label}</span>
           </button>
         `).join('')}
+      </div>
+    `;
+  }
+
+  // ── Dashboard Overview Panel ───────────────────────────────────────────────
+  _html_dashboard(m, urgentWOs) {
+    const onDutyTechs = this.technicians.filter(t => t.onDuty);
+    const activeRequests = this.workOrders.filter(w => !['CLOSED','CANCELLED'].includes(w.status));
+
+    return `
+      <div class="space-y-6">
+        <!-- 1. Quick Action & Telemetry Hero Bar -->
+        <div class="bg-surface-container-lowest border border-outline-variant rounded-2xl p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+              <span class="material-symbols-outlined text-2xl">precision_manufacturing</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-base font-bold text-primary">Plant & Facilities Operational Command</h2>
+                <span class="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 text-[10px] font-bold border border-emerald-500/20 font-data-mono">99.4% Uptime</span>
+              </div>
+              <p class="text-xs text-on-surface-variant mt-0.5">
+                Central BMS telemetry nominal. <strong>${onDutyTechs.length} engineers</strong> on duty, <strong>${activeRequests.length} active maintenance requests</strong>, and <strong>${this.preventive.length} scheduled PPM tasks</strong>.
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap shrink-0">
+            <button class="btn-goto-tab px-3.5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 cursor-pointer flex items-center gap-1.5 transition-all shadow-xs" data-tab="list">
+              <span class="material-symbols-outlined text-[15px]">build</span>Maintenance Requests
+            </button>
+            <button class="btn-goto-tab px-3.5 py-2 rounded-xl border border-outline-variant text-primary hover:bg-surface-container text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-all" data-tab="assets">
+              <span class="material-symbols-outlined text-[15px]">precision_manufacturing</span>Machines Fleet
+            </button>
+            <button class="btn-goto-tab px-3.5 py-2 rounded-xl border border-outline-variant text-primary hover:bg-surface-container text-xs font-bold cursor-pointer flex items-center gap-1.5 transition-all" data-tab="technicians">
+              <span class="material-symbols-outlined text-[15px]">engineering</span>Engineers or Staff
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Core Plant Machinery Health Cards -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary text-lg">memory</span>
+              <h3 class="text-sm font-bold text-primary">Machines & Plant Infrastructure Status</h3>
+            </div>
+            <button class="btn-goto-tab text-xs font-bold text-primary hover:underline flex items-center gap-0.5 cursor-pointer" data-tab="assets">
+              All Machines (${this.assets.length}) <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+            </button>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <!-- HVAC -->
+            <div class="p-4 rounded-xl border border-outline-variant bg-surface-container-lowest hover:border-primary transition-all">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-cyan-600 text-xl">mode_fan</span>
+                  <span class="text-xs font-bold text-primary">HVAC & Chillers</span>
+                </div>
+                <span class="px-1.5 py-0.5 rounded text-[9px] font-bold font-data-mono bg-amber-100 text-amber-700 border border-amber-200">1 Degraded</span>
+              </div>
+              <div class="text-base font-bold font-data-mono text-on-surface">Samsung DVM S</div>
+              <p class="text-[11px] text-on-surface-variant mt-1">Room 508 unit valve replacement underway. Chiller loop supply steady at 7.2°C.</p>
+              <div class="mt-3 pt-2.5 border-t border-outline-variant/60 flex items-center justify-between text-[10px] text-on-surface-variant font-data-mono">
+                <span>Lead: Tariq Mahmoud</span>
+                <span class="text-primary font-bold">PM in 4d</span>
+              </div>
+            </div>
+
+            <!-- Elevators -->
+            <div class="p-4 rounded-xl border border-outline-variant bg-surface-container-lowest hover:border-primary transition-all">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-indigo-600 text-xl">elevator</span>
+                  <span class="text-xs font-bold text-primary">Vertical Transport</span>
+                </div>
+                <span class="px-1.5 py-0.5 rounded text-[9px] font-bold font-data-mono bg-orange-100 text-orange-700 border border-orange-200">Degraded</span>
+              </div>
+              <div class="text-base font-bold font-data-mono text-on-surface">Schindler 3300 MRL</div>
+              <p class="text-[11px] text-on-surface-variant mt-1">Lobby passenger lift door sensor warning. Service & freight lifts normal.</p>
+              <div class="mt-3 pt-2.5 border-t border-outline-variant/60 flex items-center justify-between text-[10px] text-on-surface-variant font-data-mono">
+                <span>Schindler SLA: 90m</span>
+                <span class="text-orange-700 font-bold">Attention</span>
+              </div>
+            </div>
+
+            <!-- Commercial Kitchen -->
+            <div class="p-4 rounded-xl border border-outline-variant bg-surface-container-lowest hover:border-primary transition-all">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-amber-600 text-xl">soup_kitchen</span>
+                  <span class="text-xs font-bold text-primary">Kitchen Machinery</span>
+                </div>
+                <span class="px-1.5 py-0.5 rounded text-[9px] font-bold font-data-mono bg-purple-100 text-purple-700 border border-purple-200">Awaiting Part</span>
+              </div>
+              <div class="text-base font-bold font-data-mono text-on-surface">Rational iCombi Pro</div>
+              <p class="text-[11px] text-on-surface-variant mt-1">Boiler descaling alert triggered. Descaling care tabs in transit from store.</p>
+              <div class="mt-3 pt-2.5 border-t border-outline-variant/60 flex items-center justify-between text-[10px] text-on-surface-variant font-data-mono">
+                <span>Lead: Rajesh Kumar</span>
+                <span class="text-purple-700 font-bold">Parts Req</span>
+              </div>
+            </div>
+
+            <!-- Power & Genset -->
+            <div class="p-4 rounded-xl border border-outline-variant bg-surface-container-lowest hover:border-primary transition-all">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-emerald-600 text-xl">bolt</span>
+                  <span class="text-xs font-bold text-primary">Standby Power</span>
+                </div>
+                <span class="px-1.5 py-0.5 rounded text-[9px] font-bold font-data-mono bg-emerald-100 text-emerald-700 border border-emerald-200">100% Ready</span>
+              </div>
+              <div class="text-base font-bold font-data-mono text-on-surface">Cummins C150D5</div>
+              <p class="text-[11px] text-on-surface-variant mt-1">Automatic transfer switch nominal. Diesel tank at 94% capacity. Ready for load test.</p>
+              <div class="mt-3 pt-2.5 border-t border-outline-variant/60 flex items-center justify-between text-[10px] text-on-surface-variant font-data-mono">
+                <span>Lead: Anil Sharma</span>
+                <span class="text-emerald-700 font-bold">PPM 15 Sep</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Dual Columns: Active Maintenance Requests & On-Duty Staff -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Live Maintenance Requests Feed (2 cols) -->
+          <div class="lg:col-span-2 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary text-lg">build</span>
+                <h3 class="text-sm font-bold text-primary">Active Maintenance Requests</h3>
+                <span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold font-data-mono">${activeRequests.length} active</span>
+              </div>
+              <button class="btn-goto-tab text-xs font-bold text-primary hover:underline flex items-center gap-0.5 cursor-pointer" data-tab="list">
+                View All Requests <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+              </button>
+            </div>
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-xl divide-y divide-outline-variant/60 overflow-hidden shadow-xs">
+              ${this.workOrders.slice(0, 5).map(wo => {
+                const isCrit = wo.priority === 'CRITICAL';
+                const isHigh = wo.priority === 'HIGH';
+                const pColor = isCrit ? 'bg-red-100 text-red-700 border-red-300' : isHigh ? 'bg-orange-100 text-orange-700 border-orange-300' : 'bg-blue-100 text-blue-700 border-blue-300';
+                return `
+                  <div class="p-3.5 hover:bg-surface-container/30 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div class="flex items-start gap-3 min-w-0">
+                      <div class="w-8 h-8 rounded-lg bg-surface-container text-primary flex items-center justify-center font-data-mono text-xs font-bold shrink-0">
+                        <span class="material-symbols-outlined text-[18px]">handyman</span>
+                      </div>
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <span class="font-data-mono text-xs font-bold text-primary">${wo.id}</span>
+                          <span class="px-1.5 py-0.2 rounded border text-[9px] font-bold font-data-mono ${pColor}">${wo.priority}</span>
+                          <span class="px-1.5 py-0.2 rounded border text-[9px] font-bold font-data-mono ${this._sBadge(wo.status)}">${this._sLabel(wo.status)}</span>
+                          ${wo.overdue ? '<span class="px-1.5 py-0.2 rounded border text-[9px] font-bold font-data-mono bg-red-100 text-red-700 border-red-300">OVERDUE</span>' : ''}
+                        </div>
+                        <div class="font-bold text-xs text-on-surface truncate mt-0.5">${wo.issue}</div>
+                        <div class="text-[10px] text-on-surface-variant flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span>${wo.location}${wo.room ? ` · Room ${wo.room}` : ''}</span>
+                          <span>•</span>
+                          <span>Assigned: <strong class="text-on-surface">${wo.assignedTo}</strong></span>
+                          <span>•</span>
+                          <span>${wo.createdAt}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                      <button class="btn-open-wo px-3 py-1.5 rounded-lg bg-primary text-on-primary text-[11px] font-bold hover:bg-primary/90 cursor-pointer active:scale-95 transition-all flex items-center gap-1" data-woid="${wo.id}">
+                        <span>Details</span>
+                        <span class="material-symbols-outlined text-[13px]">chevron_right</span>
+                      </button>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- Engineers or Staff Status Roster (1 col) -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary text-lg">engineering</span>
+                <h3 class="text-sm font-bold text-primary">Engineers or Staff</h3>
+              </div>
+              <button class="btn-goto-tab text-xs font-bold text-primary hover:underline flex items-center gap-0.5 cursor-pointer" data-tab="technicians">
+                View Staff <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+              </button>
+            </div>
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-xl divide-y divide-outline-variant/60 overflow-hidden shadow-xs">
+              ${this.technicians.map(t => {
+                const activeJobs = this.workOrders.filter(w => w.assignedTo === t.name && !['CLOSED','CANCELLED'].includes(w.status));
+                return `
+                  <div class="p-3 hover:bg-surface-container/30 transition-colors flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <div class="w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center font-bold text-xs shrink-0">${t.initials}</div>
+                      <div class="min-w-0">
+                        <div class="text-xs font-bold text-primary truncate">${t.name}</div>
+                        <div class="text-[10px] text-on-surface-variant truncate">${t.role}</div>
+                      </div>
+                    </div>
+                    <div class="flex flex-col items-end shrink-0">
+                      <div class="flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full ${t.onDuty ? 'bg-emerald-500' : 'bg-slate-300'}"></span>
+                        <span class="text-[9px] font-bold ${t.onDuty ? 'text-emerald-700' : 'text-slate-500'} font-data-mono">${t.onDuty ? 'ON DUTY' : 'OFF'}</span>
+                      </div>
+                      <div class="text-[10px] text-on-surface-variant font-data-mono mt-0.5">${activeJobs.length} active jobs</div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+
+            <!-- PPM Agenda Preview -->
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-3.5 shadow-xs">
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-1.5 text-xs font-bold text-primary">
+                  <span class="material-symbols-outlined text-[16px] text-primary">event_repeat</span>
+                  <span>Upcoming Preventive PM</span>
+                </div>
+                <button class="btn-goto-tab text-[10px] font-bold text-primary hover:underline cursor-pointer" data-tab="preventive">View PM</button>
+              </div>
+              <div class="space-y-2">
+                ${this.preventive.slice(0, 3).map(pm => `
+                  <div class="text-[10px] p-2 rounded-lg bg-surface-container/50 border border-outline-variant/40 flex items-center justify-between">
+                    <div>
+                      <div class="font-bold text-on-surface truncate">${pm.title}</div>
+                      <div class="text-on-surface-variant font-data-mono">${pm.location}</div>
+                    </div>
+                    <span class="px-1.5 py-0.5 rounded font-bold font-data-mono ${pm.daysUntil <= 2 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}">${pm.daysUntil}d</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -874,11 +1130,48 @@ export class MaintenanceDashboardView {
     // Workflow steps
     this.container.querySelectorAll('.workflow-step-btn').forEach(b => b.onclick = () => {
       this.activeQuickFilter = this.activeQuickFilter === b.dataset.status ? 'ALL' : b.dataset.status;
+      this.workOrdersTab = 'list';
       this.renderContent();
     });
 
+    // Helper to sync tab to sidebar
+    const syncNavTab = (tabId) => {
+      this.workOrdersTab = tabId;
+      const tabMap = {
+        dashboard: 'maint_dashboard',
+        list: 'maint_requests',
+        preventive: 'maint_preventive',
+        assets: 'maint_machines',
+        technicians: 'maint_staff'
+      };
+      const activeNav = tabMap[tabId];
+      if (activeNav && store) {
+        store.state.activeNavTab = activeNav;
+        const sidebar = document.querySelector('aside');
+        if (sidebar) {
+          sidebar.querySelectorAll('.nav-sidebar-btn').forEach(btn => {
+            const btnTab = btn.dataset.tab;
+            const isActive = btnTab === activeNav;
+            if (isActive) {
+              btn.className = 'nav-sidebar-btn w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all text-left group text-primary bg-primary/10 border-l-[3px] border-primary font-bold shadow-xs';
+            } else {
+              btn.className = 'nav-sidebar-btn w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all text-left group text-on-surface-variant hover:bg-surface-container hover:text-primary';
+            }
+          });
+        }
+      }
+      this.renderContent();
+    };
+
     // Tabs
-    this.container.querySelectorAll('.maint-tab-btn').forEach(b => b.onclick = () => { this.workOrdersTab = b.dataset.tab; this.renderContent(); });
+    this.container.querySelectorAll('.maint-tab-btn').forEach(b => b.onclick = () => {
+      syncNavTab(b.dataset.tab);
+    });
+
+    // Quick Jump Buttons
+    this.container.querySelectorAll('.btn-goto-tab').forEach(b => b.onclick = () => {
+      syncNavTab(b.dataset.tab);
+    });
 
     // Open WO detail
     this.container.querySelectorAll('.btn-open-wo').forEach(b => b.onclick = () => { this.activeWorkOrderDetail = b.dataset.woid; this.renderContent(); });
