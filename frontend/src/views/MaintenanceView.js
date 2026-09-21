@@ -181,13 +181,14 @@ export class MaintenanceDashboardView {
   // ── Computed ──────────────────────────────────────────────────────────────
   _metrics() {
     const wo = this.workOrders;
+    const isUnresolved = s => !['REPAIR_COMPLETE', 'VERIFICATION', 'CLOSED', 'RESOLVED', 'CANCELLED'].includes(s);
     return {
       openWorkOrders: wo.filter(w => !['CLOSED','CANCELLED'].includes(w.status)).length,
-      urgent: wo.filter(w => ['CRITICAL','HIGH'].includes(w.priority) && !['CLOSED','CANCELLED'].includes(w.status)).length,
+      urgent: wo.filter(w => ['CRITICAL','HIGH'].includes(w.priority) && isUnresolved(w.status)).length,
       inProgress: wo.filter(w => w.status === 'IN_PROGRESS').length,
       waitingParts: wo.filter(w => w.status === 'WAITING_FOR_PARTS').length,
-      overdue: wo.filter(w => w.overdue && !['CLOSED','CANCELLED'].includes(w.status)).length,
-      roomsAffected: wo.filter(w => w.room && !['CLOSED','CANCELLED'].includes(w.status)).length,
+      overdue: wo.filter(w => w.overdue && isUnresolved(w.status)).length,
+      roomsAffected: wo.filter(w => w.room && wo.roomImpact !== 'NONE' && isUnresolved(w.status)).length,
     };
   }
 
@@ -202,9 +203,10 @@ export class MaintenanceDashboardView {
     if (this.filterTechnician !== 'ALL') list = list.filter(w => w.assignedTo === this.filterTechnician);
     const qf = this.activeQuickFilter;
     const STATUSES = ['OPEN','ASSIGNED','IN_PROGRESS','WAITING_FOR_PARTS','REPAIR_COMPLETE','VERIFICATION','CLOSED'];
-    if (qf === 'URGENT') list = list.filter(w => ['CRITICAL','HIGH'].includes(w.priority) && !['CLOSED','CANCELLED'].includes(w.status));
-    else if (qf === 'OVERDUE') list = list.filter(w => w.overdue && !['CLOSED','CANCELLED'].includes(w.status));
-    else if (qf === 'ROOMS') list = list.filter(w => !!w.room && !['CLOSED','CANCELLED'].includes(w.status));
+    const isUnresolved = s => !['REPAIR_COMPLETE', 'VERIFICATION', 'CLOSED', 'RESOLVED', 'CANCELLED'].includes(s);
+    if (qf === 'URGENT') list = list.filter(w => ['CRITICAL','HIGH'].includes(w.priority) && isUnresolved(w.status));
+    else if (qf === 'OVERDUE') list = list.filter(w => w.overdue && isUnresolved(w.status));
+    else if (qf === 'ROOMS') list = list.filter(w => !!w.room && w.roomImpact !== 'NONE' && isUnresolved(w.status));
     else if (STATUSES.includes(qf)) list = list.filter(w => w.status === qf);
     const pw = { CRITICAL:5, HIGH:4, NORMAL:3, LOW:2 };
     return list.sort((a,b) => {
@@ -254,7 +256,8 @@ export class MaintenanceDashboardView {
     if (!this.container) return;
     const m = this._metrics();
     const filtered = this._filtered();
-    const urgentWOs = this.workOrders.filter(w => ['CRITICAL','HIGH'].includes(w.priority) && !['CLOSED','CANCELLED'].includes(w.status));
+    const isUnresolved = s => !['REPAIR_COMPLETE', 'VERIFICATION', 'CLOSED', 'RESOLVED', 'CANCELLED'].includes(s);
+    const urgentWOs = this.workOrders.filter(w => ['CRITICAL','HIGH'].includes(w.priority) && isUnresolved(w.status));
     const activeWO = this.activeWorkOrderDetail ? this.workOrders.find(w => w.id === this.activeWorkOrderDetail) : null;
 
     this.container.innerHTML = `
@@ -385,7 +388,7 @@ export class MaintenanceDashboardView {
                   <span class="text-[10px] text-on-surface-variant font-data-mono">${wo.id}</span>
                 </div>
                 <div>
-                  <div class="text-xs font-bold text-primary">${wo.location}${wo.room ? ' · Room ' + wo.room : ''}</div>
+                  <div class="text-xs font-bold text-primary">${(wo.room && !wo.location.includes(wo.room)) ? `${wo.location} · Room ${wo.room}` : wo.location}</div>
                   <div class="font-bold text-sm text-on-surface mt-0.5">${wo.issue}</div>
                   ${wo.guestAffected && wo.guestName ? `<div class="text-[10px] text-orange-700 font-bold mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">person</span>Guest: ${wo.guestName}</div>` : ''}
                 </div>
@@ -400,7 +403,11 @@ export class MaintenanceDashboardView {
                     <span class="material-symbols-outlined text-[13px]">open_in_new</span>
                     ${isCrit ? 'Handle Incident' : 'Open Work Order'}
                   </button>
-                  ${wo.assignedTo === 'Unassigned' ? `<button class="btn-quick-assign px-3 py-1.5 rounded-lg border border-primary text-primary text-[11px] font-bold cursor-pointer hover:bg-primary/5 active:scale-95" data-woid="${wo.id}"><span class="material-symbols-outlined text-[13px]">person_add</span></button>` : ''}
+                  <button class="btn-quick-complete px-2.5 py-1.5 rounded-lg border border-emerald-600/30 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 text-[11px] font-bold cursor-pointer transition-all flex items-center gap-1 active:scale-95" data-woid="${wo.id}" title="Mark Repair Complete">
+                    <span class="material-symbols-outlined text-[13px]">check_circle</span>
+                    <span>Complete</span>
+                  </button>
+                  ${wo.assignedTo === 'Unassigned' ? `<button class="btn-quick-assign px-3 py-1.5 rounded-lg border border-primary text-primary text-[11px] font-bold cursor-pointer hover:bg-primary/5 active:scale-95" data-woid="${wo.id}" title="Assign Technician"><span class="material-symbols-outlined text-[13px]">person_add</span></button>` : ''}
                 </div>
               </div>
             `;
@@ -1229,13 +1236,50 @@ export class MaintenanceDashboardView {
       const wo = this.workOrders.find(w => w.id === adv.dataset.woid); if (!wo) return;
       wo.status = this._nextStatus(wo.status);
       wo.timeline.push({ time: 'Just now', action: `Status changed to ${this._sLabel(wo.status)}`, by: 'Julian Croft' });
-      if (wo.status === 'CLOSED' && wo.roomImpact !== 'NONE') {
+      if ((wo.status === 'REPAIR_COMPLETE' || wo.status === 'VERIFICATION' || wo.status === 'CLOSED') && wo.roomImpact !== 'NONE') {
         wo.roomImpact = 'NONE';
-        Toast.show({ title: 'Room Restored', message: `Room ${wo.room} is now available.`, type: 'success' });
+        if (wo.room) {
+          const room = (store.state.rooms || []).find(r => r.id === wo.room || r.roomNumber === wo.room || r.room_number === wo.room);
+          if (room) {
+            room.maintenanceStatus = 'Operational';
+            if (room.status === 'Out of Order' || room.status === 'Maintenance') {
+              room.status = 'Dirty';
+            }
+          }
+          store.notify();
+        }
+        Toast.show({ title: 'Room Restored', message: `Room ${wo.room} repair is complete and maintenance block is cleared.`, type: 'success' });
       }
       Toast.show({ title: `${wo.id} Updated`, message: `Status: ${this._sLabel(wo.status)}`, type: 'success' });
       this.renderContent();
     };
+
+    // Quick complete from urgent cards
+    this.container.querySelectorAll('.btn-quick-complete').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const wo = this.workOrders.find(w => w.id === btn.dataset.woid);
+        if (!wo) return;
+        wo.status = 'REPAIR_COMPLETE';
+        wo.timeline.push({ time: 'Just now', action: 'Repair completed on site', by: 'Julian Croft' });
+        if (wo.roomImpact !== 'NONE') {
+          wo.roomImpact = 'NONE';
+          if (wo.room) {
+            const room = (store.state.rooms || []).find(r => r.id === wo.room || r.roomNumber === wo.room || r.room_number === wo.room);
+            if (room) {
+              room.maintenanceStatus = 'Operational';
+              if (room.status === 'Out of Order' || room.status === 'Maintenance') {
+                room.status = 'Dirty';
+              }
+            }
+            store.notify();
+          }
+          Toast.show({ title: 'Room Restored', message: `Room ${wo.room} repairs completed. Room released for housekeeping.`, type: 'success' });
+        }
+        Toast.show({ title: `${wo.id} Repaired`, message: 'Repair marked complete. Removed from Attention Required.', type: 'success' });
+        this.renderContent();
+      };
+    });
 
     // Room impact buttons
     this.container.querySelectorAll('.btn-set-impact').forEach(b => b.onclick = () => {
