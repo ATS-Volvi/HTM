@@ -38,6 +38,7 @@ import { StaffMembersView } from './views/housekeeping/StaffMembersView.js';
 import { HousekeepingHouseStatusView } from './views/housekeeping/HousekeepingHouseStatusView.js';
 import { LinenAmenitiesView } from './views/housekeeping/LinenAmenitiesView.js';
 import { MaintenanceDashboardView } from './views/MaintenanceView.js';
+import { FoodBeverageView } from './views/fb/FoodBeverageView.js';
 
 let activeViewInstance = null;
 
@@ -58,6 +59,16 @@ function renderApp() {
     return;
   }
 
+  // Auto-route direct URL hash to operational workspace
+  const directHash = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase();
+  if (['fb', 'food_beverage', 'fb_dashboard', 'fb_meals', 'fb_menu', 'fb_chefs', 'fb_ingredients', 'meals', 'menu', 'chefs', 'ingredients'].includes(directHash)) {
+    state.activeWorkspace = 'FB';
+  } else if (['maintenance', 'maint_dashboard', 'maint_requests', 'maint_preventive', 'preventive', 'maint_machines', 'maint_staff'].includes(directHash)) {
+    state.activeWorkspace = 'MAINTENANCE';
+  } else if (['housekeeping', 'hk_dispatch', 'hk_staff', 'hk_house_status', 'hk_linen'].includes(directHash)) {
+    state.activeWorkspace = 'HOUSEKEEPING';
+  }
+
   // 2. SCREEN 2: AUTHENTICATED BUT NO ACTIVE WORKSPACE -> WORKSPACE SELECTOR
   if (!state.activeWorkspace) {
     appContainer.innerHTML = '';
@@ -69,10 +80,11 @@ function renderApp() {
     return;
   }
 
-  // 3. SCREEN 3A: OPERATIONAL WORKSPACES WITH ENTERPRISE SIDEBAR SHELL (FRONT DESK, HOUSEKEEPING, MAINTENANCE)
-  if (state.activeWorkspace === 'FRONT_DESK' || state.activeWorkspace === 'HOUSEKEEPING' || state.activeWorkspace === 'MAINTENANCE') {
+  // 3. SCREEN 3A: OPERATIONAL WORKSPACES WITH ENTERPRISE SIDEBAR SHELL (FRONT DESK, HOUSEKEEPING, MAINTENANCE, F&B)
+  if (state.activeWorkspace === 'FRONT_DESK' || state.activeWorkspace === 'HOUSEKEEPING' || state.activeWorkspace === 'MAINTENANCE' || state.activeWorkspace === 'FB' || state.activeWorkspace === 'FOOD_BEVERAGE') {
     const isHousekeeping = state.activeWorkspace === 'HOUSEKEEPING';
     const isMaintenance = state.activeWorkspace === 'MAINTENANCE';
+    const isFoodBeverage = state.activeWorkspace === 'FB' || state.activeWorkspace === 'FOOD_BEVERAGE';
 
     // Support direct hash or query parameter navigation (e.g., #room_assignment, ?view=room_assignment)
     let urlTab = null;
@@ -89,10 +101,11 @@ function renderApp() {
       'room_board', 'house_status', 'room_master', 'room_configuration', 'billing', 'messages', 'traces', 'wakeup_calls',
       'housekeeping', 'hk_dispatch', 'dispatch', 'hk_staff', 'staff', 'hk_house_status', 'inventory',
       'maintenance', 'maint_dashboard', 'maint_requests', 'maint_preventive', 'maint_machines', 'maint_staff',
-      'maint_workorders', 'maint_urgent', 'maint_pm', 'maint_assets', 'maint_team'
+      'maint_workorders', 'maint_urgent', 'maint_pm', 'maint_assets', 'maint_team',
+      'fb', 'fb_dashboard', 'fb_meals', 'fb_menu', 'fb_chefs', 'fb_ingredients', 'meals', 'menu', 'chefs', 'ingredients'
     ];
     const resolvedTab = (urlTab && validTabs.includes(urlTab)) ? urlTab : null;
-    const activeTab = resolvedTab || state.activeNavTab || (isMaintenance ? 'maint_dashboard' : (isHousekeeping ? 'housekeeping' : 'reservations'));
+    const activeTab = resolvedTab || state.activeNavTab || (isFoodBeverage ? 'fb_dashboard' : (isMaintenance ? 'maint_dashboard' : (isHousekeeping ? 'housekeeping' : 'reservations')));
     state.activeNavTab = activeTab;
 
     appContainer.innerHTML = `
@@ -325,10 +338,38 @@ function renderApp() {
         });
         break;
 
+      case 'fb':
+      case 'fb_dashboard':
+      case 'fb_meals':
+      case 'fb_menu':
+      case 'fb_chefs':
+      case 'fb_ingredients':
+      case 'meals':
+      case 'menu':
+      case 'chefs':
+      case 'ingredients':
+        activeViewInstance = new FoodBeverageView();
+        if (activeTab === 'fb_meals' || activeTab === 'meals') {
+          activeViewInstance.activeTab = 'meals';
+        } else if (activeTab === 'fb_menu' || activeTab === 'menu') {
+          activeViewInstance.activeTab = 'menu';
+        } else if (activeTab === 'fb_chefs' || activeTab === 'chefs') {
+          activeViewInstance.activeTab = 'chefs';
+        } else if (activeTab === 'fb_ingredients' || activeTab === 'ingredients') {
+          activeViewInstance.activeTab = 'ingredients';
+        } else {
+          activeViewInstance.activeTab = 'dashboard';
+        }
+        mountPoint.appendChild(activeViewInstance.render());
+        break;
+
       case 'reservations':
       case 'dashboard':
       default:
-        if (isMaintenance) {
+        if (isFoodBeverage) {
+          activeViewInstance = new FoodBeverageView();
+          mountPoint.appendChild(activeViewInstance.render());
+        } else if (isMaintenance) {
           activeViewInstance = new MaintenanceDashboardView();
           mountPoint.appendChild(activeViewInstance.render());
           activeViewInstance.loadData().then(() => {

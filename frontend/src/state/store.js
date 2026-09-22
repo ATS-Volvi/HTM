@@ -3,6 +3,8 @@
 // Single Source of Truth (SSOT) with Connected Event Workflows
 // ==========================================================================
 
+import { getInitialFbState } from './fbInitialData.js';
+
 const STORAGE_KEY = 'volvitech_hospitality_os_v1_store';
 
 // ── Initial Master Data & Properties ──────────────────────────────────────
@@ -1058,6 +1060,7 @@ function getInitialState() {
     stockLedger: initialStockLedger,
     purchaseRequisitions: initialPurchaseRequisitions,
     purchaseOrders: initialPurchaseOrders,
+    fb: getInitialFbState(),
     
     // Guest active session state (simulated logged-in guest)
     activeGuestStay: {
@@ -3927,6 +3930,137 @@ class VolvitechStore {
       ...newRecipeData
     });
     this.showToast(`Recipe "${newRecipeData.name}" created with calculated Food Cost: ${newRecipeData.foodCostPct}%`, 'success');
+    this.notify();
+  }
+
+  // ── Food & Beverage (F&B) Operations & Camp Catering Actions ───────────────
+
+  getFbState() {
+    if (!this.state.fb) {
+      this.state.fb = getInitialFbState();
+    }
+    return this.state.fb;
+  }
+
+  updateChefStatus(chefId, newStatus) {
+    const fb = this.getFbState();
+    const chef = (fb.chefs || []).find(c => c.id === chefId);
+    if (!chef) return;
+    chef.status = newStatus;
+    this.showToast(`Chef ${chef.name} status set to ${newStatus.replace('_', ' ')}`, 'info');
+    this.notify();
+  }
+
+  addChef(chefData) {
+    const fb = this.getFbState();
+    const newChef = {
+      id: `chef-${Date.now()}`,
+      activePrepCount: 0,
+      haccpCertified: true,
+      experienceYrs: 5,
+      ...chefData
+    };
+    fb.chefs.push(newChef);
+    this.showToast(`Chef ${newChef.name} joined the brigade on ${newChef.station}.`, 'success');
+    this.notify();
+    return newChef;
+  }
+
+  addFbDish(dishData) {
+    const fb = this.getFbState();
+    const newDish = {
+      id: `dish-custom-${Date.now()}`,
+      standardCost: dishData.standardCost || 5.00,
+      foodCostPct: dishData.sellingPrice ? Math.round((dishData.standardCost / dishData.sellingPrice) * 100) : 25,
+      ...dishData
+    };
+    fb.menuDishes.push(newDish);
+    this.showToast(`Dish "${newDish.name}" added to ${newDish.mealType} menu.`, 'success');
+    this.notify();
+    return newDish;
+  }
+
+  updateMealPlanItem(dayIndex, mealType, dishId) {
+    const fb = this.getFbState();
+    const day = (fb.weeklyPlan || []).find(d => d.dayIndex === dayIndex);
+    if (!day) return;
+    const propName = mealType.toLowerCase() === 'breakfast' ? 'breakfastDishes' : mealType.toLowerCase() === 'lunch' ? 'lunchDishes' : 'dinnerDishes';
+    if (!day[propName].includes(dishId)) {
+      day[propName].push(dishId);
+    }
+    this.showToast(`Updated ${day.dayName} ${mealType} menu line-up.`, 'info');
+    this.notify();
+  }
+
+  copyDayMealPlan(fromDayIndex, toDayIndex) {
+    const fb = this.getFbState();
+    const sourceDay = (fb.weeklyPlan || []).find(d => d.dayIndex === fromDayIndex);
+    const targetDay = (fb.weeklyPlan || []).find(d => d.dayIndex === toDayIndex);
+    if (!sourceDay || !targetDay) return;
+    targetDay.breakfastDishes = [...sourceDay.breakfastDishes];
+    targetDay.lunchDishes = [...sourceDay.lunchDishes];
+    targetDay.dinnerDishes = [...sourceDay.dinnerDishes];
+    this.showToast(`Copied ${sourceDay.dayName} meal plan to ${targetDay.dayName}.`, 'success');
+    this.notify();
+  }
+
+  recordMealCollection(logData) {
+    const fb = this.getFbState();
+    const newLog = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      status: 'SERVED',
+      ...logData
+    };
+    if (!fb.mealLogs) fb.mealLogs = [];
+    fb.mealLogs.unshift(newLog);
+
+    // Update active session counts
+    const activeSession = (fb.mealSessions || []).find(s => s.code.toLowerCase() === (logData.mealType || 'lunch').toLowerCase());
+    if (activeSession) {
+      activeSession.served = (activeSession.served || 0) + (logData.pax || 1);
+    }
+
+    this.showToast(`Meal verified: Room ${newLog.roomNumber} (${newLog.guestName}) — ${newLog.dishName || 'Meal'}`, 'success');
+    this.notify();
+    return newLog;
+  }
+
+  adjustIngredientStock(ingredientId, changeQty, reason = 'Adjustment') {
+    const fb = this.getFbState();
+    const ing = (fb.ingredients || []).find(i => i.id === ingredientId);
+    if (!ing) return;
+    ing.stock = Math.max(0, +(ing.stock + changeQty).toFixed(2));
+    this.showToast(`${changeQty > 0 ? 'Received' : 'Issued'} ${Math.abs(changeQty)} ${ing.unit} of ${ing.name} (${reason})`, 'info');
+    this.notify();
+  }
+
+  createGroceryRequisition(items, justification = 'Kitchen store replenishment') {
+    const fb = this.getFbState();
+    const reqNum = `REQ-FB-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const totalEst = items.reduce((sum, it) => sum + (it.estCost || 0), 0);
+    const newReq = {
+      id: `greq-${Date.now()}`,
+      reqNumber: reqNum,
+      createdAt: 'Just now',
+      requestedBy: 'Executive Chef',
+      urgency: 'HIGH',
+      status: 'PENDING_APPROVAL',
+      items,
+      totalEstCost: totalEst,
+      justification
+    };
+    if (!fb.groceryRequisitions) fb.groceryRequisitions = [];
+    fb.groceryRequisitions.unshift(newReq);
+    this.showToast(`Grocery Requisition ${reqNum} generated for ${items.length} items ($${totalEst.toFixed(2)}).`, 'success');
+    this.notify();
+    return newReq;
+  }
+
+  toggleRamadanMode() {
+    const fb = this.getFbState();
+    fb.ramadanMode = !fb.ramadanMode;
+    this.showToast(fb.ramadanMode ? '🌙 Ramadan Mode Enabled: Suhoor & Iftar menus active.' : 'Standard Catering Mode: Breakfast, Lunch, Dinner active.', 'info');
     this.notify();
   }
 

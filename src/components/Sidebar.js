@@ -8,10 +8,28 @@ import { NewBookingModal } from '../views/frontoffice/NewBookingModal.js';
 export function renderSidebar(state) {
   const isHousekeeping = state.activeWorkspace === 'HOUSEKEEPING';
   const isMaintenance = state.activeWorkspace === 'MAINTENANCE';
-  const activeTab = state.activeNavTab || (isMaintenance ? 'maint_dashboard' : (isHousekeeping ? 'housekeeping' : 'reservations'));
+  const isFoodBeverage = state.activeWorkspace === 'FB' || state.activeWorkspace === 'FOOD_BEVERAGE';
+  const activeTab = state.activeNavTab || (isFoodBeverage ? 'fb_dashboard' : (isMaintenance ? 'maint_dashboard' : (isHousekeeping ? 'housekeeping' : 'reservations')));
 
   let navSections;
-  if (isMaintenance) {
+  if (isFoodBeverage) {
+    const fb = state.fb || (typeof store.getFbState === 'function' ? store.getFbState() : {});
+    const onDutyChefs = (fb.chefs || []).filter(c => c.status === 'ON_DUTY').length;
+    const lowStockCount = (fb.ingredients || []).filter(i => i.stock <= i.minPar).length;
+
+    navSections = [
+      {
+        title: 'FOOD & BEVERAGE',
+        items: [
+          { id: 'fb_dashboard', label: 'Dashboard', icon: 'dashboard' },
+          { id: 'fb_meals', label: 'Meal Planning & Scaling', icon: 'table_restaurant', badge: 'Camp Mode' },
+          { id: 'fb_menu', label: 'Menu & Recipes (BOM)', icon: 'menu_book', badge: `${(fb.menuDishes || []).length} items` },
+          { id: 'fb_chefs', label: 'Chefs & Brigade', icon: 'skillet', badge: onDutyChefs ? `${onDutyChefs} active` : null },
+          { id: 'fb_ingredients', label: 'Ingredients & Stores', icon: 'inventory_2', badge: lowStockCount ? `${lowStockCount} low` : null },
+        ],
+      },
+    ];
+  } else if (isMaintenance) {
     const workOrders = state.maintenanceWorkOrders || [];
     const isUnresolved = s => !['REPAIR_COMPLETE', 'VERIFICATION', 'CLOSED', 'RESOLVED', 'CANCELLED'].includes(s);
     const urgentCount = workOrders.filter(w => ['CRITICAL', 'HIGH'].includes(w.priority) && isUnresolved(w.status)).length;
@@ -87,7 +105,7 @@ export function renderSidebar(state) {
         <div class="overflow-hidden">
           <h2 class="font-headline-sm text-sm font-bold text-primary leading-tight truncate">The Grand Meridian</h2>
           <p class="font-data-mono text-[10px] text-on-surface-variant uppercase tracking-wider mt-0.5">
-            ${isMaintenance ? 'Maintenance Workspace' : isHousekeeping ? 'Housekeeping Workspace' : 'Front Desk Workspace'}
+            ${isFoodBeverage ? 'Food & Beverage Workspace' : isMaintenance ? 'Maintenance Workspace' : isHousekeeping ? 'Housekeeping Workspace' : 'Front Desk Workspace'}
           </p>
         </div>
       </div>
@@ -101,8 +119,15 @@ export function renderSidebar(state) {
             </div>
             <div class="space-y-0.5">
               ${section.items.map((item) => {
-                const isFrontDesk = !isHousekeeping && !isMaintenance;
+                const isFrontDesk = !isHousekeeping && !isMaintenance && !isFoodBeverage;
                 const isActive = (activeTab === item.id) || 
+                  (isFoodBeverage && (
+                    (item.id === 'fb_dashboard' && (!activeTab || activeTab === 'fb' || activeTab === 'fb_dashboard' || activeTab === 'dashboard')) ||
+                    (item.id === 'fb_meals' && (activeTab === 'fb_meals' || activeTab === 'meals')) ||
+                    (item.id === 'fb_menu' && (activeTab === 'fb_menu' || activeTab === 'menu')) ||
+                    (item.id === 'fb_chefs' && (activeTab === 'fb_chefs' || activeTab === 'chefs')) ||
+                    (item.id === 'fb_ingredients' && (activeTab === 'fb_ingredients' || activeTab === 'ingredients'))
+                  )) ||
                   (isFrontDesk && (
                     (item.id === 'dashboard' && (activeTab === 'dashboard')) ||
                     (item.id === 'bookings' && (activeTab === 'bookings' || activeTab === 'reservations' || activeTab === 'online_booking' || activeTab === 'walkin_booking' || activeTab === 'arrivals' || activeTab === 'profiles' || activeTab === 'inhouse')) ||

@@ -8,6 +8,7 @@ import { renderMaintenanceView, bindMaintenanceEvents } from '../MaintenanceView
 import { renderFBRecipeCostingView, bindFBRecipeCostingEvents } from '../FBRecipeCostingView.js';
 import { renderInventoryProcurementView, bindInventoryProcurementEvents } from '../InventoryProcurementView.js';
 import { renderExecutiveDashboardView, bindExecutiveDashboardEvents } from '../ExecutiveDashboardView.js';
+import { FoodBeverageView } from '../fb/FoodBeverageView.js';
 
 export function renderActiveWorkspace(workspaceId, state) {
   const currentWs = (state.authorizedWorkspaces || []).find((w) => w.id === workspaceId) || {
@@ -34,10 +35,15 @@ export function renderActiveWorkspace(workspaceId, state) {
     };
   }
 
-  if (workspaceId === 'FOOD_BEVERAGE' || workspaceId === 'RESTAURANT_POS') {
+  if (workspaceId === 'FOOD_BEVERAGE' || workspaceId === 'RESTAURANT_POS' || workspaceId === 'FB' || workspaceId === 'RECIPE_MGMT') {
+    const fbView = new FoodBeverageView();
+    const rendered = fbView.render();
     return {
-      html: `<div class="max-w-7xl mx-auto py-4">${renderFBRecipeCostingView(state)}</div>`,
-      bindEvents: bindFBRecipeCostingEvents,
+      html: `<div class="max-w-7xl mx-auto py-4" id="fb-view-container">${rendered.innerHTML}</div>`,
+      bindEvents: () => {
+        fbView.container = document.getElementById('fb-view-container');
+        fbView.bindEvents();
+      },
     };
   }
 
