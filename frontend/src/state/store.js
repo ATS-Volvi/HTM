@@ -3980,6 +3980,21 @@ class VolvitechStore {
     return newDish;
   }
 
+  updateFbDish(dishId, dishData) {
+    const fb = this.getFbState();
+    const idx = (fb.menuDishes || []).findIndex(d => d.id === dishId);
+    if (idx !== -1) {
+      fb.menuDishes[idx] = {
+        ...fb.menuDishes[idx],
+        ...dishData,
+        foodCostPct: dishData.sellingPrice ? Math.round((dishData.standardCost / dishData.sellingPrice) * 100) : fb.menuDishes[idx].foodCostPct
+      };
+      this.showToast(`Updated recipe BOM and quantities for "${fb.menuDishes[idx].name}".`, 'success');
+      this.notify();
+      return fb.menuDishes[idx];
+    }
+  }
+
   updateMealPlanItem(dayIndex, mealType, dishId) {
     const fb = this.getFbState();
     const day = (fb.weeklyPlan || []).find(d => d.dayIndex === dayIndex);
