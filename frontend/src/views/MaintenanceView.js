@@ -18,8 +18,10 @@ export class MaintenanceDashboardView {
     this.activeQuickFilter = 'ALL';
     this.activeWorkOrderDetail = null;
     this.activePmDetail = null;
+    this.activeAssetDetail = null;
     this.showCreateModal = false;
     this.showSchedulePmModal = false;
+    this.showLogServiceModal = null; // asset code or null
     this.pmFrequencyFilter = 'ALL';
     this.workOrdersTab = 'dashboard';
     if (store && store.state) {
@@ -31,12 +33,33 @@ export class MaintenanceDashboardView {
         store.state.preventiveMaintenance = this._buildPreventive();
       }
       this.preventive = store.state.preventiveMaintenance;
+      if (!store.state.maintenanceAssets || !store.state.maintenanceAssets.length) {
+        store.state.maintenanceAssets = this._buildAssets();
+      }
+      this.assets = store.state.maintenanceAssets;
     } else {
       this.workOrders = this._buildWorkOrders();
       this.preventive = this._buildPreventive();
+      this.assets = this._buildAssets();
     }
-    this.assets = this._buildAssets();
     this.pmSchedule = this.preventive;
+
+    // Start background second ticker for active stopwatch service timer
+    if (typeof window !== 'undefined' && !window._maintServiceTimerTicker) {
+      window._maintServiceTimerTicker = setInterval(() => {
+        const timer = store?.state?.activeMaintenanceTimer;
+        if (timer && !timer.isPaused) {
+          timer.elapsedSeconds = (timer.elapsedSeconds || 0) + 1;
+          const displayEl = document.getElementById('live-timer-counter');
+          if (displayEl) {
+            const h = Math.floor(timer.elapsedSeconds / 3600);
+            const m = Math.floor((timer.elapsedSeconds % 3600) / 60);
+            const s = timer.elapsedSeconds % 60;
+            displayEl.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+          }
+        }
+      }, 1000);
+    }
     this.technicians = [
       { id: 't1', name: 'Tariq Mahmoud', initials: 'TM', role: 'Lead HVAC Engineer', specialty: 'HVAC', onDuty: true },
       { id: 't2', name: 'Marco Bellini', initials: 'MB', role: 'Plumbing Specialist', specialty: 'Plumbing', onDuty: true },
@@ -173,12 +196,312 @@ export class MaintenanceDashboardView {
 
   _buildAssets() {
     return [
-      { id: 'a1', name: 'Samsung DVM S AC Unit', code: 'AC-508-01', category: 'HVAC', location: 'Room 508', manufacturer: 'Samsung', model: 'DVM S', serial: 'DVM-508-2022-A', purchaseDate: 'Jan 2022', warranty: 'Jan 2025', status: 'Under Repair', lastMaint: '14 Jul 2026', nextMaint: '14 Oct 2026', history: ['14 Jul — Quarterly PM Service', '22 Apr — Filter Replacement', '18 Jan — Annual Gas Check'] },
-      { id: 'a2', name: 'Samsung QLED 65"', code: 'TV-402-01', category: 'AV Equipment', location: 'Room 402', manufacturer: 'Samsung', model: 'QLED QN65Q80C', serial: 'SAM-TV-4020-B', purchaseDate: 'Mar 2023', warranty: 'Mar 2026', status: 'Under Repair', lastMaint: '01 Jan 2026', nextMaint: '01 Jul 2026', history: ['01 Jan — Annual AV Inspection', '22 Sep 2025 — Remote Replaced'] },
-      { id: 'a3', name: 'Kitchen Gas Detection System', code: 'GAS-DET-KIT-01', category: 'Safety Equipment', location: 'Kitchen', manufacturer: 'Honeywell', model: 'BW Flex', serial: 'HW-GAS-KIT-001', purchaseDate: 'Jun 2020', warranty: 'Jun 2023', status: 'Under Inspection', lastMaint: '01 Jun 2026', nextMaint: '01 Sep 2026', history: ['01 Jun — Annual Safety Certification', '01 Mar — Sensor Calibration', '01 Dec 2025 — Full System Test'] },
-      { id: 'a4', name: 'Schindler 3300 Passenger Lift', code: 'LIFT-MAIN-01', category: 'Vertical Transport', location: 'Lobby', manufacturer: 'Schindler', model: '3300 MRL', serial: 'SCH-LIFT-2019-TGM', purchaseDate: 'Sep 2019', warranty: 'Sep 2024', status: 'Operational — Degraded', lastMaint: '15 Aug 2026', nextMaint: '15 Nov 2026', history: ['15 Aug — Quarterly Schindler Service', '12 May — Door Sensor Replaced', '18 Feb — Annual Gov. Inspection'] },
-      { id: 'a5', name: 'Rational iCombi Pro', code: 'KIT-OVN-04', category: 'Kitchen Equipment', location: 'Kitchen', manufacturer: 'Rational', model: 'iCombi Pro 10-1/1', serial: 'RAT-ICP-KIT-04', purchaseDate: 'Feb 2021', warranty: 'Feb 2024', status: 'Awaiting Parts', lastMaint: '01 May 2026', nextMaint: '01 Aug 2026', history: ['01 May — Descaling Service', '01 Feb — Annual Rational Service', '10 Nov 2025 — Boiler Seal Replaced'] },
-      { id: 'a6', name: 'Cummins Diesel Generator', code: 'GEN-MAIN-01', category: 'Power Systems', location: 'Basement Engineering', manufacturer: 'Cummins', model: 'C150D5', serial: 'CUM-GEN-2018-TGM', purchaseDate: 'Mar 2018', warranty: 'Expired', status: 'Operational', lastMaint: '01 Jul 2026', nextMaint: '01 Oct 2026', history: ['01 Jul — Load Test & Oil Change', '01 Apr — Quarterly Service', '01 Jan — Annual Overhaul'] },
+      {
+        id: 'a1',
+        name: 'Samsung DVM S AC Unit',
+        code: 'AC-508-01',
+        category: 'HVAC',
+        location: 'Room 508',
+        manufacturer: 'Samsung Electronics',
+        model: 'DVM S Outdoor AM050FXVAGH',
+        serial: 'DVM-508-2022-A',
+        purchaseDate: 'Jan 2022',
+        warranty: 'Jan 2025 (Expired)',
+        status: 'Under Repair',
+        lastMaint: '14 Jul 2026',
+        nextMaint: '14 Oct 2026',
+        totalHoursWorked: '14.5 hrs',
+        history: [
+          {
+            id: 'srv-101',
+            date: '14 Jul 2026 • 09:30 AM',
+            engineer: 'Tariq Mahmoud',
+            engineerRole: 'Lead HVAC Engineer',
+            serviceType: 'Quarterly PM Service — Cycle #13',
+            duration: '1h 15m',
+            durationMinutes: 75,
+            notes: 'Refrigerant line pressure nominal at 4.2 bar. Cleaned primary air filters, flushed condensate tray, calibrated digital room sensor.',
+            parts: ['1x Daikin F25 Pre-filter Set', '0.5L Coil Cleaner'],
+            status: 'VERIFIED'
+          },
+          {
+            id: 'srv-102',
+            date: '22 Apr 2026 • 02:15 PM',
+            engineer: 'Marco Bellini',
+            engineerRole: 'Plumbing & Mechanical',
+            serviceType: 'Filter & Drain Line Service',
+            duration: '45m',
+            durationMinutes: 45,
+            notes: 'Cleared condensate drain blockage on floor 5 branch riser. Flushed line with enzyme bio-tablet.',
+            parts: ['Drain Pipe Seal Ring 32mm'],
+            status: 'VERIFIED'
+          },
+          {
+            id: 'srv-103',
+            date: '18 Jan 2026 • 11:00 AM',
+            engineer: 'Tariq Mahmoud',
+            engineerRole: 'Lead HVAC Engineer',
+            serviceType: 'Annual Refrigerant & Electrical Overhaul',
+            duration: '2h 30m',
+            durationMinutes: 150,
+            notes: 'Checked compressor motor insulation resistance (nominal > 100MΩ). Topped up 0.8kg R410A refrigerant gas.',
+            parts: ['R410A Refrigerant (0.8kg)', 'Magnetic Contactor 24V'],
+            status: 'VERIFIED'
+          }
+        ]
+      },
+      {
+        id: 'a2',
+        name: 'Samsung QLED 65"',
+        code: 'TV-402-01',
+        category: 'AV Equipment',
+        location: 'Room 402',
+        manufacturer: 'Samsung',
+        model: 'QLED QN65Q80C Hospitality Edition',
+        serial: 'SAM-TV-4020-B',
+        purchaseDate: 'Mar 2023',
+        warranty: 'Mar 2026 (Active)',
+        status: 'Under Repair',
+        lastMaint: '01 Jan 2026',
+        nextMaint: '01 Jul 2026',
+        totalHoursWorked: '3.5 hrs',
+        history: [
+          {
+            id: 'srv-201',
+            date: '01 Jan 2026 • 10:00 AM',
+            engineer: 'Anil Sharma',
+            engineerRole: 'Electrical Engineer',
+            serviceType: 'Annual AV & IPTV Inspection',
+            duration: '35m',
+            durationMinutes: 35,
+            notes: 'Updated hospitality firmware to v4.18. Verified HDMI matrix lock and guest screen casting privacy reset.',
+            parts: ['Cat6 RJ45 Patch Cable 2m'],
+            status: 'VERIFIED'
+          },
+          {
+            id: 'srv-202',
+            date: '22 Sep 2025 • 04:30 PM',
+            engineer: 'Chen Wei',
+            engineerRole: 'General Maintenance',
+            serviceType: 'Hardware Replacement',
+            duration: '20m',
+            durationMinutes: 20,
+            notes: 'Replaced guest remote control with antibacterial silicone sealed hospitality remote. Paired Bluetooth handset.',
+            parts: ['Samsung Hospitality Remote BN59-01301A'],
+            status: 'VERIFIED'
+          }
+        ]
+      },
+      {
+        id: 'a3',
+        name: 'Kitchen Gas Detection System',
+        code: 'GAS-DET-KIT-01',
+        category: 'Safety Equipment',
+        location: 'Kitchen',
+        manufacturer: 'Honeywell Analytics',
+        model: 'Sensepoint XCL & 301-C Controller',
+        serial: 'HW-GAS-KIT-001',
+        purchaseDate: 'Jun 2020',
+        warranty: 'Jun 2023 (Expired - Covered by AMC)',
+        status: 'Under Inspection',
+        lastMaint: '01 Jun 2026',
+        nextMaint: '01 Sep 2026',
+        totalHoursWorked: '18.0 hrs',
+        history: [
+          {
+            id: 'srv-301',
+            date: '01 Jun 2026 • 07:00 AM',
+            engineer: 'Tariq Mahmoud',
+            engineerRole: 'Lead HVAC & Safety Engineer',
+            serviceType: 'Annual Safety Certification & Span Gas Calibration',
+            duration: '2h 00m',
+            durationMinutes: 120,
+            notes: 'Calibrated Methane (CH4) and Carbon Monoxide (CO) electrochemical sensors using certified 50% LEL span calibration gas canister.',
+            parts: ['Sensor Cartridge CO 0-500ppm', 'Calibration Cap O-Ring'],
+            status: 'VERIFIED'
+          },
+          {
+            id: 'srv-302',
+            date: '01 Mar 2026 • 06:30 AM',
+            engineer: 'Rajesh Kumar',
+            engineerRole: 'Kitchen Mechanical Specialist',
+            serviceType: 'Quarterly Sensor Zero & Response Test',
+            duration: '1h 10m',
+            durationMinutes: 70,
+            notes: 'Bump tested 4 gas sensors above main cooking ranges. Solenoid automatic gas shut-off valve tripped within 1.8 seconds.',
+            parts: [],
+            status: 'VERIFIED'
+          }
+        ]
+      },
+      {
+        id: 'a4',
+        name: 'Schindler 3300 Passenger Lift',
+        code: 'LIFT-MAIN-01',
+        category: 'Vertical Transport',
+        location: 'Lobby',
+        manufacturer: 'Schindler Group',
+        model: 'Schindler 3300 MRL 1000kg',
+        serial: 'SCH-LIFT-2019-TGM',
+        purchaseDate: 'Sep 2019',
+        warranty: 'Sep 2024 (Under Schindler Gold AMC)',
+        status: 'Operational — Degraded',
+        lastMaint: '15 Aug 2026',
+        nextMaint: '15 Nov 2026',
+        totalHoursWorked: '32.0 hrs',
+        history: [
+          {
+            id: 'srv-401',
+            date: '15 Aug 2026 • 08:00 AM',
+            engineer: 'Marco Bellini',
+            engineerRole: 'Plumbing & Mechanical Specialist',
+            serviceType: 'Quarterly Joint Schindler Inspection',
+            duration: '3h 15m',
+            durationMinutes: 195,
+            notes: 'Lubricated car guide rails, inspected traction steel belts for cord exposure, adjusted door opening dwell profile.',
+            parts: ['Schindler Synthetic Guide Lubricant 1L', 'Door Belt Tension Springs'],
+            status: 'VERIFIED'
+          },
+          {
+            id: 'srv-402',
+            date: '12 May 2026 • 11:30 PM',
+            engineer: 'Anil Sharma',
+            engineerRole: 'Electrical Engineer',
+            serviceType: 'Door Light Curtain Sensor Replacement',
+            duration: '1h 45m',
+            durationMinutes: 105,
+            notes: 'Replaced infrared safety ray curtain on Lobby car door. Realigned emitter optical diodes.',
+            parts: ['Cedam Light Curtain RX/TX Pair'],
+            status: 'VERIFIED'
+          }
+        ]
+      },
+      {
+        id: 'a5',
+        name: 'Rational iCombi Pro',
+        code: 'KIT-OVN-04',
+        category: 'Kitchen Equipment',
+        location: 'Kitchen',
+        manufacturer: 'Rational AG',
+        model: 'iCombi Pro 10-1/1 Electric',
+        serial: 'RAT-ICP-KIT-04',
+        purchaseDate: 'Feb 2021',
+        warranty: 'Feb 2024 (Active Rational Service Contract)',
+        status: 'Awaiting Parts',
+        lastMaint: '01 May 2026',
+        nextMaint: '01 Aug 2026',
+        totalHoursWorked: '21.5 hrs',
+        history: [
+          {
+            id: 'srv-501',
+            date: '01 May 2026 • 11:00 PM',
+            engineer: 'Rajesh Kumar',
+            engineerRole: 'Kitchen Mechanical Specialist',
+            serviceType: 'Steam Generator Descaling & Care Run',
+            duration: '1h 30m',
+            durationMinutes: 90,
+            notes: 'Ran automated CareControl descaling program with 6 Active Green tabs. Replaced interior halogen lamp seal.',
+            parts: ['6x Rational Active Green Tablets', 'Door Gasket Profile 10-1/1'],
+            status: 'VERIFIED'
+          },
+          {
+            id: 'srv-502',
+            date: '01 Feb 2026 • 10:30 PM',
+            engineer: 'Rajesh Kumar',
+            engineerRole: 'Kitchen Mechanical Specialist',
+            serviceType: 'Annual Steam Boiler Inspection',
+            duration: '2h 15m',
+            durationMinutes: 135,
+            notes: 'Disassembled boiler inspection port, flushed calcium deposit slurry. Calibrated meat core temperature probe.',
+            parts: ['Steam Boiler O-Ring 80mm', 'Scale Prevention Cartridge'],
+            status: 'VERIFIED'
+          }
+        ]
+      },
+      {
+        id: 'a6',
+        name: 'Cummins Diesel Generator',
+        code: 'GEN-MAIN-01',
+        category: 'Power Systems',
+        location: 'Basement Engineering',
+        manufacturer: 'Cummins Power Generation',
+        model: 'C150D5 Standby Genset (150 kVA)',
+        serial: 'CUM-GEN-2018-TGM',
+        purchaseDate: 'Mar 2018',
+        warranty: 'Expired (Self-Maintained by Hotel Engineering)',
+        status: 'Operational',
+        lastMaint: '01 Jul 2026',
+        nextMaint: '01 Oct 2026',
+        totalHoursWorked: '42.0 hrs',
+        history: [
+          {
+            id: 'srv-601',
+            date: '01 Jul 2026 • 10:00 AM',
+            engineer: 'Anil Sharma',
+            engineerRole: 'Electrical Engineer',
+            serviceType: 'Monthly Load Test & Oil Sampling',
+            duration: '2h 00m',
+            durationMinutes: 120,
+            notes: 'Executed 30m full load step test via artificial load bank. Lubricating oil analysis showed no soot or fuel dilution.',
+            parts: ['Fleetguard Oil Filter LF16015', 'Fuel Filter Separator FS19732'],
+            status: 'VERIFIED'
+          },
+          {
+            id: 'srv-602',
+            date: '01 Apr 2026 • 09:30 AM',
+            engineer: 'Anil Sharma',
+            engineerRole: 'Electrical Engineer',
+            serviceType: 'Quarterly Battery & Governor Calibration',
+            duration: '1h 45m',
+            durationMinutes: 105,
+            notes: 'Replaced dual 12V 100Ah heavy-duty lead acid start batteries. Calibrated electronic speed governor actuator.',
+            parts: ['2x Exide HD-100 Start Batteries', 'Battery Terminal Grease'],
+            status: 'VERIFIED'
+          }
+        ]
+      },
+      {
+        id: 'a7',
+        name: 'Prominent Pool Chlorination Plant',
+        code: 'POOL-TREAT-01',
+        category: 'Water & Filtration',
+        location: 'Pool and Spa',
+        manufacturer: 'ProMinent GmbH',
+        model: 'DULCODOS Pool Professional',
+        serial: 'PROM-POOL-2021-DXB',
+        purchaseDate: 'Aug 2021',
+        warranty: 'Aug 2024 (Covered by Spa Facility AMC)',
+        status: 'Operational',
+        lastMaint: '03 Sep 2026',
+        nextMaint: '10 Sep 2026',
+        totalHoursWorked: '68.0 hrs',
+        history: [
+          {
+            id: 'srv-701',
+            date: '03 Sep 2026 • 07:00 AM',
+            engineer: 'Rajesh Kumar',
+            engineerRole: 'Kitchen & Mechanical Specialist',
+            serviceType: 'Weekly Chlorination & Filter Backwash (Cycle #85)',
+            duration: '48m',
+            durationMinutes: 48,
+            notes: 'Free Chlorine at 2.1 ppm, pH 7.35. Backwashed sand filters #1 and #2. Refilled 20L sodium hypochlorite reservoir.',
+            parts: ['20L Sodium Hypochlorite 12.5%', 'Filter Sand Grade #1 (5kg top-up)'],
+            status: 'VERIFIED'
+          },
+          {
+            id: 'srv-702',
+            date: '27 Aug 2026 • 07:15 AM',
+            engineer: 'Rajesh Kumar',
+            engineerRole: 'Kitchen & Mechanical Specialist',
+            serviceType: 'Weekly Routine Inspection (Cycle #84)',
+            duration: '42m',
+            durationMinutes: 42,
+            notes: 'ORP sensor probe cleaned with mild acid solution. Dosing pump peristaltic squeeze tube checked for micro-cracks.',
+            parts: ['Dosing Squeeze Tube 4x7mm'],
+            status: 'VERIFIED'
+          }
+        ]
+      }
     ];
   }
 
@@ -424,6 +747,169 @@ export class MaintenanceDashboardView {
     return cycles;
   }
 
+  _calcCountdown(dueDateStr, dueTimeStr = '08:00 AM') {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const parts = (dueDateStr || '').trim().split(' ');
+    if (parts.length < 3) return { text: 'Scheduled', clock: 'Scheduled', isOverdue: false, urgency: 'normal', days: 7, hours: 0, minutes: 0 };
+    const day = parseInt(parts[0], 10);
+    const monthIdx = months.indexOf(parts[1]);
+    const year = parseInt(parts[2], 10);
+    if (monthIdx === -1 || isNaN(day) || isNaN(year)) return { text: 'Scheduled', clock: 'Scheduled', isOverdue: false, urgency: 'normal', days: 7, hours: 0, minutes: 0 };
+
+    let hour = 8;
+    let min = 0;
+    if (dueTimeStr) {
+      const tp = dueTimeStr.trim().split(' ');
+      const [hh, mm] = (tp[0] || '08:00').split(':');
+      hour = parseInt(hh, 10);
+      min = parseInt(mm || '0', 10);
+      if (tp[1] === 'PM' && hour < 12) hour += 12;
+      if (tp[1] === 'AM' && hour === 12) hour = 0;
+    }
+
+    // Base simulation reference time: 8 Sep 2026, 08:00 AM
+    const base = new Date(2026, 8, 8, 8, 0, 0);
+    const target = new Date(year, monthIdx, day, hour, min, 0);
+    const diffMs = target.getTime() - base.getTime();
+
+    if (diffMs <= 0) {
+      const overdueHours = Math.max(1, Math.abs(Math.round(diffMs / (1000 * 60 * 60))));
+      return {
+        label: 'OVERDUE',
+        text: `Overdue by ${overdueHours}h`,
+        clock: `🚨 Overdue (${overdueHours}h)`,
+        isOverdue: true,
+        urgency: 'critical',
+        days: 0, hours: 0, minutes: 0
+      };
+    }
+
+    const totalMin = Math.floor(diffMs / (1000 * 60));
+    const days = Math.floor(totalMin / (60 * 24));
+    const hours = Math.floor((totalMin % (60 * 24)) / 60);
+    const minutes = totalMin % 60;
+
+    const clock = `${String(days).padStart(2,'0')}d : ${String(hours).padStart(2,'0')}h : ${String(minutes).padStart(2,'0')}m`;
+    const text = days > 0 ? `${days}d ${hours}h left` : `${hours}h ${minutes}m left`;
+
+    return {
+      days,
+      hours,
+      minutes,
+      text,
+      clock,
+      isOverdue: false,
+      urgency: days <= 1 ? 'critical' : (days <= 3 ? 'warning' : 'normal')
+    };
+  }
+
+  _startServiceTimer(pmId) {
+    const pm = this.preventive.find(p => p.id === pmId);
+    if (!pm) return;
+    if (store && store.state) {
+      store.state.activeMaintenanceTimer = {
+        pmId: pm.id,
+        assetCode: pm.assetCode,
+        assetName: pm.assetName || pm.title,
+        title: pm.title,
+        frequency: pm.frequency,
+        cycleCount: pm.cycleCount || 1,
+        engineer: pm.assignedTo,
+        startedAtFormatted: new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' }),
+        startTimestamp: Date.now(),
+        elapsedSeconds: 0,
+        isPaused: false
+      };
+      store.notify();
+    }
+    pm.status = 'IN_PROGRESS';
+    Toast.show({
+      title: '⏱️ Service Timer Started',
+      message: `${pm.assignedTo} started servicing ${pm.assetCode} (${pm.title}). Live stopwatch tracking service duration.`,
+      type: 'info'
+    });
+    this.renderContent();
+  }
+
+  _pauseServiceTimer() {
+    const timer = store?.state?.activeMaintenanceTimer;
+    if (!timer) return;
+    timer.isPaused = !timer.isPaused;
+    if (store) store.notify();
+    Toast.show({
+      title: timer.isPaused ? 'Timer Paused' : 'Timer Resumed',
+      message: `Work timer on ${timer.assetCode} is now ${timer.isPaused ? 'paused' : 'running'}.`,
+      type: 'info'
+    });
+    this.renderContent();
+  }
+
+  _stopAndLogServiceTimer(customNotes = '') {
+    const timer = store?.state?.activeMaintenanceTimer;
+    if (!timer) return;
+
+    const elapsed = timer.elapsedSeconds || 60;
+    const durationMinutes = Math.max(1, Math.round(elapsed / 60));
+    const durationFormatted = elapsed < 3600
+      ? `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`
+      : `${Math.floor(elapsed / 3600)}h ${Math.floor((elapsed % 3600) / 60)}m`;
+
+    // 1. Log to Machine History
+    const asset = this.assets.find(a => a.code === timer.assetCode);
+    if (asset) {
+      if (!Array.isArray(asset.history)) asset.history = [];
+      const serviceEntry = {
+        id: `srv-${Date.now()}`,
+        date: `8 Sep 2026 • ${new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}`,
+        engineer: timer.engineer,
+        engineerRole: this.technicians.find(t => t.name === timer.engineer)?.role || 'Service Engineer',
+        serviceType: `${timer.frequency} PM Service (Cycle #${timer.cycleCount})`,
+        duration: durationFormatted,
+        durationMinutes,
+        notes: customNotes || `Completed on-time service routine via Live Service Timer. Operational telemetry verified nominal.`,
+        parts: [],
+        status: 'VERIFIED'
+      };
+      asset.history.unshift(serviceEntry);
+      const totalMins = asset.history.reduce((acc, h) => acc + (h.durationMinutes || 60), 0);
+      asset.totalHoursWorked = `${(totalMins / 60).toFixed(1)} hrs`;
+      asset.lastMaint = '8 Sep 2026';
+    }
+
+    // 2. Advance PM cycle
+    this._advancePmCycle(timer.pmId);
+
+    // 3. Clear active timer
+    if (store && store.state) {
+      store.state.activeMaintenanceTimer = null;
+      store.notify();
+    }
+
+    Toast.show({
+      title: '✓ Service Completed & Logged',
+      message: `Logged ${durationFormatted} of service by ${timer.engineer} to ${timer.assetCode} history logbook.`,
+      type: 'success'
+    });
+    this.renderContent();
+  }
+
+  _addServiceHistory(assetCode, entry) {
+    const asset = this.assets.find(a => a.code === assetCode);
+    if (!asset) return;
+    if (!Array.isArray(asset.history)) asset.history = [];
+    asset.history.unshift(entry);
+    const totalMins = asset.history.reduce((acc, h) => acc + (entry.durationMinutes || 60), 0);
+    asset.totalHoursWorked = `${(totalMins / 60).toFixed(1)} hrs`;
+    asset.lastMaint = entry.date.split('•')[0].trim();
+    if (store) store.notify();
+    Toast.show({
+      title: 'Logbook Updated',
+      message: `Added service record by ${entry.engineer} to ${asset.code} (${asset.name}).`,
+      type: 'success'
+    });
+    this.renderContent();
+  }
+
   _advancePmCycle(pmId) {
     const pm = this.preventive.find(p => p.id === pmId);
     if (!pm) return;
@@ -604,8 +1090,11 @@ export class MaintenanceDashboardView {
     const urgentWOs = this.workOrders.filter(w => ['CRITICAL','HIGH'].includes(w.priority) && isUnresolved(w.status));
     const activeWO = this.activeWorkOrderDetail ? this.workOrders.find(w => w.id === this.activeWorkOrderDetail) : null;
 
+    const activeTimer = store?.state?.activeMaintenanceTimer;
+
     this.container.innerHTML = `
       ${this._html_header()}
+      ${activeTimer ? this._html_activeTimerBar(activeTimer) : ''}
       ${this._html_kpis(m)}
       ${urgentWOs.length > 0 && (this.workOrdersTab === 'dashboard' || this.workOrdersTab === 'list') ? this._html_urgent(urgentWOs) : ''}
       ${this.workOrdersTab === 'list' || this.workOrdersTab === 'dashboard' ? this._html_stepper() : ''}
@@ -617,8 +1106,10 @@ export class MaintenanceDashboardView {
       ${this.workOrdersTab === 'technicians' ? this._html_technicians() : ''}
       ${activeWO ? this._html_drawer(activeWO) : ''}
       ${this.activePmDetail ? this._html_pmDrawer(this.preventive.find(p => p.id === this.activePmDetail)) : ''}
+      ${this.activeAssetDetail ? this._html_assetDrawer(this.assets.find(a => a.code === this.activeAssetDetail || a.id === this.activeAssetDetail)) : ''}
       ${this.showCreateModal ? this._html_createModal() : ''}
       ${this.showSchedulePmModal ? this._html_schedulePmModal() : ''}
+      ${this.showLogServiceModal ? this._html_logServiceModal(this.assets.find(a => a.code === this.showLogServiceModal || a.id === this.showLogServiceModal)) : ''}
     `;
     this.bindEvents();
   }
@@ -1356,6 +1847,63 @@ export class MaintenanceDashboardView {
     `;
   }
 
+  // ── Live Active Service Timer Bar ─────────────────────────────────────────
+  _html_activeTimerBar(timer) {
+    if (!timer) return '';
+    const h = Math.floor((timer.elapsedSeconds || 0) / 3600);
+    const m = Math.floor(((timer.elapsedSeconds || 0) % 3600) / 60);
+    const s = (timer.elapsedSeconds || 0) % 60;
+    const timeFormatted = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+
+    return `
+      <div class="sticky top-2 z-40 bg-gray-900 text-white border-2 border-emerald-500/80 rounded-2xl p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4 animate-fadeIn">
+        <div class="flex items-center gap-3.5 min-w-0 w-full md:w-auto">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-2xl ${timer.isPaused ? '' : 'animate-spin'}" style="${timer.isPaused ? '' : 'animation-duration: 4s'}">settings</span>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-data-mono ${timer.isPaused ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'}">
+                <span class="w-2 h-2 rounded-full ${timer.isPaused ? 'bg-amber-400' : 'bg-emerald-400 animate-ping'}"></span>
+                ${timer.isPaused ? 'TIMER PAUSED' : 'LIVE PM SERVICE TIMER RUNNING'}
+              </span>
+              <span class="text-xs text-gray-400 font-data-mono">Started ${timer.startedAtFormatted}</span>
+            </div>
+            <div class="text-sm font-bold text-white truncate mt-1 flex items-center gap-2">
+              <span>${timer.assetCode}</span>
+              <span class="text-gray-500">•</span>
+              <span class="text-emerald-300 truncate">${timer.assetName}</span>
+            </div>
+            <div class="text-[11px] text-gray-300 flex items-center gap-2 mt-0.5">
+              <span>Servicing Engineer: <strong class="text-white">${timer.engineer}</strong></span>
+              <span>•</span>
+              <span class="text-gray-400">${timer.frequency} PM Routine (Cycle #${timer.cycleCount})</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-4 shrink-0 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-gray-800">
+          <div class="text-right">
+            <div class="text-[10px] uppercase tracking-wider text-gray-400 font-data-mono">Active Service Duration</div>
+            <div id="live-timer-counter" class="font-data-mono text-2xl font-bold text-emerald-400 tracking-wider">
+              ${timeFormatted}
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btn-pause-service-timer" class="px-3 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all border ${timer.isPaused ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30' : 'bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700'} flex items-center gap-1.5 active:scale-95">
+              <span class="material-symbols-outlined text-[16px]">${timer.isPaused ? 'play_arrow' : 'pause'}</span>
+              <span>${timer.isPaused ? 'Resume' : 'Pause'}</span>
+            </button>
+            <button id="btn-complete-service-timer" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer transition-all shadow-md active:scale-95 flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">check_circle</span>
+              <span>Complete & Log Work</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   // ── Assets Panel ──────────────────────────────────────────────────────────
   _html_assets() {
     const sc = s => {
@@ -1364,29 +1912,384 @@ export class MaintenanceDashboardView {
       if (s.includes('Parts') || s.includes('Awaiting')) return 'bg-purple-100 text-purple-700 border-purple-300';
       return 'bg-gray-100 text-gray-600 border-gray-300';
     };
+
+    const activeTimer = store?.state?.activeMaintenanceTimer;
+
     return `
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        ${this.assets.map(a => `
-          <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 hover:border-primary hover:shadow-sm transition-all">
-            <div class="flex items-start justify-between mb-3">
-              <div>
-                <div class="text-xs font-bold text-primary">${a.name}</div>
-                <div class="text-[10px] text-on-surface-variant font-data-mono">${a.code} · ${a.category}</div>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between gap-4 flex-wrap bg-surface-container p-4 rounded-xl border border-outline-variant/60">
+          <div>
+            <h3 class="text-sm font-bold text-primary flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary text-lg">precision_manufacturing</span>
+              Hotel Machinery & Equipment Registry
+            </h3>
+            <p class="text-xs text-on-surface-variant mt-0.5">Comprehensive dossier of hotel assets with cumulative service duration and full engineer logbook history.</p>
+          </div>
+          <div class="flex items-center gap-2 text-xs font-data-mono">
+            <span class="px-2.5 py-1 rounded-lg bg-surface-container-lowest border border-outline-variant text-primary font-bold">
+              ${this.assets.length} Total Machines
+            </span>
+            <span class="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 font-bold">
+              ${this.assets.filter(a => a.status === 'Operational').length} 100% Operational
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          ${this.assets.map(a => {
+            const isCurrentlyServiced = activeTimer && activeTimer.assetCode === a.code;
+            const historyList = Array.isArray(a.history) ? a.history : [];
+            const recentHistory = historyList.slice(0, 2);
+
+            return `
+              <div class="bg-surface-container-lowest border ${isCurrentlyServiced ? 'border-emerald-500 shadow-md ring-2 ring-emerald-500/20' : 'border-outline-variant hover:border-primary'} rounded-xl p-4 transition-all flex flex-col justify-between">
+                <div>
+                  ${isCurrentlyServiced ? `
+                    <div class="mb-3 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 text-[11px] font-bold font-data-mono flex items-center justify-between">
+                      <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>SERVICING NOW: ${activeTimer.engineer}</span>
+                      <span>IN PROGRESS</span>
+                    </div>
+                  ` : ''}
+
+                  <div class="flex items-start justify-between mb-3">
+                    <div>
+                      <div class="text-sm font-bold text-primary hover:underline cursor-pointer btn-view-asset-dossier" data-assetcode="${a.code}">${a.name}</div>
+                      <div class="text-[10px] text-on-surface-variant font-data-mono">${a.code} · ${a.category}</div>
+                    </div>
+                    <span class="px-2 py-0.5 rounded border text-[9px] font-bold font-data-mono ${sc(a.status)}">${a.status}</span>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-2 text-[10px] text-on-surface-variant mb-3 bg-surface-container/30 p-2.5 rounded-lg border border-outline-variant/40">
+                    <div><div class="uppercase tracking-wide font-bold text-on-surface-variant mb-0.5">Location</div><div class="text-on-surface font-medium">${a.location}</div></div>
+                    <div><div class="uppercase tracking-wide font-bold text-on-surface-variant mb-0.5">Total Service Hours</div><div class="text-primary font-bold font-data-mono">${a.totalHoursWorked || '0.0 hrs'}</div></div>
+                    <div><div class="uppercase tracking-wide font-bold text-on-surface-variant mb-0.5">Last Service</div><div class="text-on-surface">${a.lastMaint}</div></div>
+                    <div><div class="uppercase tracking-wide font-bold text-on-surface-variant mb-0.5">Next Service</div><div class="text-primary font-semibold">${a.nextMaint}</div></div>
+                  </div>
+
+                  <!-- Engineer Working History Preview -->
+                  <div class="pt-2 border-t border-outline-variant/60">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-[10px] text-primary uppercase tracking-wide font-bold flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[13px]">history_edu</span>
+                        Engineer Service History (${historyList.length})
+                      </span>
+                      <button class="btn-view-asset-dossier text-[10px] font-bold text-primary hover:underline cursor-pointer" data-assetcode="${a.code}">
+                        View All →
+                      </button>
+                    </div>
+
+                    ${recentHistory.length > 0 ? `
+                      <div class="space-y-2">
+                        ${recentHistory.map(h => {
+                          if (typeof h === 'string') {
+                            return `<div class="text-[10px] text-on-surface-variant flex items-start gap-1"><span class="text-primary/40">•</span>${h}</div>`;
+                          }
+                          const initials = (h.engineer || 'Eng').split(' ').map(n=>n[0]).join('').slice(0,2);
+                          return `
+                            <div class="p-2 rounded-lg bg-surface-container/50 border border-outline-variant/40 text-[10px]">
+                              <div class="flex items-center justify-between gap-1">
+                                <div class="flex items-center gap-1.5 font-bold text-on-surface">
+                                  <span class="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold">${initials}</span>
+                                  <span>${h.engineer}</span>
+                                  <span class="text-on-surface-variant text-[9px] font-normal">(${h.engineerRole?.split(' ')[0] || 'Eng'})</span>
+                                </div>
+                                <span class="px-1.5 py-0.2 rounded bg-primary/10 text-primary font-bold font-data-mono text-[9px]">${h.duration}</span>
+                              </div>
+                              <div class="text-on-surface-variant mt-1 line-clamp-1 font-medium">${h.serviceType}: ${h.notes}</div>
+                              <div class="text-[9px] text-on-surface-variant/80 mt-0.5 font-data-mono">${h.date}</div>
+                            </div>
+                          `;
+                        }).join('')}
+                      </div>
+                    ` : '<div class="text-[10px] text-on-surface-variant italic py-1">No past service records logged.</div>'}
+                  </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-outline-variant/60 flex items-center gap-2">
+                  <button class="btn-view-asset-dossier flex-1 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant text-primary text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1" data-assetcode="${a.code}">
+                    <span class="material-symbols-outlined text-[14px]">menu_book</span>
+                    <span>Machine Dossier</span>
+                  </button>
+                  <button class="btn-open-log-service px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold cursor-pointer transition-all flex items-center gap-1 shadow-2xs active:scale-95" data-assetcode="${a.code}" title="Log a service completed on this machine">
+                    <span class="material-symbols-outlined text-[14px]">post_add</span>
+                    <span>+ Log Service</span>
+                  </button>
+                </div>
               </div>
-              <span class="px-2 py-0.5 rounded border text-[9px] font-bold font-data-mono ${sc(a.status)}">${a.status}</span>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // ── Machine Dossier & Engineer History Drawer ─────────────────────────────
+  _html_assetDrawer(asset) {
+    if (!asset) return '';
+    const historyList = Array.isArray(asset.history) ? asset.history : [];
+    const totalMinutes = historyList.reduce((acc, h) => acc + (typeof h === 'object' ? (h.durationMinutes || 60) : 60), 0);
+    const totalHours = (totalMinutes / 60).toFixed(1);
+
+    // Group hours worked by engineer
+    const engineerHours = {};
+    historyList.forEach(h => {
+      if (typeof h === 'object' && h.engineer) {
+        engineerHours[h.engineer] = (engineerHours[h.engineer] || 0) + (h.durationMinutes || 60);
+      }
+    });
+
+    return `
+      <div id="asset-drawer-backdrop" class="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm animate-fadeIn"></div>
+      <div class="fixed right-0 top-0 h-full z-[61] w-full max-w-2xl bg-surface-bright shadow-2xl flex flex-col overflow-hidden" style="animation:slideInRight .25s ease">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-outline-variant bg-surface-container flex items-start justify-between gap-4">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
+              <span class="px-2 py-0.5 rounded border text-[10px] font-bold font-data-mono bg-primary/10 text-primary border-primary/20">Machine Dossier</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold font-data-mono bg-surface-container-high text-on-surface border border-outline-variant">${asset.category}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold font-data-mono ${asset.status === 'Operational' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">${asset.status}</span>
             </div>
-            <div class="grid grid-cols-2 gap-2 text-[10px] text-on-surface-variant mb-3">
-              <div><div class="uppercase tracking-wide font-bold mb-0.5">Location</div><div class="text-on-surface">${a.location}</div></div>
-              <div><div class="uppercase tracking-wide font-bold mb-0.5">Warranty</div><div class="text-on-surface">${a.warranty}</div></div>
-              <div><div class="uppercase tracking-wide font-bold mb-0.5">Last Service</div><div class="text-on-surface">${a.lastMaint}</div></div>
-              <div><div class="uppercase tracking-wide font-bold mb-0.5">Next Service</div><div class="text-on-surface font-semibold text-primary">${a.nextMaint}</div></div>
-            </div>
-            <div class="pt-3 border-t border-outline-variant/60">
-              <div class="text-[9px] text-on-surface-variant uppercase tracking-wide font-bold mb-1.5">Maintenance History</div>
-              ${a.history.map(h => `<div class="text-[10px] text-on-surface-variant flex items-start gap-1 mb-0.5"><span class="text-primary/40">•</span>${h}</div>`).join('')}
+            <h2 class="font-bold text-lg text-primary leading-snug">${asset.name}</h2>
+            <div class="flex items-center gap-3 mt-1 text-xs text-on-surface-variant flex-wrap font-data-mono">
+              <span class="font-bold text-primary">${asset.code}</span>
+              <span>•</span>
+              <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px]">location_on</span>${asset.location}</span>
             </div>
           </div>
-        `).join('')}
+          <button id="btn-close-asset-drawer" class="p-2 hover:bg-surface-container rounded-full text-on-surface-variant cursor-pointer shrink-0">
+            <span class="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+
+        <!-- Telemetry KPIs -->
+        <div class="grid grid-cols-4 gap-3 px-6 py-3.5 border-b border-outline-variant/60 bg-surface-container/30 text-center">
+          <div>
+            <div class="text-[9px] text-on-surface-variant font-data-mono uppercase tracking-wider">Total Service Hours</div>
+            <div class="text-sm font-bold text-primary mt-0.5 font-data-mono">${asset.totalHoursWorked || `${totalHours} hrs`}</div>
+          </div>
+          <div>
+            <div class="text-[9px] text-on-surface-variant font-data-mono uppercase tracking-wider">Engineer Interventions</div>
+            <div class="text-sm font-bold text-on-surface mt-0.5 font-data-mono">${historyList.length} visits</div>
+          </div>
+          <div>
+            <div class="text-[9px] text-on-surface-variant font-data-mono uppercase tracking-wider">Warranty Expiry</div>
+            <div class="text-xs font-bold text-on-surface mt-0.5">${asset.warranty}</div>
+          </div>
+          <div>
+            <div class="text-[9px] text-on-surface-variant font-data-mono uppercase tracking-wider">Next PM Due</div>
+            <div class="text-xs font-bold text-primary mt-0.5">${asset.nextMaint}</div>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div class="flex-1 overflow-y-auto custom-scrollbar px-6 py-5 space-y-6">
+          <!-- 1. Technical Specs & Information -->
+          <div>
+            <div class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-2 font-data-mono flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px] text-primary">info</span>
+              Machine Technical Specifications & Installation
+            </div>
+            <div class="bg-surface-container rounded-xl p-4 border border-outline-variant/60 grid grid-cols-2 gap-3 text-xs">
+              <div><span class="text-on-surface-variant">Manufacturer / Model:</span> <strong class="text-on-surface block mt-0.5">${asset.name}</strong></div>
+              <div><span class="text-on-surface-variant">Asset Identifier:</span> <strong class="text-primary font-data-mono block mt-0.5">${asset.code}</strong></div>
+              <div><span class="text-on-surface-variant">Installed Location:</span> <strong class="text-on-surface block mt-0.5">${asset.location}</strong></div>
+              <div><span class="text-on-surface-variant">Criticality Level:</span> <strong class="text-on-surface block mt-0.5">Tier-1 Core Infrastructure</strong></div>
+            </div>
+          </div>
+
+          <!-- 2. Engineer Time Breakdown -->
+          ${Object.keys(engineerHours).length > 0 ? `
+            <div>
+              <div class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-2.5 font-data-mono flex items-center justify-between">
+                <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px] text-primary">badge</span>Engineers Working on this Machine</span>
+                <span class="text-[9px] text-on-surface-variant font-normal">Cumulative hours</span>
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                ${Object.entries(engineerHours).map(([eng, mins]) => `
+                  <div class="p-3 rounded-xl border border-outline-variant bg-surface-container-lowest">
+                    <div class="flex items-center gap-2">
+                      <div class="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
+                        ${eng.split(' ').map(n=>n[0]).join('').slice(0,2)}
+                      </div>
+                      <div class="min-w-0">
+                        <div class="text-xs font-bold text-on-surface truncate">${eng}</div>
+                        <div class="text-[10px] font-data-mono font-bold text-primary">${(mins/60).toFixed(1)}h logged</div>
+                      </div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- 3. Full Chronological Engineer Service Logbook -->
+          <div>
+            <div class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-2.5 font-data-mono flex items-center justify-between">
+              <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px] text-primary">history_edu</span>Chronological Engineer Service Logbook</span>
+              <span class="text-[9px] text-on-surface-variant font-normal">${historyList.length} entries</span>
+            </div>
+
+            <div class="space-y-3">
+              ${historyList.length > 0 ? historyList.map(entry => {
+                if (typeof entry === 'string') {
+                  return `
+                    <div class="p-3.5 rounded-xl border border-outline-variant bg-surface-container-lowest text-xs text-on-surface">
+                      ${entry}
+                    </div>
+                  `;
+                }
+                const initials = (entry.engineer || 'Eng').split(' ').map(n=>n[0]).join('').slice(0,2);
+                return `
+                  <div class="p-4 rounded-xl border border-outline-variant bg-surface-container-lowest hover:border-primary transition-all space-y-2.5 shadow-2xs">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center text-xs font-bold shadow-xs">
+                          ${initials}
+                        </div>
+                        <div>
+                          <div class="text-xs font-bold text-primary flex items-center gap-1.5">
+                            <span>${entry.engineer}</span>
+                            <span class="text-[10px] font-normal text-on-surface-variant">• ${entry.engineerRole}</span>
+                          </div>
+                          <div class="text-[10px] text-on-surface-variant font-data-mono">${entry.date}</div>
+                        </div>
+                      </div>
+                      <div class="text-right">
+                        <span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-[10px] font-bold font-data-mono">
+                          ⏱️ ${entry.duration}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div class="p-3 rounded-lg bg-surface-container/60 border border-outline-variant/40">
+                      <div class="text-xs font-bold text-on-surface mb-0.5">${entry.serviceType}</div>
+                      <p class="text-xs text-on-surface-variant leading-relaxed">${entry.notes}</p>
+                    </div>
+
+                    ${entry.parts && entry.parts.length > 0 ? `
+                      <div class="flex items-center gap-1.5 flex-wrap text-[10px]">
+                        <span class="text-on-surface-variant font-bold font-data-mono uppercase">Spares:</span>
+                        ${entry.parts.map(p => `<span class="px-2 py-0.5 rounded bg-surface-container border border-outline-variant font-data-mono text-on-surface">${p}</span>`).join('')}
+                      </div>
+                    ` : ''}
+
+                    <div class="pt-2 border-t border-outline-variant/40 flex items-center justify-between text-[10px]">
+                      <span class="inline-flex items-center gap-1 text-emerald-700 font-bold font-data-mono">
+                        <span class="material-symbols-outlined text-[13px]">verified</span>
+                        ${entry.status || 'VERIFIED'} BY ENGINEERING
+                      </span>
+                      <span class="text-on-surface-variant font-data-mono">Record ID: ${entry.id}</span>
+                    </div>
+                  </div>
+                `;
+              }).join('') : `
+                <div class="text-center py-8 text-on-surface-variant border border-dashed border-outline-variant rounded-xl">
+                  <span class="material-symbols-outlined text-3xl opacity-40">engineering</span>
+                  <p class="text-xs font-medium mt-1">No service records on file yet.</p>
+                </div>
+              `}
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 border-t border-outline-variant bg-surface-container flex items-center justify-between gap-3">
+          <button id="btn-close-asset-drawer2" class="px-4 py-2 rounded-xl border border-outline-variant hover:bg-surface-container text-xs font-bold text-on-surface-variant cursor-pointer">
+            Close Dossier
+          </button>
+          <button class="btn-open-log-service px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 shadow-sm active:scale-95" data-assetcode="${asset.code}">
+            <span class="material-symbols-outlined text-[16px]">post_add</span>
+            <span>+ Log Service Record</span>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── Manual Log Service Modal ──────────────────────────────────────────────
+  _html_logServiceModal(asset) {
+    if (!asset) return '';
+
+    return `
+      <div id="log-service-backdrop" class="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm animate-fadeIn"></div>
+      <div class="fixed inset-0 z-[71] flex items-center justify-center p-4">
+        <div class="bg-surface-bright rounded-2xl shadow-2xl border border-outline-variant max-w-lg w-full flex flex-col max-h-[90vh] overflow-hidden animate-fadeIn">
+          <!-- Modal Header -->
+          <div class="px-6 py-4 border-b border-outline-variant bg-surface-container flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-primary text-on-primary flex items-center justify-center font-bold text-sm">
+                <span class="material-symbols-outlined text-[18px]">history_edu</span>
+              </div>
+              <div>
+                <h3 class="font-bold text-base text-primary">Log Engineer Service Record</h3>
+                <p class="text-xs text-on-surface-variant">Record engineer intervention & work history for <strong>${asset.code}</strong>.</p>
+              </div>
+            </div>
+            <button id="btn-close-log-service" class="p-1.5 hover:bg-surface-container rounded-full text-on-surface-variant cursor-pointer">
+              <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
+          </div>
+
+          <!-- Machine details banner -->
+          <div class="px-6 py-2.5 bg-primary/5 border-b border-outline-variant/60 flex items-center justify-between text-xs font-data-mono">
+            <span>Machine: <strong class="text-primary">${asset.name}</strong></span>
+            <span>Location: <strong class="text-on-surface">${asset.location}</strong></span>
+          </div>
+
+          <!-- Modal Form -->
+          <div class="p-6 overflow-y-auto custom-scrollbar space-y-4 flex-1">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-primary mb-1">Servicing Engineer *</label>
+                <select id="log-srv-engineer" class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:outline-none focus:border-primary font-medium">
+                  ${this.technicians.map(t => `<option value="${t.name}">${t.name} (${t.role})</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-primary mb-1">Duration Worked *</label>
+                <select id="log-srv-duration" class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:outline-none focus:border-primary font-data-mono font-bold">
+                  <option value="30m">30 minutes</option>
+                  <option value="45m">45 minutes</option>
+                  <option value="1h 00m" selected>1 hour</option>
+                  <option value="1h 30m">1 hour 30 mins</option>
+                  <option value="2h 00m">2 hours</option>
+                  <option value="2h 30m">2 hours 30 mins</option>
+                  <option value="3h 00m">3 hours</option>
+                  <option value="4h 00m">4 hours</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-primary mb-1">Service Type / Work Category *</label>
+              <input id="log-srv-type" type="text" placeholder="e.g. Scheduled PM Service, Bearing Lubrication, Filter Wash" value="Scheduled PM Service"
+                class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:outline-none focus:border-primary font-medium" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-primary mb-1">Spares / Materials Used</label>
+              <input id="log-srv-parts" type="text" placeholder="e.g. Synthetic Oil 15W-40, Oil Filter Cartridge (optional)"
+                class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:outline-none focus:border-primary font-data-mono" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-primary mb-1">Engineer Observations & Findings *</label>
+              <textarea id="log-srv-notes" rows="3" placeholder="Describe the work completed, readings measured, and equipment condition..."
+                class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-xs text-on-surface focus:outline-none focus:border-primary resize-none"></textarea>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="px-6 py-4 border-t border-outline-variant bg-surface-container flex items-center justify-end gap-3">
+            <button id="btn-cancel-log-service" class="px-4 py-2 rounded-xl border border-outline-variant hover:bg-surface-container text-xs font-bold text-on-surface-variant cursor-pointer">
+              Cancel
+            </button>
+            <button id="btn-submit-log-service" data-assetcode="${asset.code}" class="px-5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-on-primary text-xs font-bold cursor-pointer transition-all shadow-sm active:scale-95 flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">verified</span>
+              Commit Service Entry
+            </button>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -1470,6 +2373,8 @@ export class MaintenanceDashboardView {
                   const borderCls = isCritSoon ? 'border-red-300 bg-red-50/80' : 'border-amber-300 bg-amber-50/80';
                   const badgeCls = isCritSoon ? 'bg-red-600 text-white' : 'bg-amber-600 text-white';
                   const alertLabel = isCritSoon ? `🚨 DUE IN ${pm.daysUntil} DAYS` : `⚠️ DUE IN ${pm.daysUntil} DAYS`;
+                  const cd = this._calcCountdown(pm.dueDate, pm.dueTime);
+
                   return `
                     <div class="rounded-xl border ${borderCls} p-3 flex flex-col justify-between shadow-2xs hover:shadow-xs transition-all">
                       <div>
@@ -1488,6 +2393,15 @@ export class MaintenanceDashboardView {
                         <div class="text-[10px] text-on-surface-variant mt-0.5">
                           Assigned: <strong class="text-primary">${pm.assignedTo}</strong>
                         </div>
+
+                        <!-- Live Countdown Timer -->
+                        <div class="mt-2 py-1 px-2 rounded-lg bg-black/5 flex items-center justify-between">
+                          <span class="text-[9px] text-on-surface-variant font-data-mono uppercase">Countdown:</span>
+                          <span class="text-[10px] font-data-mono font-bold ${isCritSoon ? 'text-red-700' : 'text-amber-800'} flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[12px] animate-pulse">timer</span>
+                            ${cd.clock}
+                          </span>
+                        </div>
                       </div>
                       <div class="mt-3 pt-2.5 border-t border-black/10 flex items-center gap-1.5 flex-wrap">
                         ${pm.linkedWoId ? `
@@ -1499,6 +2413,9 @@ export class MaintenanceDashboardView {
                             <span class="material-symbols-outlined text-[12px]">bolt</span>Create WO
                           </button>
                         `}
+                        <button class="btn-start-pm-timer px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold cursor-pointer transition-all flex items-center gap-0.5 active:scale-95 shadow-2xs" data-pmid="${pm.id}" title="Start Live Service Stopwatch">
+                          <span class="material-symbols-outlined text-[12px]">play_circle</span>Timer
+                        </button>
                         <button class="btn-pm-advance-cycle px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[10px] font-bold cursor-pointer transition-all flex items-center gap-0.5 active:scale-95" data-pmid="${pm.id}" title="Complete this cycle and advance to next scheduled date">
                           <span class="material-symbols-outlined text-[12px]">check_circle</span>Done
                         </button>
@@ -1563,6 +2480,8 @@ export class MaintenanceDashboardView {
                   const isNear = pm.daysUntil <= (pm.notifyAdvanceDays || 7);
                   const bc = isSoon ? 'bg-red-100 text-red-700 border-red-300' : isNear ? 'bg-orange-100 text-orange-700 border-orange-300' : 'bg-blue-100 text-blue-700 border-blue-300';
                   const bl = pm.linkedWoId ? 'WO ACTIVE' : isSoon ? 'DUE SOON' : isNear ? 'UPCOMING' : 'SCHEDULED';
+                  const cd = this._calcCountdown(pm.dueDate, pm.dueTime);
+
                   return `
                     <tr class="hover:bg-surface-container/40 transition-colors ${isSoon ? 'bg-red-50/20' : ''}">
                       <td class="py-3.5 px-4">
@@ -1589,9 +2508,10 @@ export class MaintenanceDashboardView {
                         <div class="text-[10px] text-on-surface font-semibold mt-1 font-data-mono">${pm.scheduleRule}</div>
                       </td>
                       <td class="py-3.5 px-4">
-                        <div class="text-xs font-bold font-data-mono text-on-surface">${pm.dueDate}</div>
-                        <div class="text-[10px] font-data-mono font-bold ${isSoon ? 'text-red-600' : isNear ? 'text-orange-600' : 'text-on-surface-variant'}">
-                          ${pm.daysUntil === 0 ? 'Due Today' : `${pm.daysUntil} days away`}
+                        <div class="text-xs font-bold font-data-mono text-on-surface">${pm.dueDate} <span class="text-[10px] text-on-surface-variant font-normal">(${pm.dueTime || '08:00 AM'})</span></div>
+                        <div class="text-[10px] font-data-mono font-bold ${cd.urgency === 'critical' ? 'text-red-600' : cd.urgency === 'warning' ? 'text-orange-600' : 'text-emerald-700'} flex items-center gap-1 mt-0.5">
+                          <span class="material-symbols-outlined text-[12px]">timer</span>
+                          <span>${cd.clock}</span>
                         </div>
                       </td>
                       <td class="py-3.5 px-4">
@@ -1613,6 +2533,9 @@ export class MaintenanceDashboardView {
                       </td>
                       <td class="py-3.5 px-4 text-right">
                         <div class="flex items-center justify-end gap-1.5 flex-wrap">
+                          <button class="btn-start-pm-timer px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer transition-all flex items-center gap-1 active:scale-95 shadow-2xs" data-pmid="${pm.id}" title="Start Live Service Stopwatch">
+                            <span class="material-symbols-outlined text-[14px]">timer</span>Start Timer
+                          </button>
                           ${pm.linkedWoId ? `
                             <button class="btn-open-wo px-2.5 py-1.5 rounded-lg border border-teal-500 text-teal-700 hover:bg-teal-50 text-xs font-bold cursor-pointer transition-all flex items-center gap-1" data-woid="${pm.linkedWoId}">
                               <span class="material-symbols-outlined text-[13px]">build</span>WO: ${pm.linkedWoId}
@@ -1653,6 +2576,9 @@ export class MaintenanceDashboardView {
   _html_pmDrawer(pm) {
     if (!pm) return '';
     const futureCycles = this._calculateFutureCycles(pm.dueDate, pm.frequency, 4);
+    const cd = this._calcCountdown(pm.dueDate, pm.dueTime);
+    const machineAsset = this.assets.find(a => a.code === pm.assetCode);
+    const machineHistory = machineAsset && Array.isArray(machineAsset.history) ? machineAsset.history : [];
 
     return `
       <div id="pm-detail-backdrop" class="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm animate-fadeIn"></div>
@@ -1663,7 +2589,10 @@ export class MaintenanceDashboardView {
             <div class="flex items-center gap-2 mb-1 flex-wrap">
               <span class="px-2 py-0.5 rounded border text-[10px] font-bold font-data-mono bg-purple-100 text-purple-700 border-purple-300">${pm.frequency} Routine</span>
               <span class="px-2 py-0.5 rounded text-[10px] font-bold font-data-mono bg-surface-container-high text-primary border border-outline-variant">Cycle #${pm.cycleCount || 1}</span>
-              ${pm.daysUntil <= 2 ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-300 font-data-mono">🚨 DUE IN ' + pm.daysUntil + ' DAYS</span>' : ''}
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold font-data-mono ${cd.urgency === 'critical' ? 'bg-red-100 text-red-700 border border-red-300' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'} flex items-center gap-1">
+                <span class="material-symbols-outlined text-[12px]">timer</span>
+                <span>⏳ ${cd.clock} remaining</span>
+              </span>
             </div>
             <h2 class="font-bold text-lg text-primary leading-snug">${pm.title}</h2>
             <div class="flex items-center gap-3 mt-1 text-xs text-on-surface-variant flex-wrap">
@@ -1691,8 +2620,8 @@ export class MaintenanceDashboardView {
             <div class="text-xs font-bold text-on-surface mt-0.5">${pm.assignedTo}</div>
           </div>
           <div>
-            <div class="text-[9px] text-on-surface-variant font-data-mono uppercase tracking-wider">Last Serviced</div>
-            <div class="text-xs font-bold text-on-surface-variant mt-0.5">${pm.lastCompleted || 'Not recorded'}</div>
+            <div class="text-[9px] text-on-surface-variant font-data-mono uppercase tracking-wider">Countdown Clock</div>
+            <div class="text-xs font-bold font-data-mono ${cd.urgency === 'critical' ? 'text-red-600' : 'text-emerald-700'} mt-0.5">${cd.clock}</div>
           </div>
         </div>
 
@@ -1750,7 +2679,38 @@ export class MaintenanceDashboardView {
             </div>
           </div>
 
-          <!-- 4. SOP Instructions -->
+          <!-- 4. Past Engineer Service Log on this Machine -->
+          <div>
+            <div class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-2.5 font-data-mono flex items-center justify-between">
+              <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px] text-primary">history_edu</span>Past Engineer Service History on ${pm.assetCode}</span>
+              <button class="btn-view-asset-dossier text-[10px] font-bold text-primary hover:underline cursor-pointer" data-assetcode="${pm.assetCode}">
+                Full Machine Dossier →
+              </button>
+            </div>
+            <div class="space-y-2.5 bg-surface-container rounded-xl p-4 border border-outline-variant/60">
+              ${machineHistory.length > 0 ? machineHistory.slice(0, 3).map(h => {
+                if (typeof h === 'string') return `<div class="text-xs text-on-surface-variant">• ${h}</div>`;
+                const initials = (h.engineer || 'Eng').split(' ').map(n=>n[0]).join('').slice(0,2);
+                return `
+                  <div class="p-3 rounded-lg bg-surface-container-lowest border border-outline-variant/60 text-xs">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                      <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">${initials}</span>
+                        <strong class="text-on-surface">${h.engineer}</strong>
+                        <span class="text-on-surface-variant text-[10px]">(${h.engineerRole})</span>
+                      </div>
+                      <span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold font-data-mono text-[9px]">${h.duration}</span>
+                    </div>
+                    <div class="text-on-surface font-medium">${h.serviceType}</div>
+                    <p class="text-on-surface-variant mt-0.5 text-[11px]">${h.notes}</p>
+                    <div class="text-[9px] text-on-surface-variant/80 font-data-mono mt-1">${h.date}</div>
+                  </div>
+                `;
+              }).join('') : '<div class="text-xs text-on-surface-variant italic">No previous service records logged for this machine.</div>'}
+            </div>
+          </div>
+
+          <!-- 5. SOP Instructions -->
           ${pm.sop ? `
             <div>
               <div class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-2 font-data-mono">Safety & Standard Operating Procedure (SOP)</div>
@@ -1760,7 +2720,7 @@ export class MaintenanceDashboardView {
             </div>
           ` : ''}
 
-          <!-- 5. Notification Status & Actions -->
+          <!-- 6. Notification Status & Actions -->
           <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-center justify-between gap-3">
             <div>
               <div class="text-xs font-bold text-primary flex items-center gap-1">
@@ -1783,6 +2743,9 @@ export class MaintenanceDashboardView {
             Close
           </button>
           <div class="flex items-center gap-2">
+            <button class="btn-start-pm-timer px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95" data-pmid="${pm.id}">
+              <span class="material-symbols-outlined text-[16px]">timer</span>Start Service Timer
+            </button>
             ${pm.linkedWoId ? `
               <button class="btn-open-wo px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-sm" data-woid="${pm.linkedWoId}">
                 <span class="material-symbols-outlined text-[16px]">build</span>Open Active Work Order (${pm.linkedWoId})
@@ -2343,6 +3306,106 @@ export class MaintenanceDashboardView {
         this._createWoFromPm(b.dataset.pmid);
       };
     });
+
+    // ── Active Service Timer Bar Events ──────────────────────────────────────
+    const pauseTimerBtn = g('#btn-pause-service-timer');
+    if (pauseTimerBtn) {
+      pauseTimerBtn.onclick = () => {
+        this._pauseServiceTimer();
+      };
+    }
+
+    const completeTimerBtn = g('#btn-complete-service-timer');
+    if (completeTimerBtn) {
+      completeTimerBtn.onclick = () => {
+        this._stopAndLogServiceTimer();
+      };
+    }
+
+    // Start PM Service Timer
+    this.container.querySelectorAll('.btn-start-pm-timer').forEach(b => {
+      b.onclick = (e) => {
+        e.stopPropagation();
+        this._startServiceTimer(b.dataset.pmid);
+      };
+    });
+
+    // ── Machine Dossier & Engineer History Drawer ───────────────────────────
+    this.container.querySelectorAll('.btn-view-asset-dossier').forEach(b => {
+      b.onclick = (e) => {
+        e.stopPropagation();
+        this.activeAssetDetail = b.dataset.assetcode;
+        this.renderContent();
+      };
+    });
+
+    [g('#btn-close-asset-drawer'), g('#btn-close-asset-drawer2'), g('#asset-drawer-backdrop')].forEach(el => {
+      if (el) el.onclick = () => {
+        this.activeAssetDetail = null;
+        this.renderContent();
+      };
+    });
+
+    // ── Log Service Modal ───────────────────────────────────────────────────
+    this.container.querySelectorAll('.btn-open-log-service').forEach(b => {
+      b.onclick = (e) => {
+        e.stopPropagation();
+        this.showLogServiceModal = b.dataset.assetcode;
+        this.renderContent();
+      };
+    });
+
+    [g('#btn-close-log-service'), g('#btn-cancel-log-service'), g('#log-service-backdrop')].forEach(el => {
+      if (el) el.onclick = () => {
+        this.showLogServiceModal = null;
+        this.renderContent();
+      };
+    });
+
+    const submitLogSrvBtn = g('#btn-submit-log-service');
+    if (submitLogSrvBtn) {
+      submitLogSrvBtn.onclick = () => {
+        const assetCode = submitLogSrvBtn.dataset.assetcode;
+        const engineer = g('#log-srv-engineer')?.value || 'Tariq Mahmoud';
+        const duration = g('#log-srv-duration')?.value || '1h 00m';
+        const serviceType = g('#log-srv-type')?.value?.trim() || 'Scheduled PM Service';
+        const partsStr = g('#log-srv-parts')?.value?.trim() || '';
+        const notes = g('#log-srv-notes')?.value?.trim() || 'Service completed nominal. Operating tolerances verified.';
+
+        // Parse duration into minutes
+        let durationMinutes = 60;
+        if (duration.includes('m')) {
+          const matchH = duration.match(/(\d+)h/);
+          const matchM = duration.match(/(\d+)m/);
+          const h = matchH ? parseInt(matchH[1], 10) : 0;
+          const m = matchM ? parseInt(matchM[1], 10) : 0;
+          durationMinutes = (h * 60) + m;
+        }
+
+        const engineerRole = this.technicians.find(t => t.name === engineer)?.role || 'Service Engineer';
+        const parts = partsStr ? partsStr.split(',').map(p => p.trim()).filter(Boolean) : [];
+
+        const now = new Date();
+        const dateStr = `8 Sep 2026 • ${now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}`;
+
+        const entry = {
+          id: `srv-${Date.now()}`,
+          date: dateStr,
+          engineer,
+          engineerRole,
+          serviceType,
+          duration,
+          durationMinutes,
+          notes,
+          parts,
+          status: 'VERIFIED'
+        };
+
+        this._addServiceHistory(assetCode, entry);
+        this.showLogServiceModal = null;
+        this.renderContent();
+      };
+    }
   }
 
   async loadData() {
