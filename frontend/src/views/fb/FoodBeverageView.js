@@ -162,7 +162,7 @@ export class FoodBeverageView {
 
           <div class="border-l border-outline-variant/60 pl-6 text-right">
             <div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider font-data-mono">Current Station Lead</div>
-            <div class="text-sm font-extrabold text-on-surface mt-0.5">${activeSession.chefLead || 'Tariq Al-Hassan'}</div>
+            <div class="text-sm font-extrabold text-on-surface mt-0.5">${activeSession.leadChef || activeSession.chefLead || 'Tariq Al-Hassan'}</div>
           </div>
         </div>
       </div>
@@ -347,7 +347,7 @@ export class FoodBeverageView {
                     <h3 class="text-base font-extrabold text-on-surface">${s.title}</h3>
                     <div class="text-xs text-on-surface-variant mt-1 flex items-center gap-1">
                       <span class="material-symbols-outlined text-[14px]">person</span>
-                      Lead: <span class="font-bold text-on-surface">${s.chefLead}</span>
+                      Lead: <span class="font-bold text-on-surface">${s.leadChef || s.chefLead || 'Culinary Lead'}</span>
                     </div>
 
                     <div class="mt-4 pt-3 border-t border-outline-variant/40 space-y-2">
