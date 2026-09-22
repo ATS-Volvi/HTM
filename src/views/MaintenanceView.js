@@ -44,9 +44,16 @@ export class MaintenanceDashboardView {
     }
     this.pmSchedule = this.preventive;
 
-    // Start background second ticker for active stopwatch service timer
-    if (typeof window !== 'undefined' && !window._maintServiceTimerTicker) {
+    // Start background second ticker for active stopwatch service timer and live PM countdown clocks
+    if (typeof window !== 'undefined') {
+      if (!window._maintSimStartTime) {
+        window._maintSimStartTime = Date.now();
+      }
+      if (window._maintServiceTimerTicker) {
+        clearInterval(window._maintServiceTimerTicker);
+      }
       window._maintServiceTimerTicker = setInterval(() => {
+        // 1. Update active service stopwatch timer
         const timer = store?.state?.activeMaintenanceTimer;
         if (timer && !timer.isPaused) {
           timer.elapsedSeconds = (timer.elapsedSeconds || 0) + 1;
@@ -57,6 +64,21 @@ export class MaintenanceDashboardView {
             const s = timer.elapsedSeconds % 60;
             displayEl.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
           }
+        }
+
+        // 2. Real-time update for all preventive maintenance countdown clocks
+        const countdownEls = document.querySelectorAll('.pm-countdown-clock');
+        if (countdownEls.length > 0) {
+          countdownEls.forEach(el => {
+            const dueDate = el.dataset.dueDate;
+            const dueTime = el.dataset.dueTime || '08:00 AM';
+            if (dueDate) {
+              const cd = this._calcCountdown(dueDate, dueTime);
+              if (el.textContent !== cd.clock) {
+                el.textContent = cd.clock;
+              }
+            }
+          });
         }
       }, 1000);
     }
@@ -750,11 +772,11 @@ export class MaintenanceDashboardView {
   _calcCountdown(dueDateStr, dueTimeStr = '08:00 AM') {
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const parts = (dueDateStr || '').trim().split(' ');
-    if (parts.length < 3) return { text: 'Scheduled', clock: 'Scheduled', isOverdue: false, urgency: 'normal', days: 7, hours: 0, minutes: 0 };
+    if (parts.length < 3) return { text: 'Scheduled', clock: 'Scheduled', isOverdue: false, urgency: 'normal', days: 7, hours: 0, minutes: 0, seconds: 0 };
     const day = parseInt(parts[0], 10);
     const monthIdx = months.indexOf(parts[1]);
     const year = parseInt(parts[2], 10);
-    if (monthIdx === -1 || isNaN(day) || isNaN(year)) return { text: 'Scheduled', clock: 'Scheduled', isOverdue: false, urgency: 'normal', days: 7, hours: 0, minutes: 0 };
+    if (monthIdx === -1 || isNaN(day) || isNaN(year)) return { text: 'Scheduled', clock: 'Scheduled', isOverdue: false, urgency: 'normal', days: 7, hours: 0, minutes: 0, seconds: 0 };
 
     let hour = 8;
     let min = 0;
@@ -767,10 +789,13 @@ export class MaintenanceDashboardView {
       if (tp[1] === 'AM' && hour === 12) hour = 0;
     }
 
-    // Base simulation reference time: 8 Sep 2026, 08:00 AM
-    const base = new Date(2026, 8, 8, 8, 0, 0);
+    // Base simulation reference time: 8 Sep 2026, 08:00:00 AM + elapsed real-time milliseconds
+    const elapsedRealMs = (typeof window !== 'undefined' && window._maintSimStartTime)
+      ? (Date.now() - window._maintSimStartTime)
+      : 0;
+    const currentSimTime = new Date(2026, 8, 8, 8, 0, 0).getTime() + elapsedRealMs;
     const target = new Date(year, monthIdx, day, hour, min, 0);
-    const diffMs = target.getTime() - base.getTime();
+    const diffMs = target.getTime() - currentSimTime;
 
     if (diffMs <= 0) {
       const overdueHours = Math.max(1, Math.abs(Math.round(diffMs / (1000 * 60 * 60))));
@@ -780,22 +805,24 @@ export class MaintenanceDashboardView {
         clock: `🚨 Overdue (${overdueHours}h)`,
         isOverdue: true,
         urgency: 'critical',
-        days: 0, hours: 0, minutes: 0
+        days: 0, hours: 0, minutes: 0, seconds: 0
       };
     }
 
-    const totalMin = Math.floor(diffMs / (1000 * 60));
-    const days = Math.floor(totalMin / (60 * 24));
-    const hours = Math.floor((totalMin % (60 * 24)) / 60);
-    const minutes = totalMin % 60;
+    const totalSec = Math.floor(diffMs / 1000);
+    const days = Math.floor(totalSec / (3600 * 24));
+    const hours = Math.floor((totalSec % (3600 * 24)) / 3600);
+    const minutes = Math.floor((totalSec % 3600) / 60);
+    const seconds = totalSec % 60;
 
-    const clock = `${String(days).padStart(2,'0')}d : ${String(hours).padStart(2,'0')}h : ${String(minutes).padStart(2,'0')}m`;
-    const text = days > 0 ? `${days}d ${hours}h left` : `${hours}h ${minutes}m left`;
+    const clock = `${String(days).padStart(2,'0')}d : ${String(hours).padStart(2,'0')}h : ${String(minutes).padStart(2,'0')}m : ${String(seconds).padStart(2,'0')}s`;
+    const text = days > 0 ? `${days}d ${hours}h left` : `${hours}h ${minutes}m ${seconds}s left`;
 
     return {
       days,
       hours,
       minutes,
+      seconds,
       text,
       clock,
       isOverdue: false,
@@ -2399,7 +2426,7 @@ export class MaintenanceDashboardView {
                           <span class="text-[9px] text-on-surface-variant font-data-mono uppercase">Countdown:</span>
                           <span class="text-[10px] font-data-mono font-bold ${isCritSoon ? 'text-red-700' : 'text-amber-800'} flex items-center gap-1">
                             <span class="material-symbols-outlined text-[12px] animate-pulse">timer</span>
-                            ${cd.clock}
+                            <span class="pm-countdown-clock" data-pmid="${pm.id}" data-due-date="${pm.dueDate}" data-due-time="${pm.dueTime || '08:00 AM'}">${cd.clock}</span>
                           </span>
                         </div>
                       </div>
@@ -2511,7 +2538,7 @@ export class MaintenanceDashboardView {
                         <div class="text-xs font-bold font-data-mono text-on-surface">${pm.dueDate} <span class="text-[10px] text-on-surface-variant font-normal">(${pm.dueTime || '08:00 AM'})</span></div>
                         <div class="text-[10px] font-data-mono font-bold ${cd.urgency === 'critical' ? 'text-red-600' : cd.urgency === 'warning' ? 'text-orange-600' : 'text-emerald-700'} flex items-center gap-1 mt-0.5">
                           <span class="material-symbols-outlined text-[12px]">timer</span>
-                          <span>${cd.clock}</span>
+                          <span class="pm-countdown-clock" data-pmid="${pm.id}" data-due-date="${pm.dueDate}" data-due-time="${pm.dueTime || '08:00 AM'}">${cd.clock}</span>
                         </div>
                       </td>
                       <td class="py-3.5 px-4">
@@ -2591,7 +2618,7 @@ export class MaintenanceDashboardView {
               <span class="px-2 py-0.5 rounded text-[10px] font-bold font-data-mono bg-surface-container-high text-primary border border-outline-variant">Cycle #${pm.cycleCount || 1}</span>
               <span class="px-2 py-0.5 rounded text-[10px] font-bold font-data-mono ${cd.urgency === 'critical' ? 'bg-red-100 text-red-700 border border-red-300' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'} flex items-center gap-1">
                 <span class="material-symbols-outlined text-[12px]">timer</span>
-                <span>⏳ ${cd.clock} remaining</span>
+                <span>⏳ <span class="pm-countdown-clock" data-pmid="${pm.id}" data-due-date="${pm.dueDate}" data-due-time="${pm.dueTime || '08:00 AM'}">${cd.clock}</span> remaining</span>
               </span>
             </div>
             <h2 class="font-bold text-lg text-primary leading-snug">${pm.title}</h2>
@@ -2621,7 +2648,9 @@ export class MaintenanceDashboardView {
           </div>
           <div>
             <div class="text-[9px] text-on-surface-variant font-data-mono uppercase tracking-wider">Countdown Clock</div>
-            <div class="text-xs font-bold font-data-mono ${cd.urgency === 'critical' ? 'text-red-600' : 'text-emerald-700'} mt-0.5">${cd.clock}</div>
+            <div class="text-xs font-bold font-data-mono ${cd.urgency === 'critical' ? 'text-red-600' : 'text-emerald-700'} mt-0.5">
+              <span class="pm-countdown-clock" data-pmid="${pm.id}" data-due-date="${pm.dueDate}" data-due-time="${pm.dueTime || '08:00 AM'}">${cd.clock}</span>
+            </div>
           </div>
         </div>
 
