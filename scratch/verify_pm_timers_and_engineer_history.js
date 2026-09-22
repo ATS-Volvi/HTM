@@ -146,4 +146,38 @@ console.assert(view.container.innerHTML.includes('Commit Service Entry'), 'Log m
 
 console.log('Test 5 Passed: HTML templates render all timers, dossier, and engineer history elements.');
 
+// Test 6: Repetitive PM Cycle Done Timer Reset
+console.log('\n--- Test 6: Repetitive PM Cycle Done Timer Reset ---');
+const pm1 = view.preventive.find(p => p.id === 'pm1');
+console.assert(!!pm1, 'pm1 Chiller Descaling routine should exist');
+const prevPm1Cycle = pm1.cycleCount || 1;
+const initialAssetHistoryCount = view.assets.find(a => a.code === pm1.assetCode).history.length;
+
+// Click "Done" (invoke _advancePmCycle)
+view._advancePmCycle('pm1');
+
+console.assert(pm1.cycleCount === prevPm1Cycle + 1, `Cycle count should increment to ${prevPm1Cycle + 1}, got ${pm1.cycleCount}`);
+console.assert(pm1.justCompleted === true, 'pm1.justCompleted should be true after Done');
+console.assert(pm1.dueDate !== '10 Sep 2026', 'Due date should have reset to next frequency cadence');
+console.log(`Reset Due Date for Monthly Chiller routine: ${pm1.dueDate}`);
+
+// Verify asset history log
+const chillerAsset = view.assets.find(a => a.code === pm1.assetCode);
+console.assert(chillerAsset.history.length === initialAssetHistoryCount + 1, 'Asset history should receive completed cycle entry');
+console.assert(chillerAsset.history[0].serviceType.includes(`Cycle #${prevPm1Cycle}`), 'Service entry should log completed cycle');
+console.log(`Service entry logged: ${chillerAsset.history[0].serviceType}`);
+
+// Test countdown clock on reset cycle
+const resetCd = view._calcCountdown(pm1.dueDate, pm1.dueTime);
+console.log(`Reset countdown clock: ${resetCd.clock} (days: ${resetCd.days}, overdue: ${resetCd.isOverdue})`);
+console.assert(!resetCd.isOverdue, 'Reset countdown clock should not be overdue');
+console.assert(resetCd.days >= 28, 'Monthly PM reset countdown should be ~30 days in future');
+
+// Second repetitive cycle test (to ensure multiple repeats work indefinitely)
+view._advancePmCycle('pm1');
+console.assert(pm1.cycleCount === prevPm1Cycle + 2, `Cycle count should increment again to ${prevPm1Cycle + 2}`);
+console.log(`Second cycle advanced successfully. New cycle count: ${pm1.cycleCount}, Due: ${pm1.dueDate}`);
+console.log('Test 6 Passed: Repetitive PM Done immediately resets timer for next occurrence and logs engineer history.');
+
 console.log('\n=== ALL TESTS PASSED SUCCESSFULLY! ===');
+

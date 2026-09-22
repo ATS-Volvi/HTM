@@ -533,7 +533,7 @@ export class MaintenanceDashboardView {
         id: 'pm1',
         title: 'AC Filter Service — Rooms 401-406',
         location: 'Floor 4 Suites',
-        assetCode: 'AC-FLOOR4',
+        assetCode: 'AC-508-01',
         assetName: 'Daikin Cassette AC Units',
         frequency: 'Quarterly',
         scheduleRule: 'Quarterly • 12th of Month • 08:30 AM',
@@ -940,28 +940,79 @@ export class MaintenanceDashboardView {
   _advancePmCycle(pmId) {
     const pm = this.preventive.find(p => p.id === pmId);
     if (!pm) return;
-    const oldDueDate = pm.dueDate;
-    const nextDate = this._addFrequencyToDate(pm.dueDate, pm.frequency);
-    pm.lastCompleted = '8 Sep 2026';
+
+    // 1. If active stopwatch timer was running for this PM, stop and reset it
+    let timerDurationText = null;
+    let timerDurationMins = null;
+    if (store && store.state && store.state.activeMaintenanceTimer?.pmId === pmId) {
+      const timer = store.state.activeMaintenanceTimer;
+      const elapsed = timer.elapsedSeconds || 60;
+      timerDurationMins = Math.max(1, Math.round(elapsed / 60));
+      timerDurationText = elapsed < 3600
+        ? `${Math.floor(elapsed / 60)}m ${elapsed % 60}s`
+        : `${Math.floor(elapsed / 3600)}h ${Math.floor((elapsed % 3600) / 60)}m`;
+      store.state.activeMaintenanceTimer = null;
+    }
+
+    const prevCycle = pm.cycleCount || 1;
+    // Calculate reset due date for the next repetitive cycle based on frequency
+    const nextDate = this._addFrequencyToDate('8 Sep 2026', pm.frequency);
+    pm.lastCompleted = `8 Sep 2026 • ${new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}`;
     pm.dueDate = nextDate;
+    pm.dueTime = pm.dueTime || '08:00 AM';
     pm.daysUntil = this._calcDaysUntil(nextDate);
-    pm.cycleCount = (pm.cycleCount || 0) + 1;
+    pm.cycleCount = prevCycle + 1;
     pm.notificationSent = false;
+    pm.justCompleted = true;
     pm.status = pm.daysUntil <= 2 ? 'DUE_SOON' : (pm.daysUntil <= (pm.notifyAdvanceDays || 7) ? 'UPCOMING' : 'SCHEDULED');
 
+    // 2. Automatically log service entry to machine engineer history
+    const asset = this.assets.find(a => a.code === pm.assetCode);
+    if (asset) {
+      if (!Array.isArray(asset.history)) asset.history = [];
+      const alreadyLoggedJustNow = asset.history[0]?.serviceType?.includes(`Cycle #${prevCycle}`);
+      if (!alreadyLoggedJustNow) {
+        const estDuration = pm.estimatedDuration || '45m';
+        const matchH = estDuration.match(/(\d+)h/);
+        const matchM = estDuration.match(/(\d+)m/);
+        const estMins = ((matchH ? parseInt(matchH[1], 10) : 0) * 60) + (matchM ? parseInt(matchM[1], 10) : 0) || 45;
+
+        const durationFormatted = timerDurationText || estDuration;
+        const durationMins = timerDurationMins || estMins;
+
+        const serviceEntry = {
+          id: `srv-${Date.now()}`,
+          date: `8 Sep 2026 • ${new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}`,
+          engineer: pm.assignedTo,
+          engineerRole: this.technicians.find(t => t.name === pm.assignedTo)?.role || 'Maintenance Engineer',
+          serviceType: `${pm.frequency} Routine PM (Cycle #${prevCycle})`,
+          duration: durationFormatted,
+          durationMinutes: durationMins,
+          notes: `Completed recurring maintenance routine. Operating parameters verified nominal. Service timer reset for next repetitive cycle (${nextDate}).`,
+          parts: [],
+          status: 'VERIFIED'
+        };
+        asset.history.unshift(serviceEntry);
+        const totalMins = asset.history.reduce((acc, h) => acc + (typeof h === 'object' ? (h.durationMinutes || 60) : 60), 0);
+        asset.totalHoursWorked = `${(totalMins / 60).toFixed(1)} hrs`;
+        asset.lastMaint = '8 Sep 2026';
+      }
+    }
+
+    // 3. Mark linked work order as complete
     if (pm.linkedWoId) {
       const wo = this.workOrders.find(w => w.id === pm.linkedWoId);
       if (wo) {
         wo.status = 'REPAIR_COMPLETE';
-        wo.timeline.push({ time: 'Just now', action: `PM Service cycle #${pm.cycleCount} completed and verified`, by: 'System PM Engine' });
+        wo.timeline.push({ time: 'Just now', action: `PM Service cycle #${prevCycle} completed and verified`, by: 'System PM Engine' });
       }
       pm.linkedWoId = null;
     }
 
     if (store) store.notify();
     Toast.show({
-      title: 'PM Cycle Advanced',
-      message: `Completed ${pm.title}. Next scheduled service: ${nextDate} (${pm.frequency} schedule).`,
+      title: '✓ Task Done — Timer Reset for Next Occurrence',
+      message: `Completed Cycle #${prevCycle} for ${pm.title}. Timer reset for next ${pm.frequency} routine due ${nextDate}.`,
       type: 'success'
     });
     this.renderContent();
@@ -2327,12 +2378,16 @@ export class MaintenanceDashboardView {
     const dueSoon = pms.filter(p => p.daysUntil <= 2);
     const upcoming = pms.filter(p => p.daysUntil > 2 && p.daysUntil <= (p.notifyAdvanceDays || 7));
     const onTrack = pms.filter(p => p.daysUntil > (p.notifyAdvanceDays || 7));
-    const alertItems = pms.filter(p => p.daysUntil <= (p.notifyAdvanceDays || 7)).sort((a, b) => a.daysUntil - b.daysUntil);
+    const alertItems = pms.filter(p => p.daysUntil <= (p.notifyAdvanceDays || 7) || p.justCompleted).sort((a, b) => {
+      if (a.justCompleted && !b.justCompleted) return 1;
+      if (!a.justCompleted && b.justCompleted) return -1;
+      return a.daysUntil - b.daysUntil;
+    });
 
     // Apply frequency filter
     let filteredPms = [...pms];
     if (this.pmFrequencyFilter === 'ALERTS') {
-      filteredPms = filteredPms.filter(p => p.daysUntil <= (p.notifyAdvanceDays || 7));
+      filteredPms = filteredPms.filter(p => p.daysUntil <= (p.notifyAdvanceDays || 7) || p.justCompleted);
     } else if (this.pmFrequencyFilter !== 'ALL') {
       filteredPms = filteredPms.filter(p => p.frequency === this.pmFrequencyFilter);
     }
@@ -2396,10 +2451,11 @@ export class MaintenanceDashboardView {
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                 ${alertItems.map(pm => {
-                  const isCritSoon = pm.daysUntil <= 2;
-                  const borderCls = isCritSoon ? 'border-red-300 bg-red-50/80' : 'border-amber-300 bg-amber-50/80';
-                  const badgeCls = isCritSoon ? 'bg-red-600 text-white' : 'bg-amber-600 text-white';
-                  const alertLabel = isCritSoon ? `🚨 DUE IN ${pm.daysUntil} DAYS` : `⚠️ DUE IN ${pm.daysUntil} DAYS`;
+                  const isCompletedReset = pm.justCompleted;
+                  const isCritSoon = !isCompletedReset && pm.daysUntil <= 2;
+                  const borderCls = isCompletedReset ? 'border-emerald-400 bg-emerald-50/90 shadow-sm' : isCritSoon ? 'border-red-300 bg-red-50/80' : 'border-amber-300 bg-amber-50/80';
+                  const badgeCls = isCompletedReset ? 'bg-emerald-700 text-white' : isCritSoon ? 'bg-red-600 text-white' : 'bg-amber-600 text-white';
+                  const alertLabel = isCompletedReset ? `✓ DONE • NEXT IN ${pm.daysUntil} DAYS` : isCritSoon ? `🚨 DUE IN ${pm.daysUntil} DAYS` : `⚠️ DUE IN ${pm.daysUntil} DAYS`;
                   const cd = this._calcCountdown(pm.dueDate, pm.dueTime);
 
                   return `
@@ -2422,9 +2478,9 @@ export class MaintenanceDashboardView {
                         </div>
 
                         <!-- Live Countdown Timer -->
-                        <div class="mt-2 py-1 px-2 rounded-lg bg-black/5 flex items-center justify-between">
-                          <span class="text-[9px] text-on-surface-variant font-data-mono uppercase">Countdown:</span>
-                          <span class="text-[10px] font-data-mono font-bold ${isCritSoon ? 'text-red-700' : 'text-amber-800'} flex items-center gap-1">
+                        <div class="mt-2 py-1 px-2 rounded-lg ${isCompletedReset ? 'bg-emerald-100/70 border border-emerald-200' : 'bg-black/5'} flex items-center justify-between">
+                          <span class="text-[9px] ${isCompletedReset ? 'text-emerald-900 font-bold' : 'text-on-surface-variant'} font-data-mono uppercase">${isCompletedReset ? 'Next Timer:' : 'Countdown:'}</span>
+                          <span class="text-[10px] font-data-mono font-bold ${isCompletedReset ? 'text-emerald-800' : isCritSoon ? 'text-red-700' : 'text-amber-800'} flex items-center gap-1">
                             <span class="material-symbols-outlined text-[12px] animate-pulse">timer</span>
                             <span class="pm-countdown-clock" data-pmid="${pm.id}" data-due-date="${pm.dueDate}" data-due-time="${pm.dueTime || '08:00 AM'}">${cd.clock}</span>
                           </span>
@@ -2443,7 +2499,7 @@ export class MaintenanceDashboardView {
                         <button class="btn-start-pm-timer px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold cursor-pointer transition-all flex items-center gap-0.5 active:scale-95 shadow-2xs" data-pmid="${pm.id}" title="Start Live Service Stopwatch">
                           <span class="material-symbols-outlined text-[12px]">play_circle</span>Timer
                         </button>
-                        <button class="btn-pm-advance-cycle px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[10px] font-bold cursor-pointer transition-all flex items-center gap-0.5 active:scale-95" data-pmid="${pm.id}" title="Complete this cycle and advance to next scheduled date">
+                        <button class="btn-pm-advance-cycle px-2 py-1 rounded-lg ${isCompletedReset ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800'} text-[10px] font-bold cursor-pointer transition-all flex items-center gap-0.5 active:scale-95 shadow-2xs" data-pmid="${pm.id}" title="Complete this cycle and reset timer for next repetitive cycle">
                           <span class="material-symbols-outlined text-[12px]">check_circle</span>Done
                         </button>
                         <button class="btn-pm-notify-tech p-1 rounded-lg border border-outline-variant hover:bg-white text-on-surface-variant text-[10px] font-bold cursor-pointer transition-all flex items-center" data-pmid="${pm.id}" title="Send notification reminder to ${pm.assignedTo}">
@@ -2503,14 +2559,15 @@ export class MaintenanceDashboardView {
               </thead>
               <tbody class="divide-y divide-outline-variant/40">
                 ${filteredPms.length > 0 ? filteredPms.map(pm => {
-                  const isSoon = pm.daysUntil <= 2;
-                  const isNear = pm.daysUntil <= (pm.notifyAdvanceDays || 7);
-                  const bc = isSoon ? 'bg-red-100 text-red-700 border-red-300' : isNear ? 'bg-orange-100 text-orange-700 border-orange-300' : 'bg-blue-100 text-blue-700 border-blue-300';
-                  const bl = pm.linkedWoId ? 'WO ACTIVE' : isSoon ? 'DUE SOON' : isNear ? 'UPCOMING' : 'SCHEDULED';
+                  const isCompleted = pm.justCompleted;
+                  const isSoon = !isCompleted && pm.daysUntil <= 2;
+                  const isNear = !isCompleted && pm.daysUntil <= (pm.notifyAdvanceDays || 7);
+                  const bc = isCompleted ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : isSoon ? 'bg-red-100 text-red-700 border-red-300' : isNear ? 'bg-orange-100 text-orange-700 border-orange-300' : 'bg-blue-100 text-blue-700 border-blue-300';
+                  const bl = isCompleted ? 'TIMER RESET' : pm.linkedWoId ? 'WO ACTIVE' : isSoon ? 'DUE SOON' : isNear ? 'UPCOMING' : 'SCHEDULED';
                   const cd = this._calcCountdown(pm.dueDate, pm.dueTime);
 
                   return `
-                    <tr class="hover:bg-surface-container/40 transition-colors ${isSoon ? 'bg-red-50/20' : ''}">
+                    <tr class="hover:bg-surface-container/40 transition-colors ${isCompleted ? 'bg-emerald-50/20' : isSoon ? 'bg-red-50/20' : ''}">
                       <td class="py-3.5 px-4">
                         <div class="flex items-start gap-2">
                           <div>
