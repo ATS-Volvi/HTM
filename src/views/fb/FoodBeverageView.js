@@ -102,7 +102,6 @@ export class FoodBeverageView {
 
     const fb = this.fb;
     const activeSession = fb.mealSessions?.find(s => s.status === 'ACTIVE_SERVICE') || fb.mealSessions?.[1] || { title: 'Lunch Service', timeSlot: '12:00 PM – 03:00 PM' };
-    const ramadanMode = fb.ramadanMode;
 
     const lowStockIngredients = (fb.ingredients || []).filter(i => i.stock <= i.minPar);
 
@@ -111,10 +110,8 @@ export class FoodBeverageView {
       <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-outline-variant/60 pb-5">
         <div>
           <div class="flex items-center gap-2">
-            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-              ramadanMode ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-primary/10 text-primary border border-primary/20'
-            }">
-              ${ramadanMode ? '🌙 Ramadan Catering Mode' : 'Culinary Operations & Camp Catering'}
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+              Culinary Operations & Camp Catering
             </span>
             <span class="text-xs text-on-surface-variant font-data-mono">• Grand Meridian Kitchens</span>
           </div>
@@ -128,14 +125,6 @@ export class FoodBeverageView {
         </div>
 
         <div class="flex items-center gap-2 flex-wrap">
-          <!-- Ramadan Mode Switcher -->
-          <button id="btn-toggle-ramadan" class="px-3 py-2 rounded-xl border border-outline-variant text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-            ramadanMode ? 'bg-amber-500 text-white shadow-xs border-amber-600' : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
-          }">
-            <span class="material-symbols-outlined text-[16px]">bedtime</span>
-            ${ramadanMode ? 'Ramadan Active (Suhoor/Iftar)' : 'Enable Ramadan Mode'}
-          </button>
-
           <!-- Quick AI Recipe Launch Button in Global Header -->
           <button id="btn-header-ai-recipe" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer active:scale-95">
             <span class="material-symbols-outlined text-[16px] animate-spin-slow">auto_awesome</span>
@@ -473,7 +462,6 @@ export class FoodBeverageView {
     const fb = this.fb;
     const days = fb.weeklyPlan || [];
     const currentDay = days.find(d => d.dayIndex === this.selectedDayIndex) || days[0];
-    const ramadanMode = fb.ramadanMode;
 
     const dishIds = this.selectedMealType === 'Breakfast'
       ? currentDay.breakfastDishes
@@ -579,7 +567,7 @@ export class FoodBeverageView {
                     : 'text-on-surface-variant hover:text-on-surface'
                 }" data-meal="${meal}">
                   <span class="material-symbols-outlined text-[16px]">${icon}</span>
-                  ${ramadanMode && meal === 'Breakfast' ? 'Suhoor' : ramadanMode && meal === 'Dinner' ? 'Iftar' : meal}
+                  ${meal}
                 </button>
               `;
             }).join('')}
@@ -1572,11 +1560,6 @@ export class FoodBeverageView {
     });
 
     // Dashboard quick buttons
-    this.container.querySelector('#btn-toggle-ramadan')?.addEventListener('click', () => {
-      store.toggleRamadanMode();
-      this.renderContent();
-    });
-
     this.container.querySelector('#btn-quick-meal-scan')?.addEventListener('click', () => {
       this.showLogMealModal = true;
       this.renderContent();
